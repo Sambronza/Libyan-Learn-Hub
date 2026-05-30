@@ -170,7 +170,7 @@ export default function ManageCourse() {
       let videoFilePath = data.videoFilePath || '';
       let documentFilePath = data.documentFilePath || '';
       let documentFileName = data.documentFileName || '';
-      let duration = parseInt(data.duration) || 0;
+      let duration = data.type === 'text' ? 0 : (parseInt(data.duration) || 0);
 
       if (videoFile) {
         setUploadProgress('Uploading video...');
@@ -216,7 +216,7 @@ export default function ManageCourse() {
       let videoFilePath = data.videoFilePath || '';
       let documentFilePath = data.documentFilePath || '';
       let documentFileName = data.documentFileName || '';
-      let duration = parseInt(data.duration) || 0;
+      let duration = data.type === 'text' ? 0 : (parseInt(data.duration) || 0);
 
       if (videoFile) {
         setUploadProgress('Uploading video...');
@@ -494,11 +494,13 @@ export default function ManageCourse() {
       </div>
 
       <div className="grid grid-cols-2 gap-3">
-        <div>
-          <label className="text-sm font-medium mb-1 block">Duration (seconds)</label>
-          <Input type="number" min="0" {...lessonForm.register('duration', { valueAsNumber: true })} placeholder="600" />
-        </div>
-        <div className="flex flex-col justify-end">
+        {watchType !== 'text' && (
+          <div>
+            <label className="text-sm font-medium mb-1 block">Duration (seconds)</label>
+            <Input type="number" min="0" {...lessonForm.register('duration', { valueAsNumber: true })} placeholder="600" />
+          </div>
+        )}
+        <div className={`flex flex-col justify-end ${watchType === 'text' ? 'col-span-2' : ''}`}>
           <label className="flex items-center gap-2 cursor-pointer">
             <input type="checkbox" {...lessonForm.register('isFree')} className="w-4 h-4 rounded" />
             <span className="text-sm font-medium">Free Preview</span>

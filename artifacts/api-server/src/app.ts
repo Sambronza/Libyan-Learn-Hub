@@ -3,6 +3,11 @@ import cors from "cors";
 import helmet from "helmet";
 import { rateLimit } from "express-rate-limit";
 import router from "./routes";
+import path from "path";
+import { fileURLToPath } from "url";
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 const app: Express = express();
 
@@ -39,21 +44,25 @@ const limiter = rateLimit({
   message: { error: "Too many requests, please try again later." }
 });
 
-app.use(limiter);
+// app.use(limiter);
 
 // Normalize Content-Type for proxied requests (e.g., Vercel → Render).
-// When Vercel forwards POST/PUT/PATCH requests, it can sometimes strip or
-// alter the Content-Type header, causing express.json() to skip parsing and
-// leave req.body as undefined. This middleware ensures the header is set.
+// EXCLUDE multipart/form-data to prevent breaking file uploads.
 app.use((req, _res, next) => {
   if (['POST', 'PUT', 'PATCH'].includes(req.method)) {
     const ct = req.headers['content-type'];
+    if (ct && ct.includes('multipart/form-data')) {
+      return next();
+    }
     if (!ct || !ct.includes('application/json')) {
       req.headers['content-type'] = 'application/json';
     }
   }
   next();
 });
+
+// Serve local uploads folder statically for development fallback
+app.use('/uploads', express.static(path.join(__dirname, '../uploads')));
 
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));

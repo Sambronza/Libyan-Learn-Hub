@@ -9,6 +9,7 @@ import { sendEmail } from "../lib/email.js";
 import { rateLimit } from "express-rate-limit";
 import { PLANS } from "../lib/plans.js";
 import type { TeacherTier } from "../lib/plans.js";
+import nodemailer from "nodemailer";
 
 const router = Router();
 
@@ -128,10 +129,6 @@ router.post("/register", authLimiter, async (req, res) => {
         createdAt: user.createdAt,
       },
       token,
-      otpCode,
-      otpMessage: user.phoneNumber
-        ? `Your verification code is: ${otpCode} (In production this would be sent via SMS to ${user.phoneNumber})`
-        : `Your email verification code is: ${otpCode}`,
     });
   } catch (err: any) {
     res.status(400).json({ error: "Validation failed", message: err.message });
@@ -156,13 +153,39 @@ router.post("/send-otp", requireAuth, async (req, res) => {
       }).catch((err) => console.error("Failed to send OTP email:", err));
     }
 
-    res.json({
-      message: "OTP sent",
-      otpCode,
-      otpMessage: user.phoneNumber
-        ? `Your verification code is: ${otpCode} (In production this would be sent via SMS to ${user.phoneNumber})`
-        : `Your verification code is: ${otpCode}`,
-    });
+    res.json({ message: "OTP sent to your email" });
+  } catch (err: any) {
+    res.status(500).json({ error: "Server error", message: err.message });
+  }
+});
+
+router.post("/resend-otp", authLimiter, async (req, res) => {
+  try {
+    const { email } = req.body;
+    if (!email) {
+      res.status(400).json({ error: "Email is required" });
+      return;
+    }
+    const [user] = await db.select().from(usersTable).where(eq(usersTable.email, email)).limit(1);
+    if (!user) {
+      res.status(404).json({ error: "User not found" });
+      return;
+    }
+    const otpCode = generateOtp();
+    const otpExpiry = new Date(Date.now() + 10 * 60 * 1000);
+    await db.update(usersTable)
+      .set({ otpCode, otpExpiry })
+      .where(eq(usersTable.id, user.id));
+
+    if (!user.phoneNumber && user.email) {
+      sendEmail({
+        to: user.email,
+        subject: "Libyan Learn Hub - Verification Code",
+        text: `Hello ${user.fullName || "User"},\n\nYour new email verification code is: ${otpCode}\n\nThis code will expire in 10 minutes.`,
+      }).catch((err) => console.error("Failed to send resend OTP email:", err));
+    }
+
+    res.json({ message: "A new code has been sent to your email" });
   } catch (err: any) {
     res.status(500).json({ error: "Server error", message: err.message });
   }
@@ -467,13 +490,7 @@ router.post("/forgot-password", authLimiter, async (req, res) => {
       }).catch((err) => console.error("Failed to send password reset email:", err));
     }
 
-    res.json({
-      message: "Reset code sent",
-      otpCode, // Returned for dev purposes
-      otpMessage: user.phoneNumber
-        ? `Your password reset code is: ${otpCode} (Mock SMS to ${user.phoneNumber})`
-        : `Your password reset code is: ${otpCode} (Mock Email to ${user.email})`,
-    });
+    res.json({ message: "Reset code sent to your email" });
   } catch (err: any) {
     res.status(500).json({ error: "Server error", message: err.message });
   }
