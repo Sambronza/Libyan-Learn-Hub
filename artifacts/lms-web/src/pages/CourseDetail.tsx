@@ -142,8 +142,8 @@ export default function CourseDetail() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex flex-col lg:flex-row gap-12 relative z-10">
           <div className="flex-1">
             <div className="flex items-center gap-3 mb-6">
-              <span className="px-3 py-1 rounded-full bg-white/10 text-sm font-medium">{course.category?.name}</span>
-              <span className="px-3 py-1 rounded-full bg-primary/20 text-primary-foreground text-sm font-medium capitalize">{course.level}</span>
+              <span className="px-3 py-1 rounded-full bg-white/10 text-sm font-medium">{language === 'ar' ? course.category?.nameAr || course.category?.name : course.category?.name}</span>
+              <span className="px-3 py-1 rounded-full bg-primary/20 text-primary-foreground text-sm font-medium capitalize">{t(`courses.${course.level}`)}</span>
             </div>
             <h1 className="text-2xl sm:text-4xl lg:text-5xl font-display font-bold mb-6 leading-tight">
               {language === 'ar' ? course.titleAr : course.title}
@@ -157,18 +157,18 @@ export default function CourseDetail() {
                   {course.teacherName.charAt(0)}
                 </div>
                 <div>
-                  <div className="text-xs opacity-70">Instructor</div>
+                  <div className="text-xs opacity-70">{t('معلم', 'Instructor')}</div>
                   <div className="font-semibold text-background">{course.teacherName}</div>
                 </div>
               </div>
               <div className="h-10 w-px bg-white/10 hidden sm:block"></div>
               <div>
-                <div className="text-xs opacity-70">Enrolled</div>
-                <div className="font-semibold text-background">{course.enrollmentCount} students</div>
+                <div className="text-xs opacity-70">{t('مسجل', 'Enrolled')}</div>
+                <div className="font-semibold text-background">{course.enrollmentCount} {t('طلاب', 'students')}</div>
               </div>
               <div className="h-10 w-px bg-white/10 hidden sm:block"></div>
               <div>
-                <div className="text-xs opacity-70">Last Updated</div>
+                <div className="text-xs opacity-70">{t('آخر تحديث', 'Last Updated')}</div>
                 <div className="font-semibold text-background">{new Date(course.createdAt).toLocaleDateString()}</div>
               </div>
             </div>
@@ -188,14 +188,14 @@ export default function CourseDetail() {
               </div>
               <div className="p-8">
                 <div className="text-3xl font-bold mb-6">
-                  {course.price === 0 ? 'Free' : `${course.price} LYD`}
+                  {course.price === 0 ? t('مجاناً', 'Free') : `${course.price} LYD`}
                 </div>
                 
                 {course.isEnrolled ? (
                   <>
                     <Link href={`/courses/${course.id}/learn`}>
                       <Button className="w-full h-14 text-lg rounded-xl mb-3 bg-secondary text-secondary-foreground hover:bg-secondary/90">
-                        Go to Lessons
+                        {t('اذهب للدروس', 'Go to Lessons')}
                       </Button>
                     </Link>
                     <Button 
@@ -203,7 +203,7 @@ export default function CourseDetail() {
                       className="w-full mb-4 border-amber-200 text-amber-700 hover:bg-amber-50 gap-2"
                       onClick={() => setShowReviewModal(true)}
                     >
-                      <Star className="w-4 h-4 fill-amber-500" /> Write a Review
+                      <Star className="w-4 h-4 fill-amber-500" /> {t('اكتب مراجعة', 'Write a Review')}
                     </Button>
                   </>
                 ) : (
@@ -212,27 +212,27 @@ export default function CourseDetail() {
                     disabled={enrolling}
                     className="w-full h-14 text-lg rounded-xl mb-4 bg-primary hover:bg-primary/90 shadow-lg shadow-primary/25"
                   >
-                    {enrolling ? 'Processing...' : 'Enroll Now'}
+                    {enrolling ? t('جاري المعالجة...', 'Processing...') : t('اشترك الآن', 'Enroll Now')}
                   </Button>
                 )}
                 
-                <p className="text-center text-xs text-muted-foreground mb-4">30-Day Money-Back Guarantee</p>
+                <p className="text-center text-xs text-muted-foreground mb-4">{t('ضمان استرداد الأموال لمدة 30 يومًا', '30-Day Money-Back Guarantee')}</p>
 
                 <div className="flex justify-center mb-6">
                   <Button variant="ghost" size="sm" className="text-xs text-muted-foreground hover:text-destructive gap-1" onClick={() => setReportCourse(true)}>
-                    <Flag className="w-3 h-3" /> Report Course
+                    <Flag className="w-3 h-3" /> {t('الإبلاغ عن الدورة', 'Report Course')}
                   </Button>
                 </div>
                 
                 <div className="space-y-4 text-sm font-medium">
                   <div className="flex items-center gap-3">
-                    <PlayCircle className="w-5 h-5 text-primary" /> {course.lessonCount} video lessons
+                    <PlayCircle className="w-5 h-5 text-primary" /> {course.lessonCount} {t('درس فيديو', 'video lessons')}
                   </div>
                   <div className="flex items-center gap-3">
-                    <Clock className="w-5 h-5 text-primary" /> {Math.round(course.totalDuration / 60)} hours total length
+                    <Clock className="w-5 h-5 text-primary" /> {Math.round(course.totalDuration / 60)} {t('ساعات إجمالي الوقت', 'hours total length')}
                   </div>
                   <div className="flex items-center gap-3">
-                    <ShieldAlert className="w-5 h-5 text-secondary" /> Protected content (no downloads)
+                    <ShieldAlert className="w-5 h-5 text-secondary" /> {t('محتوى محمي (بدون تنزيلات)', 'Protected content (no downloads)')}
                   </div>
                 </div>
               </div>
@@ -244,7 +244,7 @@ export default function CourseDetail() {
       {/* Content Section */}
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16 lg:py-24 flex flex-col lg:flex-row gap-12">
         <div className="flex-1 max-w-3xl">
-          <h2 className="text-2xl font-display font-bold mb-6">Course Curriculum</h2>
+          <h2 className="text-2xl font-display font-bold mb-6">{t('منهج الدورة', 'Course Curriculum')}</h2>
           <div className="bg-card border border-border rounded-2xl overflow-hidden shadow-sm">
             {course.lessons.map((lesson, idx) => (
               <div key={lesson.id} className={`p-4 sm:p-5 flex items-start gap-4 ${idx !== 0 ? 'border-t border-border' : ''} hover:bg-muted/50 transition-colors`}>
@@ -256,7 +256,7 @@ export default function CourseDetail() {
                     {idx + 1}. {language === 'ar' ? lesson.titleAr : lesson.title}
                   </h4>
                   {lesson.isFree && !course.isEnrolled && (
-                    <span className="inline-block mt-1 text-xs px-2 py-0.5 bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400 rounded">Free Preview</span>
+                    <span className="inline-block mt-1 text-xs px-2 py-0.5 bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400 rounded">{t('معاينة مجانية', 'Free Preview')}</span>
                   )}
                 </div>
                 <div className="text-sm text-muted-foreground whitespace-nowrap">
@@ -267,7 +267,7 @@ export default function CourseDetail() {
           </div>
 
           <div className="mt-16">
-            <h2 className="text-2xl font-display font-bold mb-6">About the Instructor</h2>
+            <h2 className="text-2xl font-display font-bold mb-6">{t('عن المعلم', 'About the Instructor')}</h2>
             {course.teacher && (
               <div className="flex items-start gap-6 p-6 bg-primary/5 rounded-2xl border border-primary/10">
                  <div className="w-20 h-20 rounded-full bg-primary/20 flex items-center justify-center text-primary font-bold text-2xl shrink-0 overflow-hidden">
@@ -275,9 +275,9 @@ export default function CourseDetail() {
                 </div>
                 <div>
                   <h3 className="font-bold text-xl text-foreground mb-1">{course.teacher.fullName}</h3>
-                  <p className="text-primary font-medium mb-4">{course.teacher.expertise || 'Expert Instructor'}</p>
+                  <p className="text-primary font-medium mb-4">{course.teacher.expertise || t('معلم خبير', 'Expert Instructor')}</p>
                   <p className="text-muted-foreground leading-relaxed text-sm">
-                    {course.teacher.bio || 'This instructor has not provided a biography yet. They are a valued member of the EduLibya community teaching high-quality courses.'}
+                    {course.teacher.bio || t('لم يقدم هذا المعلم سيرة ذاتية بعد. هو عضو قيم في مجتمع إديوليبيا يدرس دورات عالية الجودة.', 'This instructor has not provided a biography yet. They are a valued member of the EduLibya community teaching high-quality courses.')}
                   </p>
                 </div>
               </div>
@@ -324,27 +324,27 @@ export default function CourseDetail() {
       <Dialog open={reportCourse} onOpenChange={setReportCourse}>
         <DialogContent className="sm:max-w-[425px]">
           <DialogHeader>
-            <DialogTitle>Report Course</DialogTitle>
+            <DialogTitle>{t('الإبلاغ عن الدورة', 'Report Course')}</DialogTitle>
           </DialogHeader>
           <form onSubmit={handleReportSubmit(submitReport)} className="space-y-4 mt-4">
-            <div className="text-sm mb-4">You are reporting the course <span className="font-bold">{language === 'ar' ? course?.titleAr : course?.title}</span>.</div>
+            <div className="text-sm mb-4">{t('أنت تبلغ عن الدورة', 'You are reporting the course')} <span className="font-bold">{language === 'ar' ? course?.titleAr : course?.title}</span>.</div>
             <div>
-              <label className="text-sm font-medium mb-1 block">Reason *</label>
+              <label className="text-sm font-medium mb-1 block">{t('السبب', 'Reason')} *</label>
               <select {...registerReport('reason', { required: true })} className="w-full h-10 px-3 rounded-md border border-input bg-background text-sm">
-                <option value="">Select a reason</option>
-                <option value="inappropriate_behavior">Inappropriate Content</option>
-                <option value="spam">Spam / Low Quality</option>
-                <option value="copyright">Copyright Violation</option>
-                <option value="other">Other</option>
+                <option value="">{t('اختر سببًا', 'Select a reason')}</option>
+                <option value="inappropriate_behavior">{t('محتوى غير لائق', 'Inappropriate Content')}</option>
+                <option value="spam">{t('بريد مزعج / جودة منخفضة', 'Spam / Low Quality')}</option>
+                <option value="copyright">{t('انتهاك حقوق الطبع والنشر', 'Copyright Violation')}</option>
+                <option value="other">{t('أخرى', 'Other')}</option>
               </select>
             </div>
             <div>
-              <label className="text-sm font-medium mb-1 block">Description (optional)</label>
-              <Textarea {...registerReport('description')} placeholder="Please provide more details..." rows={3} />
+              <label className="text-sm font-medium mb-1 block">{t('الوصف (اختياري)', 'Description (optional)')}</label>
+              <Textarea {...registerReport('description')} placeholder={t('يرجى تقديم المزيد من التفاصيل...', 'Please provide more details...')} rows={3} />
             </div>
             <div className="flex gap-3 pt-2">
-              <Button type="button" variant="outline" className="flex-1" onClick={() => setReportCourse(false)}>Cancel</Button>
-              <Button type="submit" variant="destructive" className="flex-1">Submit Report</Button>
+              <Button type="button" variant="outline" className="flex-1" onClick={() => setReportCourse(false)}>{t('إلغاء', 'Cancel')}</Button>
+              <Button type="submit" variant="destructive" className="flex-1">{t('إرسال التقرير', 'Submit Report')}</Button>
             </div>
           </form>
         </DialogContent>
@@ -354,10 +354,10 @@ export default function CourseDetail() {
       <Dialog open={showReviewModal} onOpenChange={setShowReviewModal}>
         <DialogContent className="sm:max-w-[425px]">
           <DialogHeader>
-            <DialogTitle>Write a Review</DialogTitle>
+            <DialogTitle>{t('اكتب مراجعة', 'Write a Review')}</DialogTitle>
           </DialogHeader>
           <div className="py-6 flex flex-col items-center">
-            <p className="text-sm text-muted-foreground mb-4 text-center">How would you rate your experience with this course?</p>
+            <p className="text-sm text-muted-foreground mb-4 text-center">{t('كيف تقيم تجربتك مع هذه الدورة؟', 'How would you rate your experience with this course?')}</p>
             <div className="flex gap-2 mb-6">
               {[1, 2, 3, 4, 5].map((star) => (
                 <button 
@@ -371,22 +371,22 @@ export default function CourseDetail() {
               ))}
             </div>
             <div className="w-full">
-              <label className="text-sm font-medium mb-1 block">Your Recommendation</label>
+              <label className="text-sm font-medium mb-1 block">{t('توصيتك', 'Your Recommendation')}</label>
               <Textarea 
                 value={reviewComment}
                 onChange={(e) => setReviewComment(e.target.value)}
-                placeholder="What did you like about this course? Would you recommend it?" 
+                placeholder={t('ما الذي أعجبك في هذه الدورة؟ هل توصي بها؟', 'What did you like about this course? Would you recommend it?')} 
                 rows={4} 
               />
             </div>
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setShowReviewModal(false)}>Cancel</Button>
+            <Button variant="outline" onClick={() => setShowReviewModal(false)}>{t('إلغاء', 'Cancel')}</Button>
             <Button 
               onClick={() => submitReview.mutate()} 
               disabled={submitReview.isPending}
             >
-              {submitReview.isPending ? 'Submitting...' : 'Submit Review'}
+              {submitReview.isPending ? t('جاري الإرسال...', 'Submitting...') : t('إرسال المراجعة', 'Submit Review')}
             </Button>
           </DialogFooter>
         </DialogContent>
