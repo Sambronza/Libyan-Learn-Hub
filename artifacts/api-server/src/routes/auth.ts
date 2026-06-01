@@ -459,6 +459,14 @@ router.post("/forgot-password", authLimiter, async (req, res) => {
       .set({ otpCode, otpExpiry })
       .where(eq(usersTable.id, user.id));
 
+    if (!user.phoneNumber && user.email) {
+      sendEmail({
+        to: user.email,
+        subject: "Libyan Learn Hub - Password Reset",
+        text: `Hello ${user.fullName || "User"},\n\nYour password reset code is: ${otpCode}\n\nThis code will expire in 15 minutes.`,
+      }).catch((err) => console.error("Failed to send password reset email:", err));
+    }
+
     res.json({
       message: "Reset code sent",
       otpCode, // Returned for dev purposes
