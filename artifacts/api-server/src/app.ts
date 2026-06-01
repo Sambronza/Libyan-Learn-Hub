@@ -15,6 +15,8 @@ const allowedOrigins = [
   "http://localhost:5173",
   "https://libyan-learn-hub.vercel.app",
   "https://libyan-learn-hub-lms-web.vercel.app",
+  "https://eduonline.net.ly",
+  "https://www.eduonline.net.ly",
 ];
 
 app.use(cors({
