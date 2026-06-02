@@ -22,7 +22,7 @@ const loginSchema = z.object({
 const registerSchema = z.object({
   fullName: z.string().min(2, 'Name is required'),
   email: z.string().email('Invalid email address'),
-  phoneNumber: z.string().min(9, 'Enter a valid phone number').regex(/^[0-9+\s\-()]+$/, 'Invalid phone number'),
+  phoneNumber: z.string().min(9, 'Enter a valid phone number').regex(/^[0-9+\s\-()]+$/, 'Invalid phone number').optional().or(z.literal('')),
   password: z.string().min(6, 'Password must be at least 6 characters'),
   passkey: z.string().length(4, 'Passkey must be exactly 4 digits').regex(/^\d+$/, 'Passkey must contain only numbers'),
   role: z.enum(['student', 'teacher']),
@@ -63,6 +63,7 @@ export default function Auth() {
   const [pendingRole, setPendingRole] = useState<string>('student');
   const [otpCode, setOtpCode] = useState('');
   const [verifying, setVerifying] = useState(false);
+  const [resendLoading, setResendLoading] = useState(false);
   const [resendTimer, setResendTimer] = useState(0);
   const [commissionPercent, setCommissionPercent] = useState('20');
   const otpInputRef = useRef<HTMLInputElement>(null);
@@ -78,6 +79,10 @@ export default function Auth() {
     if (step === 'otp') {
       otpInputRef.current?.focus();
       setResendTimer(60); // 60 seconds countdown
+      setOtpCode(''); // Clear any stale code from previous steps
+    }
+    if (step === 'reset') {
+      setOtpCode(''); // Clear any stale code from the registration OTP step
     }
   }, [step]);
 
@@ -90,14 +95,18 @@ export default function Auth() {
   }, [resendTimer]);
 
   const handleResend = async () => {
-    if (resendTimer > 0) return;
+    if (resendTimer > 0 || resendLoading) return;
     setErrorMsg('');
+    setResendLoading(true);
     try {
-      const data = await api.post('/auth/resend-otp', { email: registerForm.getValues('email'), type: 'phone' });
+      const data = await api.post('/auth/resend-otp', { email: registerForm.getValues('email'), type: 'email' });
       setOtpInfo({ message: data.otpMessage, code: data.otpCode });
+      setOtpCode(''); // Clear field so user enters the fresh code
       setResendTimer(60);
     } catch (err: any) {
       setErrorMsg(err.message || 'Resend failed');
+    } finally {
+      setResendLoading(false);
     }
   };
 
@@ -216,14 +225,19 @@ export default function Auth() {
     setVerifying(true);
     setErrorMsg('');
     try {
+      // Store token first so useApi can attach it as Authorization header,
+      // then immediately remove it if verification fails.
       localStorage.setItem('lms_token', pendingToken);
-      await api.post('/auth/verify-otp', { code: otpCode, type: 'phone' });
+      await api.post('/auth/verify-otp', { code: otpCode, type: 'email' });
+      // Verification succeeded — now formally log the user in
       setAuthContext(pendingToken);
-      toast({ title: 'Registration successful!' });
+      toast({ title: 'Registration successful!', description: 'Your email has been verified.' });
       window.location.href = pendingRole === 'teacher' ? '/teacher/dashboard' : '/dashboard';
     } catch (err: any) {
+      // Verification failed — evict the token so the user is not partially logged in
       localStorage.removeItem('lms_token');
-      setErrorMsg(err.message || 'Invalid code');
+      setOtpCode('');
+      setErrorMsg(err.message || 'Invalid code. Please try again.');
     } finally {
       setVerifying(false);
     }
@@ -307,12 +321,6 @@ export default function Auth() {
             <p className="text-muted-foreground mt-2 text-sm">Enter the code and your new password</p>
           </div>
 
-          {otpInfo && (
-            <div className="mb-6 p-4 rounded-xl bg-primary/5 border border-primary/20 text-sm text-primary/80">
-              <p className="font-medium mb-1">Development Mode:</p>
-              <p>{otpInfo.message}</p>
-            </div>
-          )}
 
           {errorMsg && (
             <div className="mb-4 p-4 rounded-xl bg-destructive/10 text-destructive border border-destructive/20 text-sm font-medium">
@@ -365,18 +373,12 @@ export default function Auth() {
         >
           <div className="text-center mb-8">
             <div className="w-16 h-16 rounded-2xl bg-primary/10 flex items-center justify-center mx-auto mb-4">
-              <Phone className="w-8 h-8 text-primary" />
+              <Mail className="w-8 h-8 text-primary" />
             </div>
             <h2 className="text-2xl font-display font-bold">Verify Your Account</h2>
-            <p className="text-muted-foreground mt-2 text-sm">Enter the 6-digit verification code</p>
+            <p className="text-muted-foreground mt-2 text-sm">Enter the 6-digit verification code sent to your email</p>
           </div>
 
-          {otpInfo && (
-            <div className="mb-6 p-4 rounded-xl bg-primary/5 border border-primary/20 text-sm text-primary/80">
-              <p className="font-medium mb-1">Development Mode:</p>
-              <p>{otpInfo.message}</p>
-            </div>
-          )}
 
           {errorMsg && (
             <div className="mb-4 p-4 rounded-xl bg-destructive/10 text-destructive border border-destructive/20 text-sm font-medium">
@@ -403,11 +405,11 @@ export default function Auth() {
             <div className="text-center">
               <button
                 type="button"
-                disabled={resendTimer > 0}
+                disabled={resendTimer > 0 || resendLoading}
                 onClick={handleResend}
-                className={`text-sm font-medium ${resendTimer > 0 ? 'text-muted-foreground' : 'text-primary hover:underline'}`}
+                className={`text-sm font-medium ${resendTimer > 0 || resendLoading ? 'text-muted-foreground' : 'text-primary hover:underline'}`}
               >
-                {resendTimer > 0 ? `Resend code in ${resendTimer}s` : 'Resend code'}
+                {resendLoading ? 'Sending...' : resendTimer > 0 ? `Resend code in ${resendTimer}s` : 'Resend code'}
               </button>
             </div>
             <Button
@@ -517,7 +519,7 @@ export default function Auth() {
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-foreground mb-1.5">
-                    Phone Number <span className="text-xs text-muted-foreground">(for SMS verification)</span>
+                    Phone Number <span className="text-xs text-muted-foreground">(Optional)</span>
                   </label>
                   <div className="flex gap-2">
                     <div className="flex items-center justify-center h-12 px-3 bg-muted/50 border border-transparent rounded-md text-sm font-medium text-muted-foreground whitespace-nowrap">
@@ -566,7 +568,7 @@ export default function Auth() {
                   {isRegistering ? 'Creating account...' : 'Create Account →'}
                 </Button>
                 <p className="text-xs text-center text-muted-foreground">
-                  A verification code will be sent to your phone to confirm your account.
+                  A verification code will be sent to your email to confirm your account.
                 </p>
               </form>
             )}

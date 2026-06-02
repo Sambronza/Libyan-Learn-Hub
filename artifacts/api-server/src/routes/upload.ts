@@ -7,6 +7,34 @@ import { db, usersTable } from "@workspace/db";
 import { eq } from "drizzle-orm";
 import { getEffectiveStorageLimit } from "../lib/plans.js";
 import type { TeacherTier } from "../lib/plans.js";
+import fs from "fs";
+import path from "path";
+import { fileURLToPath } from "url";
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+const uploadsDir = path.join(__dirname, "../../uploads");
+
+// Ensure local uploads directory exists for development fallback
+if (!fs.existsSync(uploadsDir)) {
+  fs.mkdirSync(uploadsDir, { recursive: true });
+}
+
+async function saveFileLocally(buffer: Buffer, originalName: string, type: string): Promise<any> {
+  const ext = path.extname(originalName) || (type === "video" ? ".mp4" : ".pdf");
+  const fileName = `${type}-${Date.now()}-${Math.round(Math.random() * 1e9)}${ext}`;
+  const filePath = path.join(uploadsDir, fileName);
+  await fs.promises.writeFile(filePath, buffer);
+  
+  return {
+    secure_url: `http://localhost:5001/uploads/${fileName}`,
+    public_id: `local-${fileName}`,
+    fileName: originalName,
+    bytes: buffer.length,
+    duration: type === "video" ? 60 : 0, // Mock duration
+    format: ext.replace(".", ""),
+  };
+}
 
 const router = Router();
 
@@ -39,6 +67,8 @@ const documentUpload = multer({
   fileFilter: (_req, file, cb) => {
     const allowed = [
       "application/pdf",
+      "application/x-pdf",
+      "application/octet-stream",
       "application/msword",
       "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
     ];
@@ -69,7 +99,14 @@ router.post(
   "/video",
   requireAuth,
   requireRole("teacher", "admin"),
-  videoUpload.single("video"),
+  (req, res, next) => {
+    videoUpload.single("video")(req, res, (err) => {
+      if (err) {
+        return res.status(400).json({ error: err.message });
+      }
+      next();
+    });
+  },
   async (req, res) => {
     try {
       if (!req.file) {
@@ -94,26 +131,32 @@ router.post(
       }
       // ─────────────────────────────────────────────────────────
 
-      const result = await uploadToCloudinary(req.file.buffer, {
-        resource_type: "video",
-        folder: "libyan-learn-hub/videos",
-        eager: [
-          { streaming_profile: "hd", format: "m3u8" }
-        ],
-        eager_async: false,
-      });
+      let result;
+      try {
+        result = await uploadToCloudinary(req.file.buffer, {
+          resource_type: "video",
+          folder: "libyan-learn-hub/videos",
+          eager: [
+            { streaming_profile: "hd", format: "m3u8" }
+          ],
+          eager_async: false,
+        });
 
-      // Check resolution (Cloudinary returns width/height)
-      if (result.width && result.height) {
-        if (result.width < 1280 || result.height < 720) {
-          await cloudinary.uploader.destroy(result.public_id, { resource_type: "video" });
-          res.status(400).json({
-            error: "Video resolution must be at least HD (1280×720)",
-            actualWidth: result.width,
-            actualHeight: result.height,
-          });
-          return;
+        // Check resolution (Cloudinary returns width/height)
+        if (result.width && result.height) {
+          if (result.width < 1280 || result.height < 720) {
+            await cloudinary.uploader.destroy(result.public_id, { resource_type: "video" });
+            res.status(400).json({
+              error: "Video resolution must be at least HD (1280×720)",
+              actualWidth: result.width,
+              actualHeight: result.height,
+            });
+            return;
+          }
         }
+      } catch (cloudinaryErr: any) {
+        console.warn("⚠️ Cloudinary upload failed, falling back to local storage:", cloudinaryErr.message || cloudinaryErr);
+        result = await saveFileLocally(req.file.buffer, req.file.originalname, "video");
       }
 
       // ── Update storageUsed in DB ───────────────────────────────
@@ -143,7 +186,14 @@ router.post(
   "/document",
   requireAuth,
   requireRole("teacher", "admin"),
-  documentUpload.single("document"),
+  (req, res, next) => {
+    documentUpload.single("document")(req, res, (err) => {
+      if (err) {
+        return res.status(400).json({ error: err.message });
+      }
+      next();
+    });
+  },
   async (req, res) => {
     try {
       if (!req.file) {
@@ -168,10 +218,16 @@ router.post(
       }
       // ─────────────────────────────────────────────────────────
 
-      const result = await uploadToCloudinary(req.file.buffer, {
-        resource_type: "raw",
-        folder: "libyan-learn-hub/documents",
-      });
+      let result;
+      try {
+        result = await uploadToCloudinary(req.file.buffer, {
+          resource_type: "raw",
+          folder: "libyan-learn-hub/documents",
+        });
+      } catch (cloudinaryErr: any) {
+        console.warn("⚠️ Cloudinary document upload failed, falling back to local storage:", cloudinaryErr.message || cloudinaryErr);
+        result = await saveFileLocally(req.file.buffer, req.file.originalname, "document");
+      }
 
       // ── Update storageUsed in DB ───────────────────────────────
       await db.update(usersTable)
@@ -204,9 +260,17 @@ router.delete(
       const resourceType = (req.query.type as string) || "video";
       const fileSizeBytes = parseInt((req.query.size as string) || "0", 10);
 
-      await cloudinary.uploader.destroy(publicId, {
-        resource_type: resourceType,
-      });
+      if (publicId.startsWith("local-")) {
+        const fileName = publicId.replace("local-", "");
+        const filePath = path.join(uploadsDir, fileName);
+        if (fs.existsSync(filePath)) {
+          await fs.promises.unlink(filePath).catch(() => {});
+        }
+      } else {
+        await cloudinary.uploader.destroy(publicId, {
+          resource_type: resourceType,
+        });
+      }
 
       // ── Decrement storageUsed on delete ───────────────────────
       if (fileSizeBytes > 0) {
