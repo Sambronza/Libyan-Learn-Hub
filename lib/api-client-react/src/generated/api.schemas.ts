@@ -176,6 +176,8 @@ export interface LessonSummary {
   order: number;
   isFree: boolean;
   type: LessonSummaryType;
+  /** Whether the current user has completed this lesson */
+  isCompleted?: boolean;
 }
 
 export interface TeacherProfile {

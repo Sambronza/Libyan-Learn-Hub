@@ -243,6 +243,7 @@ router.get("/:courseId", async (req, res) => {
 
     let isEnrolled = false;
     let userProgress = null;
+    let completedLessonIds = new Set<number>();
     const token = req.headers.authorization?.slice(7);
     if (token) {
       try {
@@ -256,6 +257,16 @@ router.get("/:courseId", async (req, res) => {
         if (enrollment) {
           isEnrolled = true;
           userProgress = parseFloat(enrollment.progress);
+          // Fetch all completed lessons for this user + course in one query
+          const progRows = await db
+            .select({ lessonId: progressTable.lessonId })
+            .from(progressTable)
+            .where(and(
+              eq(progressTable.userId, payload.userId),
+              eq(progressTable.courseId, courseId),
+              eq(progressTable.isCompleted, true)
+            ));
+          completedLessonIds = new Set(progRows.map(r => r.lessonId));
         }
       } catch {}
     }
@@ -276,6 +287,7 @@ router.get("/:courseId", async (req, res) => {
         order: l.order,
         isFree: l.isFree,
         type: l.type,
+        isCompleted: completedLessonIds.has(l.id),
       })),
       category: {
         id: category?.id,
