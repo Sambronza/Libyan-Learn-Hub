@@ -461,9 +461,10 @@ router.get("/:courseId/lessons", async (req, res) => {
 router.post("/:courseId/lessons", requireAuth, requireRole("teacher", "admin"), async (req, res) => {
   try {
     const courseId = parseParam(req.params.courseId);
-    const { title, titleAr, videoUrl, videoFilePath, documentFilePath, documentFileName, content, contentAr, duration, order, isFree, type, bookName, bookNameAr, schoolYear, chapter, pageNumber, subjectTags } = req.body;
+    const { title, titleAr, videoUrl, videoFilePath, videoPublicId, documentFilePath, documentPublicId, documentFileName, content, contentAr, duration, order, isFree, type, bookName, bookNameAr, schoolYear, chapter, pageNumber, subjectTags } = req.body;
     const [lesson] = await db.insert(lessonsTable).values({
-      courseId, title, titleAr, videoUrl, videoFilePath, documentFilePath, documentFileName, content, contentAr,
+      courseId, title, titleAr, videoUrl, videoFilePath, videoPublicId: videoPublicId || null,
+      documentFilePath, documentPublicId: documentPublicId || null, documentFileName, content, contentAr,
       duration: duration || 0,
       order: order || 0,
       isFree: isFree || false,
@@ -536,8 +537,8 @@ router.put("/:courseId/lessons/:lessonId", requireAuth, requireRole("teacher", "
     // videoFilePath / documentFilePath and breaking playback.
     const updateData: Record<string, any> = { updatedAt: new Date() };
     const fields = [
-      'title', 'titleAr', 'videoUrl', 'videoFilePath',
-      'documentFilePath', 'documentFileName',
+      'title', 'titleAr', 'videoUrl', 'videoFilePath', 'videoPublicId',
+      'documentFilePath', 'documentPublicId', 'documentFileName',
       'content', 'contentAr', 'duration', 'order', 'isFree',
     ];
     for (const f of fields) {

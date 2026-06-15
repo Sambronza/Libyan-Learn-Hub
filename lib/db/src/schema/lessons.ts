@@ -13,8 +13,12 @@ export const lessonsTable = pgTable("lessons", {
   titleAr: varchar("title_ar", { length: 255 }).notNull(),
   videoUrl: text("video_url"),
   videoFilePath: text("video_file_path"),
+  /** Stable Cloudinary public_id for the uploaded video — never changes on lesson rename */
+  videoPublicId: text("video_public_id"),
   documentFilePath: text("document_file_path"),
   documentFileName: varchar("document_file_name", { length: 255 }),
+  /** Stable Cloudinary public_id for the uploaded document — never changes on lesson rename */
+  documentPublicId: text("document_public_id"),
   content: text("content"),
   contentAr: text("content_ar"),
   notes: text("notes"),

@@ -243,7 +243,9 @@ export default function ManageCourse() {
           title: title,
           titleAr: title,
           videoFilePath: isVideo ? result.url : '',
+          videoPublicId: isVideo ? (result.publicId || '') : '',
           documentFilePath: !isVideo ? result.url : '',
+          documentPublicId: !isVideo ? (result.publicId || '') : '',
           documentFileName: !isVideo ? result.fileName : '',
           duration: result.duration || 0,
           order: startOrder++,
@@ -278,7 +280,9 @@ export default function ManageCourse() {
       // The form has no hidden input for videoFilePath/documentFilePath, so data.videoFilePath
       // will be undefined on submit — using it would erase the Cloudinary URL in the DB.
       let videoFilePath = editingLesson.videoFilePath || '';
+      let videoPublicId = editingLesson.videoPublicId || '';
       let documentFilePath = editingLesson.documentFilePath || '';
+      let documentPublicId = editingLesson.documentPublicId || '';
       let documentFileName = editingLesson.documentFileName || '';
       let duration = parseInt(data.duration) || editingLesson.duration || 0;
 
@@ -287,6 +291,7 @@ export default function ManageCourse() {
         setUploadProgress('Uploading video...');
         const result = await uploadFileToServer(videoFile, 'video', (p) => setUploadProgressPercent(p));
         videoFilePath = result.url;
+        videoPublicId = result.publicId || '';
         if (result.duration) duration = result.duration;
       }
       if (documentFile) {
@@ -294,6 +299,7 @@ export default function ManageCourse() {
         setUploadProgress('Uploading document...');
         const result = await uploadFileToServer(documentFile, 'document', (p) => setUploadProgressPercent(p));
         documentFilePath = result.url;
+        documentPublicId = result.publicId || '';
         documentFileName = result.fileName;
       }
 
@@ -302,7 +308,9 @@ export default function ManageCourse() {
       await api.put(`/courses/${courseId}/lessons/${editingLesson.id}`, {
         ...data,
         videoFilePath,
+        videoPublicId,
         documentFilePath,
+        documentPublicId,
         documentFileName,
         duration,
         isFree: data.isFree === true || data.isFree === 'true',

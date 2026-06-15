@@ -192,11 +192,20 @@ router.post("/:sectionId/lessons", requireAuth, requireRole("teacher", "admin"),
       return res.status(403).json({ error: "Biometric identity verification is required before uploading lessons." });
     }
 
-    const { title, titleAr, videoUrl, videoFilePath, documentFilePath, documentFileName, content, contentAr, notes, notesAr, duration, order, isFree, type, bookName, bookNameAr, schoolYear, chapter, pageNumber, subjectTags } = req.body;
+    const {
+      title, titleAr, videoUrl,
+      videoFilePath, videoPublicId,
+      documentFilePath, documentPublicId, documentFileName,
+      content, contentAr, notes, notesAr, duration, order, isFree, type,
+      bookName, bookNameAr, schoolYear, chapter, pageNumber, subjectTags
+    } = req.body;
+
     const [lesson] = await db
       .insert(lessonsTable)
       .values({ 
-        courseId, sectionId, title, titleAr, videoUrl, videoFilePath, documentFilePath, documentFileName, 
+        courseId, sectionId, title, titleAr, videoUrl,
+        videoFilePath, videoPublicId: videoPublicId || null,
+        documentFilePath, documentPublicId: documentPublicId || null, documentFileName, 
         content, contentAr, notes, notesAr, duration: duration || 0, order: order || 0, 
         isFree: isFree || false, type: type || "video",
         bookName: bookName || null, bookNameAr: bookNameAr || null, schoolYear: schoolYear || null,
@@ -213,9 +222,6 @@ router.post("/:sectionId/lessons", requireAuth, requireRole("teacher", "admin"),
         jobType: "face",
         status: "processing"
       });
-      // In a real scenario, this would queue a job for a background worker.
-      // We will simulate it by updating it to 'matched' after a delay if needed, 
-      // but 'processing' is fine for demonstration.
     }
 
     res.status(201).json(lesson);
