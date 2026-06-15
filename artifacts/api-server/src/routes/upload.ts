@@ -172,9 +172,19 @@ router.post(
       }
       // ─────────────────────────────────────────────────────────
 
+      // Ensure the public_id ends with the original extension so Cloudinary raw URLs 
+      // serve the file with the correct extension, enabling proper browser downloads.
+      const originalName = req.file.originalname || 'document.file';
+      const extMatch = originalName.match(/(\.[^.]+)$/);
+      const ext = extMatch ? extMatch[1] : '';
+      const nameWithoutExt = originalName.replace(/(\.[^.]+)$/, '').replace(/[^a-zA-Z0-9_-]/g, '_');
+      const randomSuffix = Math.random().toString(36).substring(2, 8);
+      const safePublicId = `${nameWithoutExt}_${randomSuffix}${ext}`;
+
       const result = await uploadToCloudinary(req.file.buffer, {
         resource_type: "raw",
         folder: "libyan-learn-hub/documents",
+        public_id: safePublicId,
       });
 
       // ── Update storageUsed in DB ───────────────────────────────

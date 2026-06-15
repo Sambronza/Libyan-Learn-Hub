@@ -77,6 +77,26 @@ export default function Learn() {
     }
   };
 
+  const handleDownloadDocument = async (url: string, filename: string) => {
+    try {
+      toast({ title: "Downloading...", description: "Please wait while the file is prepared." });
+      const response = await fetch(url);
+      if (!response.ok) throw new Error("Network response was not ok");
+      const blob = await response.blob();
+      const objectUrl = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = objectUrl;
+      a.download = filename || 'document';
+      document.body.appendChild(a);
+      a.click();
+      window.URL.revokeObjectURL(objectUrl);
+      document.body.removeChild(a);
+    } catch (err: any) {
+      toast({ title: "Download failed", description: "Opening directly in a new tab instead.", variant: "destructive" });
+      window.open(url, '_blank');
+    }
+  };
+
   const formatDuration = (secs: number): string => {
     if (!secs) return '';
     const m = Math.floor(secs / 60);
@@ -175,11 +195,13 @@ export default function Learn() {
                               </p>
                             </div>
                           </div>
-                          <a href={lesson.documentFilePath} target="_blank" rel="noreferrer" download>
-                            <Button size="lg" className="gap-2 shrink-0">
-                              <Download className="w-5 h-5" /> {language === 'ar' ? 'تنزيل' : 'Download'}
-                            </Button>
-                          </a>
+                          <Button 
+                            size="lg" 
+                            className="gap-2 shrink-0"
+                            onClick={() => handleDownloadDocument(lesson.documentFilePath!, lesson.documentFileName || 'document')}
+                          >
+                            <Download className="w-5 h-5" /> {language === 'ar' ? 'تنزيل' : 'Download'}
+                          </Button>
                         </div>
                       )}
                     </div>
