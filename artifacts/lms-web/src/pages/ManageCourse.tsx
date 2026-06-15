@@ -350,9 +350,17 @@ export default function ManageCourse() {
   const handleToggleFree = async (lesson: any) => {
     try {
       await api.put(`/courses/${courseId}/lessons/${lesson.id}`, {
-        title: lesson.title, titleAr: lesson.titleAr,
-        videoUrl: lesson.videoUrl, content: lesson.content, contentAr: lesson.contentAr,
-        duration: lesson.duration, order: lesson.order, isFree: !lesson.isFree,
+        title: lesson.title,
+        titleAr: lesson.titleAr,
+        videoUrl: lesson.videoUrl,
+        videoFilePath: lesson.videoFilePath,
+        documentFilePath: lesson.documentFilePath,
+        documentFileName: lesson.documentFileName,
+        content: lesson.content,
+        contentAr: lesson.contentAr,
+        duration: lesson.duration,
+        order: lesson.order,
+        isFree: !lesson.isFree,
       });
       loadData();
     } catch (err: any) {

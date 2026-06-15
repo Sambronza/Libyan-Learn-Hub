@@ -529,13 +529,28 @@ router.get("/:courseId/lessons/:lessonId", requireAuth, async (req, res) => {
 router.put("/:courseId/lessons/:lessonId", requireAuth, requireRole("teacher", "admin"), async (req, res) => {
   try {
     const lessonId = parseParam(req.params.lessonId);
-    const { title, titleAr, videoUrl, videoFilePath, documentFilePath, documentFileName, content, contentAr, duration, order, isFree, bookName, bookNameAr, schoolYear, chapter, pageNumber, subjectTags } = req.body;
+    const body = req.body;
+
+    // Build a partial update — only include fields that were explicitly sent in the request body.
+    // This prevents callers that only update e.g. isFree from accidentally nulling out
+    // videoFilePath / documentFilePath and breaking playback.
+    const updateData: Record<string, any> = { updatedAt: new Date() };
+    const fields = [
+      'title', 'titleAr', 'videoUrl', 'videoFilePath',
+      'documentFilePath', 'documentFileName',
+      'content', 'contentAr', 'duration', 'order', 'isFree',
+    ];
+    for (const f of fields) {
+      if (f in body) updateData[f] = body[f];
+    }
+    // Nullable fields: coerce empty string / missing to null
+    const nullableFields = ['bookName', 'bookNameAr', 'schoolYear', 'chapter', 'pageNumber', 'subjectTags'];
+    for (const f of nullableFields) {
+      if (f in body) updateData[f] = body[f] || null;
+    }
+
     const [updated] = await db.update(lessonsTable)
-      .set({ 
-        title, titleAr, videoUrl, videoFilePath, documentFilePath, documentFileName, content, contentAr, duration, order, isFree, updatedAt: new Date(),
-        bookName: bookName || null, bookNameAr: bookNameAr || null, schoolYear: schoolYear || null,
-        chapter: chapter || null, pageNumber: pageNumber || null, subjectTags: subjectTags || null
-      })
+      .set(updateData)
       .where(eq(lessonsTable.id, lessonId))
       .returning();
     res.json(updated);
