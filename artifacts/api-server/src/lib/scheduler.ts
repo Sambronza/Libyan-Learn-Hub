@@ -1,4 +1,4 @@
-import { db } from "@workspace/db";
+import { db, pool } from "@workspace/db";
 import { liveSessionsTable, sessionRegistrationsTable, notificationsTable } from "@workspace/db";
 import { eq, and, lte, gt } from "drizzle-orm";
 import { sendExpoPushNotifications } from "./expo-notifications.js";
@@ -6,9 +6,24 @@ import { sendExpoPushNotifications } from "./expo-notifications.js";
 // Poll every 5 minutes
 const POLL_INTERVAL = 5 * 60 * 1000;
 
+// Ping Neon every 4 minutes (below its 5-minute auto-suspend threshold) to
+// keep the compute node awake during low-traffic periods.
+const KEEPALIVE_INTERVAL = 4 * 60 * 1000;
+
 export function startScheduler() {
   console.log("Starting Live Session Notification Scheduler...");
-  
+
+  // Keep the Neon compute node awake by sending a lightweight ping every
+  // 4 minutes. This prevents the 300ms–5s cold-start delay on the first
+  // login attempt after a period of inactivity.
+  setInterval(async () => {
+    try {
+      await pool.query("SELECT 1");
+    } catch (err) {
+      console.warn("[DB Keep-Alive] Ping failed:", err);
+    }
+  }, KEEPALIVE_INTERVAL);
+
   setInterval(async () => {
     try {
       const now = new Date();
