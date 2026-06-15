@@ -171,9 +171,11 @@ router.post("/bulk", requireAuth, requireRole("teacher", "admin"), async (req, r
       titleAr: l.titleAr || l.title || `درس ${idx + 1}`,
       videoFilePath: l.videoFilePath || null,
       videoUrl: l.videoUrl || null,
+      documentFilePath: l.documentFilePath || null,
+      documentFileName: l.documentFileName || null,
       duration: parseInt(l.duration) || 0,
       isFree: l.isFree === true || l.isFree === "true",
-      type: "video" as const,
+      type: l.type || "video",
       order: idx,
     }));
     const insertedLessons = await db.insert(lessonsTable).values(lessonRows).returning();

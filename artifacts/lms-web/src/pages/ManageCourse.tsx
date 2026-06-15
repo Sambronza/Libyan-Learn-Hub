@@ -213,34 +213,42 @@ export default function ManageCourse() {
   };
 
   const handleQuickUpload = async (sectionId: number, files: File[]) => {
-    const videoFiles = files.filter(f => f.type.startsWith('video/') || f.name.match(/\.(mp4|webm|mov|mkv|avi|wmv)$/i));
-    if (!videoFiles.length) {
-      toast({ title: 'Only video files are accepted', variant: 'destructive' });
+    const validFiles = files.filter(f => 
+      f.type.startsWith('video/') || 
+      f.type.startsWith('text/') ||
+      f.name.match(/\.(mp4|webm|mov|mkv|avi|wmv|pdf|txt|doc|docx|xls|xlsx|ppt|pptx)$/i)
+    );
+    if (!validFiles.length) {
+      toast({ title: 'Unsupported file type. Only videos, PDFs, Text, and Office documents are allowed.', variant: 'destructive' });
       return;
     }
 
     const sectionLessons = sections.find(s => s.id === sectionId)?.lessons || [];
     let startOrder = sectionLessons.length;
 
-    for (const file of videoFiles) {
+    for (const file of validFiles) {
+      const isVideo = file.type.startsWith('video/') || file.name.match(/\.(mp4|webm|mov|mkv|avi|wmv)$/i);
+      const typeStr = isVideo ? 'video' : 'document';
+      const lessonType = isVideo ? 'video' : 'text';
+
       setUploading(true);
       setUploadProgressPercent(0);
       setUploadProgress(`Uploading ${file.name}...`);
       try {
-        const result = await uploadFileToServer(file, 'video', (p) => setUploadProgressPercent(p));
+        const result = await uploadFileToServer(file, typeStr, (p) => setUploadProgressPercent(p));
         const title = file.name.replace(/\.[^/.]+$/, "");
         setUploadProgressPercent(100);
         setUploadProgress(`Creating lesson...`);
         await api.post(`/courses/${courseId}/sections/${sectionId}/lessons`, {
           title: title,
           titleAr: title,
-          videoFilePath: result.url,
-          documentFilePath: '',
-          documentFileName: '',
+          videoFilePath: isVideo ? result.url : '',
+          documentFilePath: !isVideo ? result.url : '',
+          documentFileName: !isVideo ? result.fileName : '',
           duration: result.duration || 0,
           order: startOrder++,
           isFree: false,
-          type: 'video'
+          type: lessonType
         });
         toast({ title: `✓ Added "${title}"` });
       } catch (err: any) {
@@ -485,11 +493,11 @@ export default function ManageCourse() {
                   : 'Click to select document (PDF, DOC, DOCX — max 20MB)'}
             </p>
           </div>
-          <input
-            id="doc-upload-input"
-            type="file"
-            accept=".pdf,.doc,.docx,application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
-            className="hidden"
+            <input
+              id="doc-upload-input"
+              type="file"
+              accept=".pdf,.txt,.doc,.docx,.xls,.xlsx,.ppt,.pptx,text/plain,application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document,application/vnd.ms-excel,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-powerpoint,application/vnd.openxmlformats-officedocument.presentationml.presentation"
+              className="hidden"
             onChange={e => {
               if (e.target.files?.[0]) setDocumentFile(e.target.files[0]);
             }}

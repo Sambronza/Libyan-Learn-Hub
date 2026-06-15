@@ -21,7 +21,10 @@ interface LessonDraft {
   title: string;
   status: UploadStatus;
   progress: number;    // 0-100
+  type: 'video' | 'text';
   videoFilePath: string; // cloudinary URL once uploaded
+  documentFilePath?: string;
+  documentFileName?: string;
   duration: number;
   isFree: boolean;
   error?: string;
@@ -91,7 +94,8 @@ export default function CreateCourse() {
   const uploadLesson = useCallback(async (draft: LessonDraft) => {
     const token = localStorage.getItem('lms_token');
     const formData = new FormData();
-    formData.append('video', draft.file);
+    const isVideo = draft.type === 'video';
+    formData.append(isVideo ? 'video' : 'document', draft.file);
 
     setLessons(prev => prev.map(l =>
       l.id === draft.id ? { ...l, status: 'uploading', progress: 0 } : l
@@ -113,7 +117,15 @@ export default function CreateCourse() {
             const result = JSON.parse(xhr.responseText);
             setLessons(prev => prev.map(l =>
               l.id === draft.id
-                ? { ...l, status: 'done', progress: 100, videoFilePath: result.url, duration: result.duration || 0 }
+                ? { 
+                    ...l, 
+                    status: 'done', 
+                    progress: 100, 
+                    videoFilePath: isVideo ? result.url : '', 
+                    documentFilePath: !isVideo ? result.url : undefined,
+                    documentFileName: !isVideo ? result.fileName : undefined,
+                    duration: result.duration || 0 
+                  }
                 : l
             ));
             resolve();
@@ -123,7 +135,7 @@ export default function CreateCourse() {
           }
         };
         xhr.onerror = () => reject(new Error('Network error during upload'));
-        xhr.open('POST', '/api/upload/video');
+        xhr.open('POST', `/api/upload/${isVideo ? 'video' : 'document'}`);
         if (token) xhr.setRequestHeader('Authorization', `Bearer ${token}`);
         xhr.send(formData);
       });
@@ -135,22 +147,30 @@ export default function CreateCourse() {
   }, []);
 
   const addFiles = useCallback((files: File[]) => {
-    const videoFiles = files.filter(f => f.type.startsWith('video/'));
-    if (!videoFiles.length) {
-      toast({ title: 'Only video files are accepted', variant: 'destructive' });
+    const validFiles = files.filter(f => 
+      f.type.startsWith('video/') || 
+      f.type.startsWith('text/') ||
+      f.name.match(/\.(mp4|webm|mov|mkv|avi|wmv|pdf|txt|doc|docx|xls|xlsx|ppt|pptx)$/i)
+    );
+    if (!validFiles.length) {
+      toast({ title: 'Unsupported file type. Only videos, PDFs, Text, and Office documents are allowed.', variant: 'destructive' });
       return;
     }
 
-    const newDrafts: LessonDraft[] = videoFiles.map(file => ({
-      id: uid(),
-      file,
-      title: filenameToTitle(file.name),
-      status: 'pending',
-      progress: 0,
-      videoFilePath: '',
-      duration: 0,
-      isFree: false,
-    }));
+    const newDrafts: LessonDraft[] = validFiles.map(file => {
+      const isVideo = file.type.startsWith('video/') || file.name.match(/\.(mp4|webm|mov|mkv|avi|wmv)$/i);
+      return {
+        id: uid(),
+        file,
+        title: filenameToTitle(file.name),
+        status: 'pending',
+        progress: 0,
+        type: isVideo ? 'video' : 'text',
+        videoFilePath: '',
+        duration: 0,
+        isFree: false,
+      };
+    });
 
     setLessons(prev => [...prev, ...newDrafts]);
 
@@ -210,7 +230,10 @@ export default function CreateCourse() {
           categoryId: parseInt(categoryId),
           lessons: lessons.map(l => ({
             title: l.title,
+            type: l.type,
             videoFilePath: l.videoFilePath,
+            documentFilePath: l.documentFilePath,
+            documentFileName: l.documentFileName,
             duration: l.duration,
             isFree: l.isFree,
           })),
@@ -252,7 +275,7 @@ export default function CreateCourse() {
             </div>
             <div>
               <h1 className="text-xl font-display font-bold">New Course</h1>
-              <p className="text-xs text-muted-foreground">Drop your videos to get started</p>
+              <p className="text-xs text-muted-foreground">Drop your files to get started</p>
             </div>
           </div>
         </div>
@@ -284,7 +307,7 @@ export default function CreateCourse() {
               ref={fileInputRef}
               type="file"
               multiple
-              accept="video/mp4,video/webm,video/quicktime,video/*"
+              accept="video/*,application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document,application/vnd.ms-excel,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-powerpoint,application/vnd.openxmlformats-officedocument.presentationml.presentation,text/plain"
               className="hidden"
               onChange={e => {
                 if (e.target.files) addFiles(Array.from(e.target.files));
@@ -298,11 +321,11 @@ export default function CreateCourse() {
               </div>
               <div>
                 <p className={`font-semibold text-foreground ${hasVideos ? 'text-sm' : 'text-xl'}`}>
-                  {isDragOver ? 'Release to upload!' : hasVideos ? 'Drop more videos here' : 'Drag your videos here'}
+                  {isDragOver ? 'Release to upload!' : hasVideos ? 'Drop more files here' : 'Drag your files here'}
                 </p>
                 {!hasVideos && (
                   <p className="text-sm text-muted-foreground mt-1">
-                    MP4, WebM, MOV — multiple files accepted
+                    Videos, PDFs, Word, Excel, PPT, Text — multiple files accepted
                   </p>
                 )}
               </div>
