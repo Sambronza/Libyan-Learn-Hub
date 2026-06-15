@@ -479,7 +479,7 @@ export default function ManageCourse() {
       {/* Document Upload */}
       {watchType === 'text' && (
         <div>
-          <label className="text-sm font-medium mb-1 block">Upload Document (PDF / Word)</label>
+          <label className="text-sm font-medium mb-1 block">Upload Document (PDF, TXT, Word, Excel, PPT — max 20MB)</label>
           <div
             className="border-2 border-dashed border-primary/40 rounded-xl p-4 text-center cursor-pointer hover:border-primary/70 hover:bg-primary/5 transition-colors"
             onClick={() => document.getElementById('doc-upload-input')?.click()}
@@ -490,14 +490,14 @@ export default function ManageCourse() {
                 ? `${documentFile.name} (${(documentFile.size / (1024 * 1024)).toFixed(1)} MB)`
                 : watchDocFileName
                   ? `✓ ${watchDocFileName}`
-                  : 'Click to select document (PDF, DOC, DOCX — max 20MB)'}
+                  : 'Click to select a document (PDF, TXT, DOC, DOCX, XLS, XLSX, PPT, PPTX)'}
             </p>
           </div>
-            <input
-              id="doc-upload-input"
-              type="file"
-              accept=".pdf,.txt,.doc,.docx,.xls,.xlsx,.ppt,.pptx,text/plain,application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document,application/vnd.ms-excel,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-powerpoint,application/vnd.openxmlformats-officedocument.presentationml.presentation"
-              className="hidden"
+          <input
+            id="doc-upload-input"
+            type="file"
+            accept=".pdf,.txt,.doc,.docx,.xls,.xlsx,.ppt,.pptx,text/plain,application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document,application/vnd.ms-excel,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-powerpoint,application/vnd.openxmlformats-officedocument.presentationml.presentation"
+            className="hidden"
             onChange={e => {
               if (e.target.files?.[0]) setDocumentFile(e.target.files[0]);
             }}

@@ -32,7 +32,7 @@ export default function CourseDetail() {
   const [reviewRating, setReviewRating] = useState(5);
   const [reviewComment, setReviewComment] = useState("");
 
-  const { data: course, isLoading, refetch } = useGetCourse(courseId, { query: { queryKey: ['/api/courses', courseId], enabled: !!courseId } });
+  const { data: course, isLoading, isError, refetch } = useGetCourse(courseId, { query: { queryKey: ['/api/courses', courseId], enabled: !!courseId } });
   
   const { data: reviews = [] } = useQuery({
     queryKey: ['/api/courses', courseId, 'reviews'],
@@ -117,7 +117,7 @@ export default function CourseDetail() {
   });
 
   if (isLoading) return <PageContainer><div className="p-20 text-center">Loading...</div></PageContainer>;
-  if (error) return <div className="min-h-screen pt-24 text-center text-red-500">Error loading course</div>;
+  if (isError) return <div className="min-h-screen pt-24 text-center text-red-500">Error loading course</div>;
   if (!course) return null;
 
   const formatDuration = (secs: number): string => {

@@ -274,6 +274,9 @@ export interface UpdateCourseRequest {
 export type Lesson = LessonSummary & {
   courseId: number;
   videoUrl?: string | null;
+  videoFilePath?: string | null;
+  documentFilePath?: string | null;
+  documentFileName?: string | null;
   content?: string | null;
   contentAr?: string | null;
   createdAt: string;
