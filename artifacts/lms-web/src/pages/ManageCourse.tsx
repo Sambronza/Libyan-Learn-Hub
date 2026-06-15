@@ -273,10 +273,14 @@ export default function ManageCourse() {
     if (!editingLesson) return;
     try {
       setUploading(true);
-      let videoFilePath = data.videoFilePath || '';
-      let documentFilePath = data.documentFilePath || '';
-      let documentFileName = data.documentFileName || '';
-      let duration = parseInt(data.duration) || 0;
+
+      // IMPORTANT: Always fall back to the existing lesson's stored Cloudinary paths.
+      // The form has no hidden input for videoFilePath/documentFilePath, so data.videoFilePath
+      // will be undefined on submit — using it would erase the Cloudinary URL in the DB.
+      let videoFilePath = editingLesson.videoFilePath || '';
+      let documentFilePath = editingLesson.documentFilePath || '';
+      let documentFileName = editingLesson.documentFileName || '';
+      let duration = parseInt(data.duration) || editingLesson.duration || 0;
 
       if (videoFile) {
         setUploadProgressPercent(0);
