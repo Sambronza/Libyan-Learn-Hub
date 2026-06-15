@@ -165,7 +165,7 @@ export default function ManageCourse() {
   // ── Lesson Form ─────────────────────────────────────────────────
   const lessonForm = useForm({
     defaultValues: {
-      title: '', titleAr: '', videoUrl: '', videoFilePath: '', documentFilePath: '', documentFileName: '',
+      title: '', titleAr: '', videoUrl: '', videoFilePath: '', videoPublicId: '', documentFilePath: '', documentPublicId: '', documentFileName: '',
       content: '', contentAr: '', duration: 0, isFree: false, type: 'video',
       bookName: '', bookNameAr: '', schoolYear: '', chapter: '', pageNumber: '', subjectTags: '',
     }
@@ -346,8 +346,8 @@ export default function ManageCourse() {
     setEditingLesson(lesson);
     lessonForm.reset({
       title: lesson.title, titleAr: lesson.titleAr,
-      videoUrl: lesson.videoUrl || '', videoFilePath: lesson.videoFilePath || '',
-      documentFilePath: lesson.documentFilePath || '', documentFileName: lesson.documentFileName || '',
+      videoUrl: lesson.videoUrl || '', videoFilePath: lesson.videoFilePath || '', videoPublicId: lesson.videoPublicId || '',
+      documentFilePath: lesson.documentFilePath || '', documentPublicId: lesson.documentPublicId || '', documentFileName: lesson.documentFileName || '',
       content: lesson.content || '',
       contentAr: lesson.contentAr || '', duration: lesson.duration,
       isFree: lesson.isFree, type: lesson.type || 'video',
@@ -366,7 +366,9 @@ export default function ManageCourse() {
         titleAr: lesson.titleAr,
         videoUrl: lesson.videoUrl,
         videoFilePath: lesson.videoFilePath,
+        videoPublicId: lesson.videoPublicId,
         documentFilePath: lesson.documentFilePath,
+        documentPublicId: lesson.documentPublicId,
         documentFileName: lesson.documentFileName,
         content: lesson.content,
         contentAr: lesson.contentAr,
