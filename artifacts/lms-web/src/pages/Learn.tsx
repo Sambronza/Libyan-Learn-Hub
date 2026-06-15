@@ -4,7 +4,7 @@ import { useGetCourse, useGetLesson, useUpdateProgress } from '@workspace/api-cl
 import { useLanguage } from '@/contexts/LanguageContext';
 import { useMediaActivity } from '@/contexts/MediaActivityContext';
 import { ProtectedPlayer } from '@/components/ProtectedPlayer';
-import { PlayCircle, FileText, CheckCircle2, ChevronLeft, Menu, X, Flag } from 'lucide-react';
+import { PlayCircle, FileText, CheckCircle2, ChevronLeft, Menu, X, Flag, Download } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { useForm } from 'react-hook-form';
@@ -149,17 +149,57 @@ export default function Learn() {
                   />
                 </div>
               ) : lesson.type === 'text' ? (
-                <div className="bg-card rounded-2xl p-8 shadow-sm border border-border protection-overlay min-h-[50vh] prose prose-slate dark:prose-invert max-w-none">
+                <div className="bg-card rounded-2xl p-8 shadow-sm border border-border protection-overlay min-h-[50vh] flex flex-col">
                   <h2 className="font-display text-3xl mb-6 mt-0">{language === 'ar' ? lesson.titleAr : lesson.title}</h2>
-                  <div dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize((language === 'ar' ? lesson.contentAr : lesson.content) || '') }} />
+                  
+                  {lesson.documentFilePath && (
+                    <div className="mb-8 w-full flex-1 min-h-[60vh] flex flex-col">
+                      {lesson.documentFilePath.toLowerCase().endsWith('.pdf') ? (
+                        <div className="w-full flex-1 rounded-xl overflow-hidden border border-border">
+                          <iframe 
+                            src={lesson.documentFilePath} 
+                            className="w-full h-full min-h-[60vh]" 
+                            title={lesson.documentFileName || 'PDF Document'}
+                          />
+                        </div>
+                      ) : (
+                        <div className="bg-muted p-8 rounded-xl flex flex-col sm:flex-row items-center justify-between border border-border my-auto gap-6 text-center sm:text-start">
+                          <div className="flex flex-col sm:flex-row items-center gap-4">
+                            <div className="w-16 h-16 bg-primary/20 rounded-full flex items-center justify-center text-primary shrink-0">
+                              <FileText className="w-8 h-8" />
+                            </div>
+                            <div>
+                              <h3 className="font-bold text-lg">{lesson.documentFileName || 'Attached Document'}</h3>
+                              <p className="text-sm text-muted-foreground mt-1">
+                                {language === 'ar' ? 'قم بتنزيل الملف لعرضه' : 'Download the file to view its contents'}
+                              </p>
+                            </div>
+                          </div>
+                          <a href={lesson.documentFilePath} target="_blank" rel="noreferrer" download>
+                            <Button size="lg" className="gap-2 shrink-0">
+                              <Download className="w-5 h-5" /> {language === 'ar' ? 'تنزيل' : 'Download'}
+                            </Button>
+                          </a>
+                        </div>
+                      )}
+                    </div>
+                  )}
+
+                  {lesson.content && (
+                    <div className="prose prose-slate dark:prose-invert max-w-none mt-4" dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize((language === 'ar' ? lesson.contentAr : lesson.content) || '') }} />
+                  )}
                   
                   {!lesson.isCompleted && (
-                    <Button 
-                      className="mt-12 bg-primary"
-                      onClick={() => updateProgress({ courseId, lessonId: lesson.id, data: { isCompleted: true, watchedSeconds: 0 }})}
-                    >
-                      Mark as Completed
-                    </Button>
+                    <div className="mt-8 pt-8 border-t border-border flex justify-end">
+                      <Button 
+                        size="lg"
+                        className="bg-primary hover:bg-primary/90 text-primary-foreground font-bold"
+                        onClick={() => updateProgress({ courseId, lessonId: lesson.id, data: { isCompleted: true, watchedSeconds: 0 }})}
+                      >
+                        <CheckCircle2 className="w-5 h-5 me-2" />
+                        {language === 'ar' ? 'تحديد كمكتمل' : 'Mark as Completed'}
+                      </Button>
+                    </div>
                   )}
                 </div>
               ) : (
