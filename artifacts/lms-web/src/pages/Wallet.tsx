@@ -20,7 +20,7 @@ export default function Wallet() {
   });
 
   const { mutate: redeem, isPending: isRedeeming } = useMutation({
-    mutationFn: (data: { code: string }) => api.post('/prepaid-cards/redeem', data),
+    mutationFn: (data: { code: string }) => api.post('/payments/redeem-code', data),
     onSuccess: () => {
       toast({
         title: "Success",
