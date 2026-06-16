@@ -2,7 +2,7 @@ import { Router } from "express";
 import bcrypt from "bcryptjs";
 import { db } from "@workspace/db";
 import { usersTable } from "@workspace/db";
-import { eq } from "drizzle-orm";
+import { eq, ilike } from "drizzle-orm";
 import { signToken, requireAuth } from "../lib/auth.js";
 import { RegisterBody, LoginBody } from "@workspace/api-zod";
 import { sendEmail } from "../lib/email.js";
@@ -61,7 +61,7 @@ router.post("/register", authLimiter, async (req, res) => {
     
     // Support phoneNumber in the validation gracefully
     const body = RegisterBody.passthrough().parse(req.body);
-    const existing = await db.select().from(usersTable).where(eq(usersTable.email, body.email)).limit(1);
+    const existing = await db.select().from(usersTable).where(ilike(usersTable.email, body.email)).limit(1);
     if (existing.length > 0) {
       res.status(400).json({ error: "Email already registered" });
       return;
@@ -216,7 +216,7 @@ router.post("/login", authLimiter, async (req, res) => {
       req.body.email = req.body.email.toLowerCase();
     }
     const body = LoginBody.parse(req.body);
-    const [user] = await db.select().from(usersTable).where(eq(usersTable.email, body.email)).limit(1);
+    const [user] = await db.select().from(usersTable).where(ilike(usersTable.email, body.email)).limit(1);
     if (!user) {
       res.status(401).json({ error: "Invalid credentials" });
       return;
