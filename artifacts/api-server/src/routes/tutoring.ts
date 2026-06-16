@@ -8,6 +8,19 @@ import crypto from "crypto";
 
 const router = Router();
 
+// ─── Grade-level minimum hourly rates (LYD/hour) ─────────────────────────────
+export const GRADE_LEVEL_RATES: Record<string, number> = {
+  grade_1_6:   70,
+  grade_7_9:  100,
+  grade_10_12: 150,
+  university:  150,
+};
+
+/** Returns the minimum hourly rate for a given lecturer level. */
+export function getGradeRate(lecturerLevel?: string | null): number {
+  return GRADE_LEVEL_RATES[lecturerLevel ?? ""] ?? 100;
+}
+
 // ─── List tutors (teachers with tutoring enabled) ────────────────────────────
 router.get("/tutors", async (_req, res) => {
   try {
@@ -193,6 +206,9 @@ router.post("/requests", requireAuth, async (req, res) => {
       let hourlyRate = "0.00";
       const resolvedTeacherId = isUrgent ? null : (teacherId ? parseInt(teacherId) : null);
 
+      // Grade-level minimum rate acts as the floor for all requests
+      const gradeMinRate = getGradeRate(lecturerLevel);
+
       if (resolvedTeacherId) {
         const [teacher] = await tx.select().from(usersTable).where(eq(usersTable.id, resolvedTeacherId)).limit(1);
         if (!teacher) {
@@ -201,11 +217,16 @@ router.post("/requests", requireAuth, async (req, res) => {
         if (teacher.tutoringSuspendedUntil && new Date(teacher.tutoringSuspendedUntil) > new Date()) {
            throw new Error("Selected teacher is currently suspended and cannot accept requests");
         }
-        hourlyRate = teacher.tutoringHourlyRate || "0.00";
+        // Use the higher of the teacher's rate or the grade-level minimum
+        const teacherRate = parseFloat(teacher.tutoringHourlyRate || "0");
+        hourlyRate = Math.max(teacherRate, gradeMinRate).toFixed(2);
+      } else {
+        // Urgent / any-teacher: use grade-level minimum rate
+        hourlyRate = gradeMinRate.toFixed(2);
       }
 
       const duration = parseInt(durationMinutes) || 60;
-      const cost = resolvedTeacherId ? (parseFloat(hourlyRate) * duration) / 60 : 100;
+      const cost = parseFloat(((parseFloat(hourlyRate) * duration) / 60).toFixed(2));
 
       if (parseFloat(user.balance) < cost) {
         throw new Error(`Insufficient balance. ${cost.toFixed(2)} dinars required to reserve this session.`);

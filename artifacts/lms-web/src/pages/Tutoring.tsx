@@ -22,6 +22,18 @@ const GRADE_LEVELS = [
   { value: 'university',  label: 'University / الجامعة' },
 ];
 
+/** Minimum hourly rates per grade level — must mirror the backend constant. */
+const GRADE_LEVEL_RATES: Record<string, number> = {
+  grade_1_6:   70,
+  grade_7_9:  100,
+  grade_10_12: 150,
+  university:  150,
+};
+
+function getGradeRate(level: string): number {
+  return GRADE_LEVEL_RATES[level] ?? 100;
+}
+
 const STATUS_COLORS: Record<string, string> = {
   pending:                 'bg-yellow-100 text-yellow-800 border-yellow-200',
   accepted:                'bg-green-100 text-green-800 border-green-200',
@@ -235,15 +247,25 @@ function RequestSessionForm() {
   const isUrgent = watch('isUrgent');
   const selectedTeacherId = watch('teacherId');
   const selectedDuration = watch('durationMinutes');
+  const selectedLevel = watch('lecturerLevel');
 
-  // Compute live cost estimate
+  // Compute live cost estimate — mirrors backend logic exactly:
+  //   - Grade-level rate is always the floor
+  //   - When a teacher is selected, use max(teacherRate, gradeMinRate)
+  //   - Multiply by fractional hours from selected durationMinutes
   const selectedTeacher = tutors.find((t: any) => String(t.id) === String(selectedTeacherId));
   const estimatedCost = React.useMemo(() => {
-    if (isUrgent || !selectedTeacherId || !selectedTeacher) return 100; // flat 100 for urgent/any
-    const rate = parseFloat(selectedTeacher.tutoringHourlyRate ?? 0);
+    const gradeMinRate = getGradeRate(selectedLevel);
     const mins = parseInt(selectedDuration) || 60;
-    return parseFloat(((rate * mins) / 60).toFixed(2));
-  }, [isUrgent, selectedTeacherId, selectedTeacher, selectedDuration]);
+
+    let hourlyRate = gradeMinRate;
+    if (!isUrgent && selectedTeacherId && selectedTeacher) {
+      const teacherRate = parseFloat(selectedTeacher.tutoringHourlyRate ?? 0);
+      hourlyRate = Math.max(teacherRate, gradeMinRate);
+    }
+
+    return parseFloat(((hourlyRate * mins) / 60).toFixed(2));
+  }, [isUrgent, selectedTeacherId, selectedTeacher, selectedDuration, selectedLevel]);
 
   // Build min datetime string (1 hour from now)
   const minDT = new Date();
