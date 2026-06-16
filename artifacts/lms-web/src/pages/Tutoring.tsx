@@ -10,7 +10,7 @@ import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import {
-  Clock, Calendar, MessageSquare, Send, Settings, ExternalLink
+  Clock, Calendar, MessageSquare, Send, Settings, ExternalLink, Plus
 } from 'lucide-react';
 import { useForm, Controller } from 'react-hook-form';
 
@@ -101,7 +101,7 @@ function SettingsModal({ open, onClose }: { open: boolean; onClose: () => void }
           <DialogTitle>Tutoring Settings / إعدادات التدريس الخاص</DialogTitle>
         </DialogHeader>
         <form onSubmit={handleSubmit(onSubmit)} className="space-y-5 pt-2">
-          {/* Enable toggle — use Controller to properly bind a native checkbox */}
+          {/* Enable toggle */}
           <Controller
             name="isTutoringEnabled"
             control={control}
@@ -164,7 +164,6 @@ function ProposeTimeModal({
   const [proposedAt, setProposedAt] = useState('');
   const [loading, setLoading] = useState(false);
 
-  // Get a min datetime (now) for the input
   const minDateTime = new Date();
   minDateTime.setMinutes(minDateTime.getMinutes() + 5);
   const minStr = minDateTime.toISOString().slice(0, 16);
@@ -217,8 +216,8 @@ function ProposeTimeModal({
   );
 }
 
-// ─── Request Session Form (Student) ──────────────────────────────────────────
-function RequestSessionForm() {
+// ─── Request Session Modal (Student) ─────────────────────────────────────────
+function RequestSessionModal({ open, onClose }: { open: boolean; onClose: () => void }) {
   const api = useApi();
   const { toast } = useToast();
   const queryClient = useQueryClient();
@@ -226,6 +225,7 @@ function RequestSessionForm() {
   const { data: tutors = [] } = useQuery<any[]>({
     queryKey: ['/api/tutoring/tutors'],
     queryFn: () => api.get('/tutoring/tutors'),
+    enabled: open,
   });
 
   const {
@@ -249,10 +249,6 @@ function RequestSessionForm() {
   const selectedDuration = watch('durationMinutes');
   const selectedLevel = watch('lecturerLevel');
 
-  // Compute live cost estimate — mirrors backend logic exactly:
-  //   - Grade-level rate is always the floor
-  //   - When a teacher is selected, use max(teacherRate, gradeMinRate)
-  //   - Multiply by fractional hours from selected durationMinutes
   const selectedTeacher = tutors.find((t: any) => String(t.id) === String(selectedTeacherId));
   const estimatedCost = React.useMemo(() => {
     const gradeMinRate = getGradeRate(selectedLevel);
@@ -267,7 +263,6 @@ function RequestSessionForm() {
     return parseFloat(((hourlyRate * mins) / 60).toFixed(2));
   }, [isUrgent, selectedTeacherId, selectedTeacher, selectedDuration, selectedLevel]);
 
-  // Build min datetime string (1 hour from now)
   const minDT = new Date();
   minDT.setHours(minDT.getHours() + 1);
   const minDTStr = minDT.toISOString().slice(0, 16);
@@ -283,6 +278,7 @@ function RequestSessionForm() {
       toast({ title: `✅ Request submitted! ${estimatedCost} LYD has been held from your balance.` });
       queryClient.invalidateQueries({ queryKey: ['/api/tutoring/requests'] });
       reset();
+      onClose();
     } catch (err: any) {
       toast({
         title: 'Failed to submit request',
@@ -293,117 +289,132 @@ function RequestSessionForm() {
   };
 
   return (
-    <div className="bg-card border border-border rounded-2xl p-6 shadow-sm">
-      <h2 className="text-xl font-bold mb-1">Request a 1-to-1 Session</h2>
-      <p className="text-sm text-muted-foreground mb-6">
-        A reservation of <strong>{estimatedCost} LYD</strong> will be held from your wallet based on the selected teacher & duration. It's refunded instantly if the request is cancelled or declined.
-      </p>
+    <Dialog open={open} onOpenChange={v => { if (!v) onClose(); }}>
+      <DialogContent className="sm:max-w-[580px] max-h-[90vh] overflow-y-auto">
+        <DialogHeader>
+          <DialogTitle className="text-xl">
+            Request a 1-to-1 Session
+            <span className="block text-sm font-normal text-muted-foreground mt-0.5">
+              طلب جلسة خاصة
+            </span>
+          </DialogTitle>
+        </DialogHeader>
 
-      <form onSubmit={handleSubmit(onSubmit)} className="space-y-5">
-        {/* Row 1: Lecturer Level + Subject */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <div>
-            <label className="text-sm font-medium block mb-1">Lecturer Level</label>
-            <select {...register('lecturerLevel')} className="w-full px-3 py-2 rounded-xl border border-input bg-background text-sm">
-              {GRADE_LEVELS.map(g => <option key={g.value} value={g.value}>{g.label}</option>)}
-            </select>
-          </div>
-          <div>
-            <label className="text-sm font-medium block mb-1">Subject <span className="text-destructive">*</span></label>
-            <Input
-              {...register('subject', { required: 'Subject is required' })}
-              placeholder="e.g. Mathematics"
-              className={errors.subject ? 'border-destructive' : ''}
-            />
-            {errors.subject && <p className="text-xs text-destructive mt-1">{errors.subject.message as string}</p>}
-          </div>
-        </div>
+        <p className="text-sm text-muted-foreground -mt-2 pb-2 border-b border-border">
+          A reservation of <strong>{estimatedCost} LYD</strong> will be held from your wallet based on the selected teacher &amp; duration. It's refunded instantly if the request is cancelled or declined.
+        </p>
 
-        {/* Urgent toggle — use Controller for proper boolean binding */}
-        <Controller
-          name="isUrgent"
-          control={control}
-          render={({ field }) => (
-            <label className={`flex items-center gap-3 cursor-pointer p-3 rounded-xl border transition-colors ${field.value ? 'border-red-300 bg-red-50' : 'border-border bg-muted/30 hover:bg-muted/50'}`}>
-              <input
-                type="checkbox"
-                checked={!!field.value}
-                onChange={e => field.onChange(e.target.checked)}
-                className="w-4 h-4 accent-red-500"
-                id="isUrgent"
+        <form onSubmit={handleSubmit(onSubmit)} className="space-y-5 pt-1">
+          {/* Row 1: Lecturer Level + Subject */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div>
+              <label className="text-sm font-medium block mb-1">Lecturer Level</label>
+              <select {...register('lecturerLevel')} className="w-full px-3 py-2 rounded-xl border border-input bg-background text-sm">
+                {GRADE_LEVELS.map(g => <option key={g.value} value={g.value}>{g.label}</option>)}
+              </select>
+            </div>
+            <div>
+              <label className="text-sm font-medium block mb-1">Subject <span className="text-destructive">*</span></label>
+              <Input
+                {...register('subject', { required: 'Subject is required' })}
+                placeholder="e.g. Mathematics"
+                className={errors.subject ? 'border-destructive' : ''}
               />
-              <div>
-                <div className="text-sm font-semibold">🚨 Mark as Urgent</div>
-                <div className="text-xs text-muted-foreground">Any available teacher can accept immediately — you can't pick a specific teacher</div>
-              </div>
-            </label>
-          )}
-        />
+              {errors.subject && <p className="text-xs text-destructive mt-1">{errors.subject.message as string}</p>}
+            </div>
+          </div>
 
-        {/* Teacher select — only shown if not urgent */}
-        {!isUrgent && (
-          <div>
-            <label className="text-sm font-medium block mb-1">Select Teacher (Optional)</label>
-            <select {...register('teacherId')} className="w-full px-3 py-2 rounded-xl border border-input bg-background text-sm">
-              <option value="">Any Teacher / أي معلم متاح</option>
-              {tutors.map((t: any) => (
-                <option key={t.id} value={t.id}>
-                  {t.fullName}{t.tutoringSubjects ? ` — ${t.tutoringSubjects}` : ''}
-                </option>
-              ))}
-            </select>
-            {tutors.length === 0 && (
-              <p className="text-xs text-muted-foreground mt-1">No tutors have enabled 1-to-1 sessions yet.</p>
+          {/* Urgent toggle */}
+          <Controller
+            name="isUrgent"
+            control={control}
+            render={({ field }) => (
+              <label className={`flex items-center gap-3 cursor-pointer p-3 rounded-xl border transition-colors ${field.value ? 'border-red-300 bg-red-50 dark:bg-red-950/30' : 'border-border bg-muted/30 hover:bg-muted/50'}`}>
+                <input
+                  type="checkbox"
+                  checked={!!field.value}
+                  onChange={e => field.onChange(e.target.checked)}
+                  className="w-4 h-4 accent-red-500"
+                  id="isUrgent"
+                />
+                <div>
+                  <div className="text-sm font-semibold">🚨 Mark as Urgent</div>
+                  <div className="text-xs text-muted-foreground">Any available teacher can accept immediately — you can't pick a specific teacher</div>
+                </div>
+              </label>
             )}
-          </div>
-        )}
-
-        {/* Row 2: Date/Time + Duration */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <div>
-            <label className="text-sm font-medium block mb-1">Preferred Date &amp; Time <span className="text-destructive">*</span></label>
-            <Input
-              {...register('preferredAt', { required: 'Date & time is required' })}
-              type="datetime-local"
-              min={minDTStr}
-              className={errors.preferredAt ? 'border-destructive' : ''}
-            />
-            {errors.preferredAt && <p className="text-xs text-destructive mt-1">{errors.preferredAt.message as string}</p>}
-          </div>
-          <div>
-            <label className="text-sm font-medium block mb-1">Duration</label>
-            <select {...register('durationMinutes')} className="w-full px-3 py-2 rounded-xl border border-input bg-background text-sm">
-              <option value="30">30 minutes</option>
-              <option value="60">60 minutes (1 hour)</option>
-              <option value="90">90 minutes</option>
-              <option value="120">120 minutes (2 hours)</option>
-            </select>
-          </div>
-        </div>
-
-        {/* Specific Topic */}
-        <div>
-          <label className="text-sm font-medium block mb-1">Specific Topic</label>
-          <Input {...register('topic')} placeholder="e.g. Quadratic equations, Photosynthesis..." />
-        </div>
-
-        {/* Message */}
-        <div>
-          <label className="text-sm font-medium block mb-1">Message to Teacher</label>
-          <textarea
-            {...register('message')}
-            rows={3}
-            className="w-full px-3 py-2 rounded-xl border border-input bg-background text-sm resize-none"
-            placeholder="Any extra context, your current level, resources needed..."
           />
-        </div>
 
-        <Button type="submit" className="w-full gap-2 h-11" disabled={isSubmitting}>
-          <Send className="w-4 h-4" />
-          {isSubmitting ? 'Submitting…' : `Submit Request (${estimatedCost} LYD reserved)`}
-        </Button>
-      </form>
-    </div>
+          {/* Teacher select — only shown if not urgent */}
+          {!isUrgent && (
+            <div>
+              <label className="text-sm font-medium block mb-1">Select Teacher (Optional)</label>
+              <select {...register('teacherId')} className="w-full px-3 py-2 rounded-xl border border-input bg-background text-sm">
+                <option value="">Any Teacher / أي معلم متاح</option>
+                {tutors.map((t: any) => (
+                  <option key={t.id} value={t.id}>
+                    {t.fullName}{t.tutoringSubjects ? ` — ${t.tutoringSubjects}` : ''}
+                  </option>
+                ))}
+              </select>
+              {tutors.length === 0 && (
+                <p className="text-xs text-muted-foreground mt-1">No tutors have enabled 1-to-1 sessions yet.</p>
+              )}
+            </div>
+          )}
+
+          {/* Row 2: Date/Time + Duration */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div>
+              <label className="text-sm font-medium block mb-1">Preferred Date &amp; Time <span className="text-destructive">*</span></label>
+              <Input
+                {...register('preferredAt', { required: 'Date & time is required' })}
+                type="datetime-local"
+                min={minDTStr}
+                className={errors.preferredAt ? 'border-destructive' : ''}
+              />
+              {errors.preferredAt && <p className="text-xs text-destructive mt-1">{errors.preferredAt.message as string}</p>}
+            </div>
+            <div>
+              <label className="text-sm font-medium block mb-1">Duration</label>
+              <select {...register('durationMinutes')} className="w-full px-3 py-2 rounded-xl border border-input bg-background text-sm">
+                <option value="30">30 minutes</option>
+                <option value="60">60 minutes (1 hour)</option>
+                <option value="90">90 minutes</option>
+                <option value="120">120 minutes (2 hours)</option>
+              </select>
+            </div>
+          </div>
+
+          {/* Specific Topic */}
+          <div>
+            <label className="text-sm font-medium block mb-1">Specific Topic</label>
+            <Input {...register('topic')} placeholder="e.g. Quadratic equations, Photosynthesis..." />
+          </div>
+
+          {/* Message */}
+          <div>
+            <label className="text-sm font-medium block mb-1">Message to Teacher</label>
+            <textarea
+              {...register('message')}
+              rows={3}
+              className="w-full px-3 py-2 rounded-xl border border-input bg-background text-sm resize-none"
+              placeholder="Any extra context, your current level, resources needed..."
+            />
+          </div>
+
+          <div className="flex gap-3 pt-1">
+            <Button type="submit" className="flex-1 gap-2 h-11" disabled={isSubmitting}>
+              <Send className="w-4 h-4" />
+              {isSubmitting ? 'Submitting…' : `Submit Request (${estimatedCost} LYD reserved)`}
+            </Button>
+            <Button type="button" variant="outline" className="h-11" onClick={onClose}>
+              Cancel
+            </Button>
+          </div>
+        </form>
+      </DialogContent>
+    </Dialog>
   );
 }
 
@@ -552,9 +563,9 @@ export default function Tutoring() {
   const { toast } = useToast();
 
   const isTeacher = user?.role === 'teacher' || user?.role === 'admin';
-  const [tab, setTab] = useState<'request' | 'requests'>(isTeacher ? 'requests' : 'request');
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [proposeFor, setProposeFor] = useState<any>(null);
+  const [requestModalOpen, setRequestModalOpen] = useState(false);
 
   const { data: requests = [], isLoading } = useQuery<any[]>({
     queryKey: ['/api/tutoring/requests'],
@@ -636,80 +647,75 @@ export default function Tutoring() {
         </Dialog>
       )}
 
-      {/* Page content — visually blurred by the modal overlay when not logged in */}
       <div className={showLoginModal ? 'pointer-events-none select-none' : ''}>
-      {/* Header */}
-      <div className="bg-gradient-to-r from-primary/10 via-primary/5 to-transparent border-b border-border py-10">
-        <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex items-end justify-between gap-4 flex-wrap">
-            <div>
-              <p className="text-sm text-primary font-semibold uppercase tracking-widest mb-1">1-to-1 Tutoring</p>
-              <h1 className="text-3xl font-display font-bold">
-                {isTeacher ? 'Manage Tutoring Sessions' : 'Personal Tutoring Sessions'}
-              </h1>
-              <p className="text-muted-foreground mt-2 max-w-xl">
-                {isTeacher
-                  ? 'Accept student requests, propose alternative times, and conduct private sessions.'
-                  : 'Request private tutoring with expert teachers. A 100 LYD deposit secures your slot.'}
-              </p>
+        {/* Header */}
+        <div className="bg-gradient-to-r from-primary/10 via-primary/5 to-transparent border-b border-border py-10">
+          <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div className="flex items-end justify-between gap-4 flex-wrap">
+              <div>
+                <p className="text-sm text-primary font-semibold uppercase tracking-widest mb-1">1-to-1 Tutoring</p>
+                <h1 className="text-3xl font-display font-bold">
+                  {isTeacher ? 'Manage Tutoring Sessions' : 'My Sessions / جلساتي'}
+                </h1>
+                <p className="text-muted-foreground mt-2 max-w-xl">
+                  {isTeacher
+                    ? 'Accept student requests, propose alternative times, and conduct private sessions.'
+                    : 'All your private tutoring sessions in one place. Request a new session whenever you need help.'}
+                </p>
+              </div>
+              <div className="flex items-center gap-3 flex-wrap">
+                {isTeacher && (
+                  <Button variant="outline" className="gap-2 shrink-0 bg-background" onClick={() => setSettingsOpen(true)}>
+                    <Settings className="w-4 h-4" /> Tutoring Settings
+                  </Button>
+                )}
+                {!isTeacher && (
+                  <Button
+                    className="gap-2 shrink-0 h-11 px-5 shadow-md"
+                    onClick={() => setRequestModalOpen(true)}
+                  >
+                    <Plus className="w-4 h-4" />
+                    Request Session
+                    <span className="text-xs opacity-70 hidden sm:inline">/ طلب جلسة</span>
+                  </Button>
+                )}
+              </div>
             </div>
-            {isTeacher && (
-              <Button variant="outline" className="gap-2 shrink-0 bg-background" onClick={() => setSettingsOpen(true)}>
-                <Settings className="w-4 h-4" /> Tutoring Settings
-              </Button>
-            )}
           </div>
         </div>
-      </div>
 
-      <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        {/* Tabs */}
-        <div className="flex gap-3 mb-6 border-b border-border">
-          {!isTeacher && (
-            <button
-              onClick={() => setTab('request')}
-              className={`pb-3 px-1 text-sm font-semibold border-b-2 transition-colors ${tab === 'request' ? 'border-primary text-primary' : 'border-transparent text-muted-foreground hover:text-foreground'}`}
-            >
-              ➕ Request Session
-            </button>
+        <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+          {/* Pending count banner for students */}
+          {!isTeacher && requests.filter((r: any) => r.status === 'pending').length > 0 && (
+            <div className="mb-5 flex items-center gap-3 px-4 py-3 rounded-xl bg-yellow-50 border border-yellow-200 text-yellow-800 text-sm font-medium">
+              <Clock className="w-4 h-4 shrink-0" />
+              You have <strong>{requests.filter((r: any) => r.status === 'pending').length}</strong> pending session{requests.filter((r: any) => r.status === 'pending').length > 1 ? 's' : ''} awaiting teacher response.
+            </div>
           )}
-          <button
-            onClick={() => setTab('requests')}
-            className={`pb-3 px-1 text-sm font-semibold border-b-2 transition-colors ${tab === 'requests' ? 'border-primary text-primary' : 'border-transparent text-muted-foreground hover:text-foreground'}`}
-          >
-            {isTeacher ? '📥 Incoming & My Sessions' : '📋 My Sessions'}
-            {requests.length > 0 && (
-              <span className="ml-2 px-1.5 py-0.5 text-[10px] font-bold bg-primary text-primary-foreground rounded-full">
-                {requests.filter((r: any) => r.status === 'pending').length || requests.length}
-              </span>
-            )}
-          </button>
-        </div>
 
-        {/* Student Request Form */}
-        {tab === 'request' && !isTeacher && (
-          <div className="max-w-2xl">
-            <RequestSessionForm />
-          </div>
-        )}
-
-        {/* Session List */}
-        {tab === 'requests' && (
+          {/* Session List */}
           <div className="space-y-4">
             {isLoading ? (
               <div className="p-10 text-center text-muted-foreground">Loading sessions…</div>
             ) : requests.length === 0 ? (
-              <div className="bg-card border border-border rounded-2xl p-12 text-center">
+              <div className="bg-card border border-dashed border-border rounded-2xl p-12 text-center">
                 <Calendar className="w-12 h-12 text-muted-foreground mx-auto mb-4 opacity-30" />
-                <h3 className="text-lg font-bold">No sessions yet</h3>
-                <p className="text-muted-foreground text-sm mt-1">
+                <h3 className="text-lg font-bold">
+                  {isTeacher ? 'No sessions yet' : 'No sessions yet / لا توجد جلسات بعد'}
+                </h3>
+                <p className="text-muted-foreground text-sm mt-1 mb-6">
                   {isTeacher
                     ? 'Student requests will appear here. Make sure you have enabled tutoring in settings.'
-                    : 'Submit a request from the "Request Session" tab to get started.'}
+                    : 'Click the button below to request your first private tutoring session.'}
                 </p>
-                {isTeacher && (
-                  <Button variant="outline" className="mt-4 gap-2" onClick={() => setSettingsOpen(true)}>
+                {isTeacher ? (
+                  <Button variant="outline" className="gap-2" onClick={() => setSettingsOpen(true)}>
                     <Settings className="w-4 h-4" /> Open Tutoring Settings
+                  </Button>
+                ) : (
+                  <Button className="gap-2 h-11 px-6" onClick={() => setRequestModalOpen(true)}>
+                    <Plus className="w-4 h-4" />
+                    Request Your First Session
                   </Button>
                 )}
               </div>
@@ -726,12 +732,12 @@ export default function Tutoring() {
               ))
             )}
           </div>
-        )}
+        </div>
       </div>
-      </div> {/* end pointer-events wrapper */}
 
       <SettingsModal open={settingsOpen} onClose={() => setSettingsOpen(false)} />
       <ProposeTimeModal request={proposeFor} open={!!proposeFor} onClose={() => setProposeFor(null)} />
+      <RequestSessionModal open={requestModalOpen} onClose={() => setRequestModalOpen(false)} />
     </PageContainer>
   );
 }
