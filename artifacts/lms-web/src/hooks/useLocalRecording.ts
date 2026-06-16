@@ -141,6 +141,8 @@ export function useLocalRecording(sessionName: string, onRecordingSaved?: (url: 
     } catch (err: any) {
       if (err.name === 'NotAllowedError') {
         toast.error("Screen recording was cancelled or blocked.");
+      } else if (err.name === 'TypeError' || !navigator.mediaDevices?.getDisplayMedia) {
+        toast.error("Screen recording is not supported on this device (e.g., mobile/tablet browsers). Please use a desktop computer.");
       } else {
         toast.error("Failed to start recording.");
         console.error("Recording error:", err);
@@ -154,5 +156,10 @@ export function useLocalRecording(sessionName: string, onRecordingSaved?: (url: 
     }
   }, []);
 
-  return { isRecording, isUploading, startRecording, stopRecording };
+  const isSupported = typeof navigator !== 'undefined' && 
+    !!navigator.mediaDevices && 
+    !!navigator.mediaDevices.getDisplayMedia &&
+    typeof MediaRecorder !== 'undefined';
+
+  return { isRecording, isUploading, startRecording, stopRecording, isSupported };
 }

@@ -128,31 +128,35 @@ export default function TutoringRoom() {
         </div>
         <div className="flex items-center gap-4">
           {hasJoined && isTeacher && (
-            <Button 
-              variant={isRecording ? 'outline' : 'secondary'} 
-              size="sm" 
-              className={`gap-2 h-8 ${isRecording ? 'border-red-500 text-red-500 animate-pulse bg-transparent hover:bg-red-500/10' : 'bg-white/10 hover:bg-white/20'}`}
-              onClick={isRecording ? stopRecording : startRecording}
-              disabled={isUploading}
-            >
-              {isUploading ? <Radio className="w-4 h-4 animate-spin" /> : (isRecording ? <Square className="w-4 h-4 fill-current" /> : <Circle className="w-4 h-4 fill-current text-red-500" />)}
-              {isUploading ? 'Saving...' : (isRecording ? 'Stop Rec' : 'Record')}
-            </Button>
+            <div title={!isSupported ? "Screen recording is not supported on this device. Please use a desktop browser." : ""}>
+              <Button 
+                variant={isRecording ? 'outline' : 'secondary'} 
+                size="sm" 
+                className={`gap-2 h-8 ${isRecording ? 'border-red-500 text-red-500 animate-pulse bg-transparent hover:bg-red-500/10' : 'bg-white/10 hover:bg-white/20'}`}
+                onClick={isRecording ? stopRecording : startRecording}
+                disabled={isUploading || !isSupported}
+              >
+                {isUploading ? <Radio className="w-4 h-4 animate-spin" /> : (isRecording ? <Square className="w-4 h-4 fill-current" /> : <Circle className="w-4 h-4 fill-current text-red-500" />)}
+                {isUploading ? 'Saving...' : (isRecording ? 'Stop Rec' : 'Record')}
+              </Button>
+            </div>
           )}
         </div>
       </div>
 
       <div className="flex-1 overflow-hidden relative flex flex-col bg-black">
         {!hasJoined ? (
-          <div className="flex-1 flex items-center justify-center bg-slate-800 p-4" data-lk-theme="default">
-             <PreJoin
-               defaults={{ videoEnabled: true, audioEnabled: true }}
-               onSubmit={(choices) => {
-                 setUserChoices(choices);
-                 joinSession();
-               }}
-               className="bg-slate-900 border border-white/10 rounded-2xl shadow-2xl p-4"
-             />
+          <div className="flex-1 overflow-y-auto bg-slate-800" data-lk-theme="default">
+            <div className="min-h-full flex flex-col justify-center items-center p-4 py-8">
+               <PreJoin
+                 defaults={{ videoEnabled: true, audioEnabled: true }}
+                 onSubmit={(choices) => {
+                   setUserChoices(choices);
+                   joinSession();
+                 }}
+                 className="bg-slate-900 border border-white/10 rounded-2xl shadow-2xl p-4 w-full max-w-md mx-auto"
+               />
+            </div>
           </div>
         ) : (
           <ScreenProtection>
