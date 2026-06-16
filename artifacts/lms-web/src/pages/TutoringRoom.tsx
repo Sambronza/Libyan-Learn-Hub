@@ -17,6 +17,8 @@ import {
   LiveKitRoom,
   VideoConference,
   RoomAudioRenderer,
+  PreJoin,
+  LocalUserChoices,
 } from '@livekit/components-react';
 import '@livekit/components-styles';
 
@@ -33,6 +35,7 @@ export default function TutoringRoom() {
   const { setMediaActive } = useMediaActivity();
   
   const [hasJoined, setHasJoined] = useState(false);
+  const [userChoices, setUserChoices] = useState<LocalUserChoices | undefined>(undefined);
   const [liveKitToken, setLiveKitToken] = useState<string | null>(null);
   const [liveKitUrl, setLiveKitUrl] = useState<string | null>(null);
   const [isTeacher, setIsTeacher] = useState(false);
@@ -141,18 +144,22 @@ export default function TutoringRoom() {
 
       <div className="flex-1 overflow-hidden relative flex flex-col bg-black">
         {!hasJoined ? (
-          <div className="flex-1 flex items-center justify-center bg-slate-800 p-4">
-            <div className="text-center max-w-md w-full bg-slate-900/50 p-6 md:p-8 rounded-3xl border border-white/5">
-              <h2 className="text-2xl font-bold mb-4">Ready to Join?</h2>
-              <Button className="w-full text-lg h-14" onClick={joinSession}>Enter Session</Button>
-            </div>
+          <div className="flex-1 flex items-center justify-center bg-slate-800 p-4" data-lk-theme="default">
+             <PreJoin
+               defaults={{ videoEnabled: true, audioEnabled: true }}
+               onSubmit={(choices) => {
+                 setUserChoices(choices);
+                 joinSession();
+               }}
+               className="bg-slate-900 border border-white/10 rounded-2xl shadow-2xl p-4"
+             />
           </div>
         ) : (
           <ScreenProtection>
-            {liveKitToken && liveKitUrl ? (
+            {liveKitToken && liveKitUrl && userChoices ? (
               <LiveKitRoom
-                video={true}
-                audio={true}
+                video={userChoices.videoEnabled}
+                audio={userChoices.audioEnabled}
                 token={liveKitToken}
                 serverUrl={liveKitUrl}
                 className="absolute inset-0 w-full h-full"
