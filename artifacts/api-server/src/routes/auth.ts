@@ -55,6 +55,10 @@ router.post("/register", authLimiter, async (req, res) => {
       req.body = {};
     }
     
+    if (typeof req.body.email === "string") {
+      req.body.email = req.body.email.toLowerCase();
+    }
+    
     // Support phoneNumber in the validation gracefully
     const body = RegisterBody.passthrough().parse(req.body);
     const existing = await db.select().from(usersTable).where(eq(usersTable.email, body.email)).limit(1);
@@ -207,6 +211,9 @@ router.post("/login", authLimiter, async (req, res) => {
     if (req.body === undefined) {
       console.error("req.body is undefined on /login. Headers:", req.headers);
       req.body = {};
+    }
+    if (typeof req.body.email === "string") {
+      req.body.email = req.body.email.toLowerCase();
     }
     const body = LoginBody.parse(req.body);
     const [user] = await db.select().from(usersTable).where(eq(usersTable.email, body.email)).limit(1);
@@ -466,6 +473,9 @@ router.post("/verify-passkey", requireAuth, async (req, res) => {
 
 router.post("/forgot-password", authLimiter, async (req, res) => {
   try {
+    if (typeof req.body.email === "string") {
+      req.body.email = req.body.email.toLowerCase();
+    }
     const { email, phoneNumber } = req.body;
     if (!email && !phoneNumber) {
       res.status(400).json({ error: "Email or phone number is required" });
@@ -524,6 +534,9 @@ router.post("/forgot-password", authLimiter, async (req, res) => {
 
 router.post("/reset-password", authLimiter, async (req, res) => {
   try {
+    if (typeof req.body.email === "string") {
+      req.body.email = req.body.email.toLowerCase();
+    }
     const { email, phoneNumber, otpCode, newPassword } = req.body;
     if ((!email && !phoneNumber) || !otpCode || !newPassword) {
       res.status(400).json({ error: "Missing required fields" });
