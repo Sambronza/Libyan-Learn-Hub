@@ -26,6 +26,7 @@ export const tutoringRequestsTable = pgTable("tutoring_requests", {
   currency: varchar("currency", { length: 10 }).notNull().default("LYD"),
   status: tutoringStatusEnum("status").notNull().default("pending"),
   meetingUrl: text("meeting_url"),
+  recordingUrl: text("recording_url"),
   paymentId: integer("payment_id"),
   studentRating: integer("student_rating"),
   studentReview: text("student_review"),

@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
-import { useLocation } from 'wouter';
+import { useLocation, Link } from 'wouter';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useApi } from '@/hooks/useApi';
 import { useToast } from '@/hooks/use-toast';
@@ -486,9 +486,9 @@ function RequestCard({
           {/* Meeting link (if accepted) */}
           {r.status === 'accepted' && r.meetingUrl && (
             <Button asChild size="sm" className="w-full bg-green-600 hover:bg-green-700 gap-2">
-              <a href={r.meetingUrl} target="_blank" rel="noreferrer">
+              <Link href={`/tutoring/room/${r.id}`}>
                 <ExternalLink className="w-3.5 h-3.5" /> Join Meeting
-              </a>
+              </Link>
             </Button>
           )}
 

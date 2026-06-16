@@ -20,7 +20,19 @@ const LOCK_STATE_KEY = 'lms_is_locked';
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const queryClient = useQueryClient();
-  const [token, setToken] = useState<string | null>(localStorage.getItem('lms_token'));
+  // Check if token is passed via URL (e.g. from mobile WebView)
+  const urlParams = new URLSearchParams(window.location.search);
+  const urlToken = urlParams.get('token');
+  
+  const [token, setToken] = useState<string | null>(() => {
+    if (urlToken) {
+      localStorage.setItem('lms_token', urlToken);
+      // Clean up URL
+      window.history.replaceState({}, document.title, window.location.pathname);
+      return urlToken;
+    }
+    return localStorage.getItem('lms_token');
+  });
   
   // Session is unlocked by default, unless previously locked in this session
   const [isLocked, setIsLocked] = useState<boolean>(() => {

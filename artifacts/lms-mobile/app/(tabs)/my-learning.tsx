@@ -119,7 +119,6 @@ function TeacherDashboard() {
           durationMinutes: parseInt(form.durationMinutes),
           maxParticipants: parseInt(form.maxParticipants),
           scheduledAt: form.scheduledAt,
-          meetingUrl: `https://meet.jit.si/edulibya-${Date.now()}`,
         }),
       });
       Alert.alert(t("تم!", "Done!"), t("تم إنشاء الجلسة المباشرة.", "Live session created."));

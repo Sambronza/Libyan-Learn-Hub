@@ -28,6 +28,7 @@ const ManageCourse = React.lazy(() => import("@/pages/ManageCourse"));
 const AdminDashboard = React.lazy(() => import("@/pages/AdminDashboard"));
 const LiveSessions = React.lazy(() => import("@/pages/LiveSessions"));
 const SessionRoom = React.lazy(() => import("@/pages/SessionRoom"));
+const TutoringRoom = React.lazy(() => import("@/pages/TutoringRoom"));
 const Tutoring = React.lazy(() => import("@/pages/Tutoring"));
 const Teachers = React.lazy(() => import("@/pages/Teachers"));
 const TeacherProfile = React.lazy(() => import("@/pages/TeacherProfile"));
@@ -94,7 +95,7 @@ class ErrorBoundary extends React.Component<{ children: React.ReactNode }, { has
 
 function LayoutWrapper({ children }: { children: React.ReactNode }) {
   const [location] = useLocation();
-  const noLayoutRoutes = ['/login', '/register', '/session/'];
+  const noLayoutRoutes = ['/login', '/register', '/session/', '/tutoring/room/'];
   const hideLayout = noLayoutRoutes.some(route => location.startsWith(route));
 
   if (hideLayout) {
@@ -123,6 +124,7 @@ function Router() {
         <Route path="/academy/apply" component={AcademyApply} />
         <Route path="/live-sessions" component={LiveSessions} />
         <Route path="/session/:id" component={SessionRoom} />
+        <Route path="/tutoring/room/:id" component={TutoringRoom} />
         <Route path="/tutoring" component={Tutoring} />
         <Route path="/teachers" component={Teachers} />
         <Route path="/teachers/:slug" component={TeacherProfile} />

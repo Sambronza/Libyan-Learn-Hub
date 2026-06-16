@@ -159,7 +159,7 @@ function ApplyModal({ listing, visible, onClose, onApply }: any) {
   );
 }
 
-function ApplicationsModal({ listing, visible, onClose, apiFetch, queryClient }: any) {
+function ApplicationsModal({ listing, visible, onClose, apiFetch, queryClient, token }: any) {
   const { data: apps = [], isLoading } = useQuery<any[]>({
     queryKey: ["listing-apps", listing?.id],
     queryFn: () => apiFetch(`/tutoring-listings/${listing?.id}/applications`),
@@ -207,9 +207,17 @@ function ApplicationsModal({ listing, visible, onClose, apiFetch, queryClient }:
                       </Pressable>
                     </View>
                   )}
-                  {app.meetingUrl ? (
-                    <Text style={{ color: C.tint, fontSize: 12, marginTop: 4 }} numberOfLines={1}>{app.meetingUrl}</Text>
-                  ) : null}
+                  {app.status === "accepted" && (
+                    <Pressable
+                      style={{ marginTop: 8, padding: 8, backgroundColor: C.tint, borderRadius: 8 }}
+                      onPress={() => {
+                        const webAppDomain = process.env.EXPO_PUBLIC_DOMAIN || 'eduonline.net.ly';
+                        import('react-native').then(m => m.Linking.openURL(`https://${webAppDomain}/tutoring/room/${app.id}?token=${token}`));
+                      }}
+                    >
+                      <Text style={{ color: '#fff', textAlign: 'center', fontFamily: 'Inter_600SemiBold', fontSize: 13 }}>Join Session (Browser)</Text>
+                    </Pressable>
+                  )}
                 </View>
               ))}
             </ScrollView>
@@ -222,7 +230,7 @@ function ApplicationsModal({ listing, visible, onClose, apiFetch, queryClient }:
 
 export default function TutoringScreen() {
   const insets = useSafeAreaInsets();
-  const { user } = useAuth();
+  const { user, token } = useAuth();
   const { apiFetch } = useApi();
   const queryClient = useQueryClient();
   const { t } = useLanguage();
@@ -342,6 +350,17 @@ export default function TutoringScreen() {
               <Text style={styles.teacherName}>{item.teacherNameAr}</Text>
               {item.message ? <Text style={{ fontFamily: "Inter_400Regular", fontSize: 13, color: C.textSecondary, marginTop: 6, textAlign: "right" }}>{item.message}</Text> : null}
               {item.teacherNote ? <Text style={{ fontFamily: "Inter_400Regular", fontSize: 13, color: C.tint, marginTop: 6, textAlign: "right", backgroundColor: `${C.tint}10`, padding: 8, borderRadius: 8 }}>ملاحظة المعلم: {item.teacherNote}</Text> : null}
+              {item.status === "accepted" && (
+                <Pressable
+                  style={{ marginTop: 8, padding: 8, backgroundColor: C.tint, borderRadius: 8 }}
+                  onPress={() => {
+                    const webAppDomain = process.env.EXPO_PUBLIC_DOMAIN || 'eduonline.net.ly';
+                    import('react-native').then(m => m.Linking.openURL(`https://${webAppDomain}/tutoring/room/${item.id}?token=${token}`));
+                  }}
+                >
+                  <Text style={{ color: '#fff', textAlign: 'center', fontFamily: 'Inter_600SemiBold', fontSize: 13 }}>Join Session (Browser)</Text>
+                </Pressable>
+              )}
             </View>
           )}
           contentContainerStyle={{ paddingHorizontal: 20, paddingBottom: Platform.OS === "web" ? 34 : insets.bottom + 90, paddingTop: 8, gap: 14 }}
@@ -356,7 +375,7 @@ export default function TutoringScreen() {
       )}
 
       <ApplyModal listing={applyFor} visible={!!applyFor} onClose={() => setApplyFor(null)} onApply={handleApply} />
-      <ApplicationsModal listing={appsFor} visible={!!appsFor} onClose={() => setAppsFor(null)} apiFetch={apiFetch} queryClient={queryClient} />
+      <ApplicationsModal listing={appsFor} visible={!!appsFor} onClose={() => setAppsFor(null)} apiFetch={apiFetch} queryClient={queryClient} token={token} />
     </View>
   );
 }

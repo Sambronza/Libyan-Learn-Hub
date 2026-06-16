@@ -90,7 +90,7 @@ function InAppVideoModal({ url, title, visible, onClose }: { url: string; title:
 function SessionCard({ session, onJoin }: { session: LiveSession; onJoin: (s: LiveSession) => void }) {
   const isLive = session.status === "live";
   const isUpcoming = session.status === "scheduled";
-  const canJoin = (isLive || isUpcoming) && !!session.meetingUrl;
+  const canJoin = (isLive || isUpcoming);
   const [reportOpen, setReportOpen] = useState(false);
   const { t, language } = useLanguage();
 
@@ -169,7 +169,7 @@ function SessionCard({ session, onJoin }: { session: LiveSession; onJoin: (s: Li
 export default function LiveScreen() {
   const insets = useSafeAreaInsets();
   const { apiFetch } = useApi();
-  const { user } = useAuth();
+  const { user, token } = useAuth();
   const { t, language } = useLanguage();
   const [activeSession, setActiveSession] = useState<LiveSession | null>(null);
 
@@ -184,7 +184,8 @@ export default function LiveScreen() {
   const upcomingSessions = sessions?.filter(s => s.status === "scheduled") || [];
   const pastSessions = sessions?.filter(s => s.status === "ended") || [];
 
-  const sessionUrl = activeSession?.meetingUrl || `https://meet.jit.si/edulibya-session-${activeSession?.id}`;
+  const webAppDomain = process.env.EXPO_PUBLIC_DOMAIN || 'eduonline.net.ly';
+  const sessionUrl = `https://${webAppDomain}/session/${activeSession?.id}?token=${token}`;
 
   return (
     <View style={styles.container}>

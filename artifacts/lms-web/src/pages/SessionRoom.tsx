@@ -59,8 +59,17 @@ export default function SessionRoom() {
     refetchInterval: (query) => (query.state.data?.status === 'live' || hasJoined) ? 60000 : 5000, // Poll faster if waiting
   });
 
+  const handleRecordingSaved = async (url: string) => {
+    try {
+      await api.post(`/room/sessions/${sessionId}/recording`, { recordingUrl: url });
+    } catch (err: any) {
+      console.error(err);
+      toast({ title: 'Failed to save recording URL to session', description: err.message, variant: 'destructive' });
+    }
+  };
+
   // Local Recording hook
-  const { isRecording, startRecording, stopRecording } = useLocalRecording(session?.title || 'ClassSession');
+  const { isRecording, isUploading, startRecording, stopRecording } = useLocalRecording(session?.title || 'ClassSession', handleRecordingSaved);
 
   useEffect(() => {
     if (session && !session.isRegistered && !session.isTeacher && parseFloat(session.price) > 0) {
@@ -308,9 +317,10 @@ export default function SessionRoom() {
               size="sm" 
               className={`ml-2 gap-2 h-8 ${isRecording ? 'border-red-500 text-red-500 hover:bg-red-500/10 animate-pulse' : 'bg-white/10 hover:bg-white/20 text-white'}`}
               onClick={isRecording ? stopRecording : startRecording}
+              disabled={isUploading}
             >
-              {isRecording ? <Square className="w-4 h-4 fill-current" /> : <Circle className="w-4 h-4 text-red-500 fill-current" />}
-              {isRecording ? 'Stop Rec' : 'Record'}
+              {isUploading ? <Radio className="w-4 h-4 animate-pulse" /> : (isRecording ? <Square className="w-4 h-4 fill-current" /> : <Circle className="w-4 h-4 text-red-500 fill-current" />)}
+              {isUploading ? 'Saving...' : (isRecording ? 'Stop Rec' : 'Record')}
             </Button>
           )}
           {session.isTeacher && session.status === 'live' && (

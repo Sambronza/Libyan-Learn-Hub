@@ -226,4 +226,28 @@ router.post("/sessions/:id/questions/:qId/answer", requireAuth, async (req, res)
   }
 });
 
+// Save Recording URL
+router.post("/sessions/:id/recording", requireAuth, async (req, res) => {
+  try {
+    const { userId } = (req as any).user;
+    const sessionId = parseParam(req.params.id);
+    const { recordingUrl } = req.body;
+
+    const [session] = await db.select().from(liveSessionsTable).where(eq(liveSessionsTable.id, sessionId)).limit(1);
+    if (!session) { res.status(404).json({ error: "Session not found" }); return; }
+
+    if (session.teacherId !== userId) {
+      res.status(403).json({ error: "Only the teacher can save the recording" }); return;
+    }
+
+    await db.update(liveSessionsTable)
+      .set({ recordingUrl })
+      .where(eq(liveSessionsTable.id, sessionId));
+
+    res.json({ success: true, recordingUrl });
+  } catch (err: any) {
+    res.status(500).json({ error: "Server error", message: err.message });
+  }
+});
+
 export default router;

@@ -5,6 +5,7 @@ import { eq, and, desc, isNull, or, sql, lt } from "drizzle-orm";
 import { requireAuth } from "../lib/auth.js";
 import { parseParam } from "../lib/utils.js";
 import crypto from "crypto";
+import { AccessToken } from "livekit-server-sdk";
 
 const router = Router();
 
@@ -302,7 +303,7 @@ router.post("/requests/:id/accept", requireAuth, async (req, res) => {
     }
 
     const roomId = `edulibya-tutoring-${requestId}-${crypto.randomBytes(4).toString("hex")}`;
-    const meetingUrl = `https://meet.jit.si/${roomId}`;
+    const meetingUrl = roomId;
 
     // Case: request has no assigned teacher (urgent OR any-teacher) — first teacher wins
     if (request.teacherId === null) {
@@ -456,7 +457,7 @@ router.post("/requests/:id/accept-proposed-time", requireAuth, async (req, res) 
     }
 
     const roomId = `edulibya-tutoring-${requestId}-${crypto.randomBytes(4).toString("hex")}`;
-    const meetingUrl = `https://meet.jit.si/${roomId}`;
+    const meetingUrl = roomId;
 
     const [updated] = await db.update(tutoringRequestsTable)
       .set({
@@ -652,6 +653,82 @@ router.post("/requests/:id/no-show", requireAuth, async (req, res) => {
     });
 
     res.json({ success: true, status: "cancelled_no_show" });
+  } catch (err: any) {
+    res.status(500).json({ error: "Server error", message: err.message });
+  }
+});
+
+// ─── Join LiveKit Tutoring Session ────────────────────────────────────────────
+router.post("/requests/:id/join", requireAuth, async (req, res) => {
+  try {
+    const { userId } = (req as any).user;
+    const requestId = parseParam(req.params.id);
+
+    const [request] = await db.select().from(tutoringRequestsTable)
+      .where(eq(tutoringRequestsTable.id, requestId)).limit(1);
+
+    if (!request) { res.status(404).json({ error: "Request not found" }); return; }
+
+    if (!["accepted", "completed"].includes(request.status)) {
+      res.status(403).json({ error: "Session is not active or completed" }); return;
+    }
+
+    if (request.teacherId !== userId && request.studentId !== userId) {
+      res.status(403).json({ error: "Not authorized to join this session" }); return;
+    }
+
+    const isTeacher = request.teacherId === userId;
+    const roomId = request.meetingUrl || `edulibya-tutoring-${requestId}`;
+
+    const livekitApiKey = process.env.LIVEKIT_API_KEY || "devkey";
+    const livekitApiSecret = process.env.LIVEKIT_API_SECRET || "secret";
+    const livekitUrl = process.env.LIVEKIT_URL || "ws://localhost:7880";
+
+    const [user] = await db.select().from(usersTable).where(eq(usersTable.id, userId)).limit(1);
+    const displayName = user?.fullName || (isTeacher ? "Teacher" : "Student");
+
+    const at = new AccessToken(livekitApiKey, livekitApiSecret, {
+      identity: `user-${userId}`,
+      name: displayName,
+    });
+
+    at.addGrant({
+      roomJoin: true,
+      room: roomId,
+      canPublish: true,
+      canPublishData: true,
+      canSubscribe: true,
+    });
+
+    const token = await at.toJwt();
+
+    res.json({ roomId, requestId, isTeacher, token, livekitUrl });
+  } catch (err: any) {
+    res.status(500).json({ error: "Server error", message: err.message });
+  }
+});
+
+// ─── Save Recording URL ───────────────────────────────────────────────────────
+router.post("/requests/:id/recording", requireAuth, async (req, res) => {
+  try {
+    const { userId } = (req as any).user;
+    const requestId = parseParam(req.params.id);
+    const { recordingUrl } = req.body;
+
+    const [request] = await db.select().from(tutoringRequestsTable)
+      .where(eq(tutoringRequestsTable.id, requestId)).limit(1);
+
+    if (!request) { res.status(404).json({ error: "Request not found" }); return; }
+
+    if (request.teacherId !== userId) {
+      res.status(403).json({ error: "Only the teacher can save the recording" }); return;
+    }
+
+    await db.update(tutoringRequestsTable)
+      .set({ recordingUrl, updatedAt: new Date() })
+      .where(eq(tutoringRequestsTable.id, requestId));
+
+    res.json({ success: true, recordingUrl });
   } catch (err: any) {
     res.status(500).json({ error: "Server error", message: err.message });
   }

@@ -1,8 +1,10 @@
 import { useState, useRef, useCallback } from 'react';
 import { toast } from 'react-hot-toast';
+import { useApi } from './useApi';
 
-export function useLocalRecording(sessionName: string) {
+export function useLocalRecording(sessionName: string, onRecordingSaved?: (url: string) => void) {
   const [isRecording, setIsRecording] = useState(false);
+  const [isUploading, setIsUploading] = useState(false);
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const chunksRef = useRef<BlobPart[]>([]);
 
@@ -72,26 +74,11 @@ export function useLocalRecording(sessionName: string) {
         }
       };
 
-      mediaRecorder.onstop = () => {
+      mediaRecorder.onstop = async () => {
         const fileExtension = mediaRecorder.mimeType.includes('mp4') ? 'mp4' : 'webm';
         const blob = new Blob(chunksRef.current, { type: mediaRecorder.mimeType });
         chunksRef.current = [];
         
-        // Trigger download
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.style.display = 'none';
-        a.href = url;
-        const safeName = sessionName.replace(/[^a-z0-9]/gi, '_').toLowerCase();
-        a.download = `Recording-${safeName}-${new Date().toISOString().slice(0,10)}.${fileExtension}`;
-        document.body.appendChild(a);
-        a.click();
-        
-        setTimeout(() => {
-          document.body.removeChild(a);
-          URL.revokeObjectURL(url);
-        }, 100);
-
         // Cleanup tracks and audio context
         displayStream.getTracks().forEach(t => t.stop());
         if (micStream) {
@@ -99,6 +86,51 @@ export function useLocalRecording(sessionName: string) {
         }
         audioContext.close();
         setIsRecording(false);
+
+        // Upload to server
+        setIsUploading(true);
+        const loadingToast = toast.loading("Saving recording to Cloudinary... Please wait.");
+        try {
+          const formData = new FormData();
+          const safeName = sessionName.replace(/[^a-z0-9]/gi, '_').toLowerCase();
+          const fileName = `Recording-${safeName}-${new Date().toISOString().slice(0,10)}.${fileExtension}`;
+          formData.append('video', blob, fileName);
+
+          const token = localStorage.getItem('lms_token');
+          const res = await fetch(`/api/upload/video`, {
+            method: 'POST',
+            headers: {
+              ...(token ? { Authorization: `Bearer ${token}` } : {}),
+            },
+            body: formData,
+          });
+
+          if (!res.ok) {
+            const err = await res.json().catch(() => ({ message: res.statusText }));
+            throw new Error(err.error ?? err.message ?? res.statusText);
+          }
+
+          const data = await res.json();
+          toast.success("Recording saved successfully!", { id: loadingToast });
+          if (onRecordingSaved) {
+            onRecordingSaved(data.url);
+          }
+        } catch (err: any) {
+          console.error("Upload error:", err);
+          toast.error(`Failed to save recording: ${err.message}`, { id: loadingToast });
+          
+          // Fallback to local download if upload fails
+          const url = URL.createObjectURL(blob);
+          const a = document.createElement('a');
+          a.style.display = 'none';
+          a.href = url;
+          a.download = `Fallback-Recording-${Date.now()}.${fileExtension}`;
+          document.body.appendChild(a);
+          a.click();
+          setTimeout(() => { document.body.removeChild(a); URL.revokeObjectURL(url); }, 100);
+        } finally {
+          setIsUploading(false);
+        }
       };
 
       // Start recording with 1s chunks
@@ -114,7 +146,7 @@ export function useLocalRecording(sessionName: string) {
         console.error("Recording error:", err);
       }
     }
-  }, [sessionName]);
+  }, [sessionName, onRecordingSaved]);
 
   const stopRecording = useCallback(() => {
     if (mediaRecorderRef.current && mediaRecorderRef.current.state !== 'inactive') {
@@ -122,5 +154,5 @@ export function useLocalRecording(sessionName: string) {
     }
   }, []);
 
-  return { isRecording, startRecording, stopRecording };
+  return { isRecording, isUploading, startRecording, stopRecording };
 }

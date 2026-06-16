@@ -628,7 +628,7 @@ async function seed() {
       title: "Live Q&A: Algebra Problems",    titleAr: "جلسة مباشرة: أسئلة الجبر",
       description: "Live session to solve algebra problems",
       scheduledAt: tomorrow, durationMinutes: 90, maxParticipants: 50,
-      meetingUrl: "https://meet.jit.si/lms-libya-algebra-qa",
+      meetingUrl: "lms-libya-algebra-qa",
       status: "scheduled" as const,
     },
     {
@@ -636,7 +636,7 @@ async function seed() {
       title: "Physics Lab: Experiments",      titleAr: "مختبر الفيزياء: التجارب",
       description: "Virtual physics lab demonstration",
       scheduledAt: nextWeek, durationMinutes: 120, maxParticipants: 30,
-      meetingUrl: "https://meet.jit.si/lms-libya-physics-lab",
+      meetingUrl: "lms-libya-physics-lab",
       status: "scheduled" as const,
     },
   ]).onConflictDoNothing();
