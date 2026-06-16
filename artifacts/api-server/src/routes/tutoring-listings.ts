@@ -204,7 +204,7 @@ router.post("/applications/:appId/accept", requireAuth, requireRole("teacher", "
     const appId = parseParam(req.params.appId);
     const { teacherNote } = req.body;
     const roomId = `edulibya-tutoring-${appId}-${crypto.randomBytes(4).toString("hex")}`;
-    const meetingUrl = `https://meet.jit.si/${roomId}`;
+    const meetingUrl = roomId; // LiveKit room name, not an external URL
 
     const [app] = await db.select().from(tutoringApplicationsTable).where(eq(tutoringApplicationsTable.id, appId)).limit(1);
     if (!app) { res.status(404).json({ error: "Application not found" }); return; }
@@ -267,6 +267,32 @@ router.get("/my-applications/list", requireAuth, async (req, res) => {
   }
 });
 
+// Get a single application by ID (used by TutoringRoom to load session details)
+router.get("/applications/:appId", requireAuth, async (req, res) => {
+  try {
+    const { userId } = (req as any).user;
+    const appId = parseParam(req.params.appId);
+    const [app] = await db.select().from(tutoringApplicationsTable)
+      .where(eq(tutoringApplicationsTable.id, appId)).limit(1);
+    if (!app) { res.status(404).json({ error: "Application not found" }); return; }
+    // Verify caller is either the student or the teacher who owns the listing
+    const [listing] = await db.select().from(tutoringListingsTable)
+      .where(eq(tutoringListingsTable.id, app.listingId)).limit(1);
+    if (app.studentId !== userId && listing?.teacherId !== userId) {
+      res.status(403).json({ error: "Not authorized" }); return;
+    }
+    const [student] = await db.select().from(usersTable).where(eq(usersTable.id, app.studentId)).limit(1);
+    res.json({
+      ...app,
+      subject: listing?.subject || listing?.subjectAr || "Tutoring",
+      listing: listing ? { ...listing, hourlyRate: parseFloat(listing.hourlyRate) } : null,
+      studentName: student?.fullName || "",
+    });
+  } catch (err: any) {
+    res.status(500).json({ error: "Server error", message: err.message });
+  }
+});
+
 // Student: cancel application
 router.post("/applications/:appId/cancel", requireAuth, async (req, res) => {
   try {
@@ -277,6 +303,67 @@ router.post("/applications/:appId/cancel", requireAuth, async (req, res) => {
     res.json({ success: true });
   } catch (err: any) {
     res.status(400).json({ error: "Failed to cancel application", message: err.message });
+  }
+});
+
+// Join LiveKit session for a listing application (teacher or accepted student)
+router.post("/applications/:appId/join", requireAuth, async (req, res) => {
+  try {
+    const { userId } = (req as any).user;
+    const appId = parseParam(req.params.appId);
+
+    const [app] = await db.select().from(tutoringApplicationsTable)
+      .where(eq(tutoringApplicationsTable.id, appId)).limit(1);
+    if (!app) { res.status(404).json({ error: "Application not found" }); return; }
+
+    // Only the accepting teacher (via listing) or the student may join
+    const [listing] = await db.select().from(tutoringListingsTable)
+      .where(eq(tutoringListingsTable.id, app.listingId)).limit(1);
+
+    const isTeacher = listing?.teacherId === userId;
+    const isStudent = app.studentId === userId;
+
+    if (!isTeacher && !isStudent) {
+      res.status(403).json({ error: "Not authorized to join this session" }); return;
+    }
+
+    if (app.status !== "accepted") {
+      res.status(403).json({ error: "Session is not active" }); return;
+    }
+
+    // Use stored room ID, or generate one and persist it
+    let roomId = app.meetingUrl;
+    if (!roomId) {
+      roomId = `edulibya-listing-${appId}-${crypto.randomBytes(4).toString("hex")}`;
+      await db.update(tutoringApplicationsTable)
+        .set({ meetingUrl: roomId, updatedAt: new Date() })
+        .where(eq(tutoringApplicationsTable.id, appId));
+    }
+
+    const livekitApiKey = process.env.LIVEKIT_API_KEY || "devkey";
+    const livekitApiSecret = process.env.LIVEKIT_API_SECRET || "secret";
+    const livekitUrl = process.env.LIVEKIT_URL || "ws://localhost:7880";
+
+    const [user] = await db.select().from(usersTable).where(eq(usersTable.id, userId)).limit(1);
+    const displayName = user?.fullName || (isTeacher ? "Teacher" : "Student");
+
+    const { AccessToken } = await import("livekit-server-sdk");
+    const at = new AccessToken(livekitApiKey, livekitApiSecret, {
+      identity: `user-${userId}`,
+      name: displayName,
+    });
+    at.addGrant({
+      roomJoin: true,
+      room: roomId,
+      canPublish: true,
+      canPublishData: true,
+      canSubscribe: true,
+    });
+    const token = await at.toJwt();
+
+    res.json({ roomId, appId, isTeacher, token, livekitUrl });
+  } catch (err: any) {
+    res.status(500).json({ error: "Server error", message: err.message });
   }
 });
 

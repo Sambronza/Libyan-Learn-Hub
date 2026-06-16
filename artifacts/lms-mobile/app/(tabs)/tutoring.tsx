@@ -212,7 +212,7 @@ function ApplicationsModal({ listing, visible, onClose, apiFetch, queryClient, t
                       style={{ marginTop: 8, padding: 8, backgroundColor: C.tint, borderRadius: 8 }}
                       onPress={() => {
                         const webAppDomain = process.env.EXPO_PUBLIC_DOMAIN || 'eduonline.net.ly';
-                        import('react-native').then(m => m.Linking.openURL(`https://${webAppDomain}/tutoring/room/${app.id}?token=${token}`));
+                        import('react-native').then(m => m.Linking.openURL(`https://${webAppDomain}/tutoring/room/${app.id}?token=${token}&type=listing`));
                       }}
                     >
                       <Text style={{ color: '#fff', textAlign: 'center', fontFamily: 'Inter_600SemiBold', fontSize: 13 }}>Join Session (Browser)</Text>
@@ -355,7 +355,7 @@ export default function TutoringScreen() {
                   style={{ marginTop: 8, padding: 8, backgroundColor: C.tint, borderRadius: 8 }}
                   onPress={() => {
                     const webAppDomain = process.env.EXPO_PUBLIC_DOMAIN || 'eduonline.net.ly';
-                    import('react-native').then(m => m.Linking.openURL(`https://${webAppDomain}/tutoring/room/${item.id}?token=${token}`));
+                    import('react-native').then(m => m.Linking.openURL(`https://${webAppDomain}/tutoring/room/${item.id}?token=${token}&type=listing`));
                   }}
                 >
                   <Text style={{ color: '#fff', textAlign: 'center', fontFamily: 'Inter_600SemiBold', fontSize: 13 }}>Join Session (Browser)</Text>

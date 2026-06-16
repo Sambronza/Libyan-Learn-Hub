@@ -23,6 +23,9 @@ import '@livekit/components-styles';
 export default function TutoringRoom() {
   const [, params] = useRoute('/tutoring/room/:id');
   const requestId = parseInt(params?.id || '0');
+  // Distinguish listing-based applications from tutoring requests via ?type=listing
+  const searchParams = new URLSearchParams(window.location.search);
+  const sessionType = searchParams.get('type') === 'listing' ? 'listing' : 'request';
   const { user, isAuthenticated, isLoading: authLoading } = useAuth();
   const [, setLocation] = useLocation();
   const api = useApi();
@@ -39,12 +42,18 @@ export default function TutoringRoom() {
   }, [isAuthenticated, authLoading, setLocation]);
 
   const { data: requestList, isLoading } = useQuery({
-    queryKey: ['/api/tutoring/requests'],
-    queryFn: () => api.get(`/tutoring/requests`),
+    queryKey: ['/api/tutoring', sessionType, requestId],
+    queryFn: () => sessionType === 'listing'
+      ? api.get(`/tutoring-listings/applications/${requestId}`)
+      : api.get(`/tutoring/requests`),
     enabled: !!requestId && !!user,
   });
   
-  const session = Array.isArray(requestList) ? requestList.find((r: any) => r.id === requestId) : null;
+  // For listing-based: the API returns a single application object directly
+  // For request-based: the API returns an array; find by id
+  const session = sessionType === 'listing'
+    ? (requestList && !Array.isArray(requestList) ? requestList : null)
+    : (Array.isArray(requestList) ? requestList.find((r: any) => r.id === requestId) : null);
 
   const handleRecordingSaved = async (url: string) => {
     try {
@@ -66,7 +75,10 @@ export default function TutoringRoom() {
 
   const joinSession = async () => {
     try {
-      const data = await api.post(`/tutoring/requests/${requestId}/join`, {});
+      const joinEndpoint = sessionType === 'listing'
+        ? `/tutoring-listings/applications/${requestId}/join`
+        : `/tutoring/requests/${requestId}/join`;
+      const data = await api.post(joinEndpoint, {});
       setLiveKitToken(data.token);
       setLiveKitUrl(data.livekitUrl);
       setIsTeacher(data.isTeacher);
