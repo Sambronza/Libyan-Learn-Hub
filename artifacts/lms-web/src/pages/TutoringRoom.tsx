@@ -68,7 +68,7 @@ export default function TutoringRoom() {
     }
   };
 
-  const { isRecording, isUploading, startRecording, stopRecording } = useLocalRecording(session?.subject || 'TutoringSession', handleRecordingSaved);
+  const { isRecording, isUploading, startRecording, stopRecording, isSupported } = useLocalRecording(session?.subject || 'TutoringSession', handleRecordingSaved);
 
   useEffect(() => {
     if (hasJoined) setMediaActive(true);
