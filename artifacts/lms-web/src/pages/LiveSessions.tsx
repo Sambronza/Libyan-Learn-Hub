@@ -43,7 +43,7 @@ export default function LiveSessions() {
   });
 
   const handleEnterRoom = (session: any) => {
-    if (!isAuthenticated) { setLocation('/login'); return; }
+    if (!isAuthenticated) { setLocation(`/login?returnTo=${encodeURIComponent(window.location.pathname + window.location.search)}`); return; }
     if (!session.isRegistered && !session.isTeacher && parseFloat(session.price) > 0) {
       setLocation(`/checkout/live/${session.id}`);
       return;

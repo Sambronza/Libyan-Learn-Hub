@@ -135,7 +135,7 @@ export default function CourseDetail() {
 
   const handleEnroll = () => {
     if (!isAuthenticated) {
-      setLocation('/login');
+      setLocation(`/login?returnTo=${encodeURIComponent(window.location.pathname + window.location.search)}`);
       return;
     }
     if (course.price > 0) {

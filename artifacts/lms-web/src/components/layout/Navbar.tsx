@@ -188,10 +188,10 @@ export function Navbar() {
               </>
             ) : (
               <div className="flex items-center gap-3">
-                <Link href="/login">
+                <Link href={`/login?returnTo=${encodeURIComponent(location + window.location.search)}`}>
                   <Button variant="ghost">{t('nav.login')}</Button>
                 </Link>
-                <Link href="/register">
+                <Link href={`/register?returnTo=${encodeURIComponent(location + window.location.search)}`}>
                   <Button className="bg-gradient-to-r from-primary to-violet-600 hover:from-primary/90 hover:to-violet-600/90 shadow-lg shadow-primary/25 rounded-xl">
                     {t('nav.register')}
                   </Button>
@@ -273,10 +273,10 @@ export function Navbar() {
                 </>
               ) : (
                 <div className="grid grid-cols-2 gap-3 mt-4">
-                  <Link href="/login" onClick={() => setIsMobileOpen(false)}>
+                  <Link href={`/login?returnTo=${encodeURIComponent(location + window.location.search)}`} onClick={() => setIsMobileOpen(false)}>
                     <Button variant="outline" className="w-full">{t('nav.login')}</Button>
                   </Link>
-                  <Link href="/register" onClick={() => setIsMobileOpen(false)}>
+                  <Link href={`/register?returnTo=${encodeURIComponent(location + window.location.search)}`} onClick={() => setIsMobileOpen(false)}>
                     <Button className="w-full bg-gradient-to-r from-primary to-teal-500">{t('nav.register')}</Button>
                   </Link>
                 </div>

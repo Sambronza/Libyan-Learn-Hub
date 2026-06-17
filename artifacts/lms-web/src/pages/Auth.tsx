@@ -542,7 +542,7 @@ Any disputes shall be resolved in the courts of Tripoli, Libya, unless arbitrati
             </h2>
             <p className="mt-2 text-sm text-muted-foreground">
               {isLogin ? "Don't have an account? " : "Already have an account? "}
-              <Link href={isLogin ? '/register' : '/login'} className="font-semibold text-primary hover:underline transition-colors">
+              <Link href={isLogin ? `/register${window.location.search}` : `/login${window.location.search}`} className="font-semibold text-primary hover:underline transition-colors">
                 {isLogin ? 'Sign up' : 'Log in'}
               </Link>
             </p>
