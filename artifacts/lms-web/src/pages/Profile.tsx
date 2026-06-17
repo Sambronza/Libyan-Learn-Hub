@@ -23,6 +23,7 @@ const profileSchema = z.object({
   bio: z.string().optional(),
   language: z.enum(['en', 'ar']),
   email: z.string().email('Invalid email address').optional(),
+  avatarUrl: z.string().optional(),
   currentPassword: z.string().min(6, 'Password must be at least 6 characters').optional().or(z.literal('')),
   newPassword: z.string().min(6, 'Password must be at least 6 characters').optional().or(z.literal('')),
 }).refine(data => {
@@ -42,6 +43,41 @@ export default function Profile() {
   const [redeemCode, setRedeemCode] = React.useState('');
   const [isRedeeming, setIsRedeeming] = React.useState(false);
   const [isPasskeyOpen, setIsPasskeyOpen] = React.useState(false);
+  const [isUploadingImage, setIsUploadingImage] = React.useState(false);
+
+  const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    setIsUploadingImage(true);
+    try {
+      const formData = new FormData();
+      formData.append('image', file);
+
+      const token = localStorage.getItem('lms_token');
+      const resRaw = await fetch('/api/upload/image', {
+        method: 'POST',
+        headers: {
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
+        body: formData,
+      });
+
+      if (!resRaw.ok) {
+        const errorData = await resRaw.json().catch(() => ({}));
+        throw new Error(errorData.error || errorData.message || resRaw.statusText);
+      }
+
+      const res = await resRaw.json();
+
+      form.setValue('avatarUrl', res.url);
+      toast({ title: 'Image uploaded successfully' });
+    } catch (err: any) {
+      toast({ title: 'Error uploading image', description: err.message, variant: 'destructive' });
+    } finally {
+      setIsUploadingImage(false);
+    }
+  };
 
   const handleRedeem = async () => {
     if (!redeemCode) return;
@@ -77,13 +113,14 @@ export default function Profile() {
       fullName: user?.fullName || '',
       bio: user?.bio || '',
       language: user?.language || currentLanguage,
+      avatarUrl: user?.avatarUrl || '',
     }
   });
 
   const onSubmit = async (data: ProfileFormValues) => {
     try {
-      // 1. Update Profile (Name, Bio, Language)
-      updateProfile({ data: { fullName: data.fullName, bio: data.bio, language: data.language } as any });
+      // 1. Update Profile (Name, Bio, Language, Avatar)
+      updateProfile({ data: { fullName: data.fullName, bio: data.bio, language: data.language, avatarUrl: data.avatarUrl } as any });
       
       // 2. Update Email if changed
       if (data.email && data.email !== user?.email) {
@@ -108,6 +145,7 @@ export default function Profile() {
         fullName: data.fullName,
         bio: data.bio,
         language: data.language,
+        avatarUrl: data.avatarUrl,
         email: data.email,
         currentPassword: '',
         newPassword: '',
@@ -126,6 +164,7 @@ export default function Profile() {
         fullName: user.fullName || '',
         bio: user.bio || '',
         language: user.language || currentLanguage,
+        avatarUrl: user.avatarUrl || '',
         email: user.email || '',
         currentPassword: '',
         newPassword: '',
@@ -157,8 +196,12 @@ export default function Profile() {
       <div className="bg-card border-b border-border">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
           <div className="flex flex-col md:flex-row items-center md:items-start gap-8">
-            <div className="w-32 h-32 rounded-full bg-gradient-to-br from-primary to-violet-600 flex items-center justify-center text-white text-5xl font-display font-bold shadow-xl border-4 border-background shrink-0">
-              {user.fullName.charAt(0)}
+            <div className="w-32 h-32 rounded-full bg-gradient-to-br from-primary to-violet-600 flex items-center justify-center text-white text-5xl font-display font-bold shadow-xl border-4 border-background shrink-0 overflow-hidden">
+              {user.avatarUrl ? (
+                <img src={user.avatarUrl} alt={user.fullName} className="w-full h-full object-cover" />
+              ) : (
+                user.fullName.charAt(0)
+              )}
             </div>
             <div className="flex-1 text-center md:text-start">
               <h1 className="text-4xl font-display font-bold text-foreground mb-2">{user.fullName}</h1>
@@ -182,6 +225,29 @@ export default function Profile() {
                       <div className="space-y-4">
                         <div className="flex items-center gap-2 text-primary font-bold text-sm uppercase tracking-wider">
                           <User className="w-4 h-4" /> {t('profile.personal_info')}
+                        </div>
+                        
+                        <div className="grid gap-2">
+                          <Label>Profile Picture</Label>
+                          <div className="flex items-center gap-4">
+                            <div className="w-16 h-16 rounded-full bg-muted overflow-hidden shrink-0 flex items-center justify-center">
+                              {form.watch('avatarUrl') ? (
+                                <img src={form.watch('avatarUrl')} alt="Avatar" className="w-full h-full object-cover" />
+                              ) : (
+                                <User className="w-8 h-8 text-muted-foreground" />
+                              )}
+                            </div>
+                            <div className="flex-1">
+                              <Input 
+                                type="file" 
+                                accept="image/*"
+                                onChange={handleImageUpload}
+                                disabled={isUploadingImage}
+                                className="bg-muted/50 border-transparent focus:bg-background rounded-xl"
+                              />
+                              {isUploadingImage && <p className="text-xs text-primary mt-1">Uploading...</p>}
+                            </div>
+                          </div>
                         </div>
                         
                         <div className="grid gap-2">

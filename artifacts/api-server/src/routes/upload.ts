@@ -55,6 +55,19 @@ const documentUpload = multer({
   },
 });
 
+const imageUpload = multer({
+  storage,
+  limits: { fileSize: 5 * 1024 * 1024 }, // 5MB
+  fileFilter: (_req, file, cb) => {
+    const allowed = ["image/jpeg", "image/png", "image/webp", "image/gif"];
+    if (allowed.includes(file.mimetype)) {
+      cb(null, true);
+    } else {
+      cb(new Error("Only JPEG, PNG, WebP, and GIF images are allowed"));
+    }
+  },
+});
+
 // Helper: upload buffer to Cloudinary
 function uploadToCloudinary(
   buffer: Buffer,
@@ -68,6 +81,38 @@ function uploadToCloudinary(
     Readable.from(buffer).pipe(stream);
   });
 }
+
+// ── Upload Image ─────────────────────────────────────────────────
+router.post(
+  "/image",
+  requireAuth,
+  imageUpload.single("image"),
+  async (req, res) => {
+    try {
+      if (!req.file) {
+        res.status(400).json({ error: "No image file provided" });
+        return;
+      }
+
+      const result = await uploadToCloudinary(req.file.buffer, {
+        resource_type: "image",
+        folder: "libyan-learn-hub/images",
+      });
+
+      res.json({
+        url: result.secure_url,
+        publicId: result.public_id,
+        width: result.width,
+        height: result.height,
+        format: result.format,
+        size: result.bytes,
+      });
+    } catch (err: any) {
+      console.error("Image upload error:", err);
+      res.status(500).json({ error: "Failed to upload image", message: err.message });
+    }
+  }
+);
 
 // ── Upload Video ─────────────────────────────────────────────────
 router.post(
