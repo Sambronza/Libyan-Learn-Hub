@@ -15,6 +15,7 @@ import { useApi } from '@/hooks/useApi';
 import { Textarea } from '@/components/ui/textarea';
 import { useState } from 'react';
 import { Blob } from '@/components/ui/Blob';
+import { ProtectedPlayer } from '@/components/ProtectedPlayer';
 
 export default function CourseDetail() {
   const [, params] = useRoute('/courses/:id');
@@ -31,8 +32,11 @@ export default function CourseDetail() {
   const [showReviewModal, setShowReviewModal] = useState(false);
   const [reviewRating, setReviewRating] = useState(5);
   const [reviewComment, setReviewComment] = useState("");
-
+  
   const { data: course, isLoading, isError, refetch } = useGetCourse(courseId, { query: { queryKey: ['/api/courses', courseId], enabled: !!courseId } });
+  
+  const [previewLessonId, setPreviewLessonId] = useState<number | null>(null);
+  const previewLesson = previewLessonId && course ? course.lessons.find((l: any) => l.id === previewLessonId) : null;
   
   const { data: reviews = [] } = useQuery({
     queryKey: ['/api/courses', courseId, 'reviews'],
@@ -257,7 +261,23 @@ export default function CourseDetail() {
           <h2 className="text-2xl font-display font-bold mb-6">Course Curriculum</h2>
           <div className="bg-card border border-border rounded-2xl overflow-hidden shadow-sm">
             {course.lessons.map((lesson, idx) => (
-              <div key={lesson.id} className={`p-4 sm:p-5 flex items-start gap-4 ${idx !== 0 ? 'border-t border-border' : ''} hover:bg-muted/50 transition-colors`}>
+              <div 
+                key={lesson.id} 
+                className={`p-4 sm:p-5 flex items-start gap-4 ${idx !== 0 ? 'border-t border-border' : ''} ${course.isEnrolled || lesson.isFree ? 'cursor-pointer hover:bg-muted/50' : 'opacity-80 hover:bg-muted/30'} transition-colors`}
+                onClick={() => {
+                  if (course.isEnrolled) {
+                    setLocation(`/courses/${courseId}/learn`);
+                  } else if (lesson.isFree) {
+                    if (lesson.type === 'video') {
+                      setPreviewLessonId(lesson.id);
+                    } else {
+                      toast({ title: 'Preview not available', description: 'This free lesson type cannot be previewed here.', variant: 'default' });
+                    }
+                  } else {
+                    toast({ title: 'Locked', description: 'Enroll in the course to access this lesson.', variant: 'default' });
+                  }
+                }}
+              >
                 <div className="mt-1">
                   {lesson.type === 'video' ? <PlayCircle className="w-5 h-5 text-primary" /> : <FileText className="w-5 h-5 text-secondary" />}
                 </div>
@@ -401,6 +421,24 @@ export default function CourseDetail() {
               {submitReview.isPending ? 'Submitting...' : 'Submit Review'}
             </Button>
           </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Free Preview Modal */}
+      <Dialog open={!!previewLessonId} onOpenChange={(open) => !open && setPreviewLessonId(null)}>
+        <DialogContent className="sm:max-w-4xl p-0 overflow-hidden bg-black border-border">
+          <DialogHeader className="p-4 bg-card border-b border-border absolute top-0 w-full z-10 opacity-0 hover:opacity-100 transition-opacity">
+            <DialogTitle className="text-white">{previewLesson ? (language === 'ar' ? previewLesson.titleAr : previewLesson.title) : ''}</DialogTitle>
+          </DialogHeader>
+          <div className="w-full aspect-video bg-black flex items-center justify-center pt-8 sm:pt-0">
+            {previewLesson && (previewLesson.type === 'video') && (
+              <ProtectedPlayer
+                url={((previewLesson as any).videoUrl || (previewLesson as any).videoFilePath) || ""}
+                courseId={courseId}
+                lessonId={previewLesson.id}
+              />
+            )}
+          </div>
         </DialogContent>
       </Dialog>
     </PageContainer>

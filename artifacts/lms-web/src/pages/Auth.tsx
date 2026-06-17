@@ -50,7 +50,7 @@ export default function Auth() {
   const redirectTo = (() => {
     const search = window.location.search;
     const params = new URLSearchParams(search);
-    return params.get('redirect') || null;
+    return params.get('redirect') || params.get('returnTo') || null;
   })();
   const { login: setAuthContext } = useAuth();
   const { language } = useLanguage();
@@ -525,9 +525,9 @@ Any disputes shall be resolved in the courts of Tripoli, Libya, unless arbitrati
       {/* Form Side */}
       <div className="flex-1 flex flex-col justify-center px-4 sm:px-6 lg:flex-none lg:w-[620px] xl:w-[700px] bg-card z-10 relative shadow-2xl">
         <div className="absolute top-8 start-8">
-          <Link href="/">
+          <Link href={redirectTo ? decodeURIComponent(redirectTo) : "/"}>
             <Button variant="ghost" size="sm" className="gap-2 text-muted-foreground hover:text-foreground">
-              <ArrowLeft className="w-4 h-4" /> Back to Home
+              <ArrowLeft className="w-4 h-4" /> {redirectTo ? 'Back' : 'Back to Home'}
             </Button>
           </Link>
         </div>

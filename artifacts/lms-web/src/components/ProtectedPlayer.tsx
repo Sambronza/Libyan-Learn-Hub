@@ -22,10 +22,13 @@ export function ProtectedPlayer({ url, courseId, lessonId, startAt = 0, onEnded,
   const generateToken = () => {
     const token = localStorage.getItem('lms_token');
     setError(null);
-    if (courseId && lessonId && token) {
+    if (courseId && lessonId) {
+      const headers: any = { 'Content-Type': 'application/json' };
+      if (token) headers['Authorization'] = `Bearer ${token}`;
+
       fetch(`/api/video/generate-token`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        headers,
         body: JSON.stringify({ courseId, lessonId })
       })
       .then(res => res.json())

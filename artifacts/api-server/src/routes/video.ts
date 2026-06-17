@@ -11,30 +11,50 @@ const router = Router();
 const JWT_SECRET = process.env.JWT_SECRET || "default_super_secret_jwt_key_for_dev_only";
 
 // 1. Endpoint to generate a short-lived playback token for a specific lesson
-router.post("/generate-token", requireAuth, async (req, res) => {
+router.post("/generate-token", async (req, res) => {
   try {
     const { lessonId, courseId } = req.body;
-    const { userId, role } = (req as any).user;
+    
+    // Optional Auth Parsing
+    const authHeader = req.headers.authorization;
+    let userId = null;
+    let role = null;
+    if (authHeader && authHeader.startsWith("Bearer ")) {
+      const token = authHeader.slice(7);
+      try {
+        // Fallback to auth.ts secret if JWT_SECRET missing
+        const SECRET = process.env.JWT_SECRET || "lms-libya-secret-2024-dev";
+        const payload = jwt.verify(token, SECRET) as any;
+        userId = payload.userId;
+        role = payload.role;
+      } catch {}
+    }
 
     const [lesson] = await db.select().from(lessonsTable).where(eq(lessonsTable.id, parseInt(lessonId))).limit(1);
     if (!lesson) { res.status(404).json({ error: "Lesson not found" }); return; }
 
-    if (!lesson.isFree && role !== 'admin') {
-      const [enrollment] = await db.select().from(enrollmentsTable)
-        .where(and(eq(enrollmentsTable.courseId, parseInt(courseId)), eq(enrollmentsTable.userId, userId)))
-        .limit(1);
-      
-      const [course] = await db.select().from(coursesTable).where(eq(coursesTable.id, parseInt(courseId))).limit(1);
-      
-      if (!enrollment && course?.teacherId !== userId) {
-        res.status(403).json({ error: "Not enrolled in this course" });
+    if (!lesson.isFree) {
+      if (!userId) {
+        res.status(401).json({ error: "Unauthorized" });
         return;
+      }
+      if (role !== 'admin') {
+        const [enrollment] = await db.select().from(enrollmentsTable)
+          .where(and(eq(enrollmentsTable.courseId, parseInt(courseId)), eq(enrollmentsTable.userId, userId)))
+          .limit(1);
+        
+        const [course] = await db.select().from(coursesTable).where(eq(coursesTable.id, parseInt(courseId))).limit(1);
+        
+        if (!enrollment && course?.teacherId !== userId) {
+          res.status(403).json({ error: "Not enrolled in this course" });
+          return;
+        }
       }
     }
 
     // Generate a short-lived token (e.g., 6 hours) specifically for this user and lesson
     const playbackToken = jwt.sign(
-      { userId, lessonId: parseInt(lessonId), action: "playback" },
+      { userId: userId || 0, lessonId: parseInt(lessonId), action: "playback" },
       JWT_SECRET,
       { expiresIn: "6h" }
     );
