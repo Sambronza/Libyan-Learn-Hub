@@ -126,48 +126,65 @@ export default function Courses() {
               <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-6">
                 {coursesData?.courses.map((course) => (
                   <Link key={course.id} href={`/courses/${course.id}`}>
-                    <div className="bg-card rounded-2xl border border-border overflow-hidden hover:shadow-xl hover:border-primary/30 transition-all duration-300 group flex flex-col h-full">
-                      <div className="aspect-video relative overflow-hidden bg-muted">
+                    <div className="bg-card rounded-3xl border border-border/60 overflow-hidden shadow-sm hover:shadow-xl hover:-translate-y-1 transition-all duration-300 group flex flex-col h-full relative">
+                      
+                      {/* Image Thumbnail (4:3) */}
+                      <div className="aspect-[4/3] relative overflow-hidden bg-muted">
                         {course.thumbnailUrl ? (
-                          <img src={course.thumbnailUrl} alt={course.title} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
+                          <img src={course.thumbnailUrl} alt={course.title} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700" />
                         ) : (
-                          <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-primary/20 to-secondary/20">
-                            <PlayCircle className="w-12 h-12 text-primary/40" />
+                          <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-primary/10 to-violet-500/10">
+                            <PlayCircle className="w-12 h-12 text-primary/30" />
                           </div>
                         )}
-                        <div className="absolute top-3 start-3 bg-white/90 dark:bg-black/90 backdrop-blur-sm px-2.5 py-1 rounded-lg text-xs font-bold text-foreground shadow-sm">
-                          {course.level}
+                        
+                        {/* Top Floating Tags */}
+                        <div className="absolute top-4 start-4 flex flex-col gap-2">
+                          <div className="bg-background/95 backdrop-blur-md px-3 py-1.5 rounded-full text-[11px] font-bold text-foreground shadow-sm uppercase tracking-wider">
+                            {course.level}
+                          </div>
+                        </div>
+                        <div className="absolute top-4 end-4">
+                           <div className="bg-primary text-primary-foreground px-3 py-1.5 rounded-full text-xs font-bold shadow-md">
+                             {course.price === 0 ? t('course.free') : `${course.price} LYD`}
+                           </div>
                         </div>
                       </div>
-                      <div className="p-5 flex flex-col flex-1">
-                        <h3 className="font-display font-bold text-lg mb-2 line-clamp-2 text-foreground group-hover:text-primary transition-colors">
+                      
+                      {/* Content Section */}
+                      <div className="relative pt-8 px-6 pb-6 flex flex-col flex-1 bg-gradient-to-b from-card to-card/50">
+                        {/* Overlapping Avatar */}
+                        <div className="absolute -top-6 end-6 w-12 h-12 rounded-full border-4 border-card bg-gradient-to-br from-primary/20 to-violet-500/20 flex items-center justify-center shadow-sm overflow-hidden z-10 group-hover:scale-110 transition-transform duration-300">
+                          <span className="text-primary font-bold text-lg">{course.teacherName.charAt(0).toUpperCase()}</span>
+                        </div>
+                        
+                        {/* Instructor Name */}
+                        <div className="text-xs font-medium text-muted-foreground mb-2 truncate pe-12">
+                          by {course.teacherName}
+                        </div>
+
+                        {/* Course Title */}
+                        <h3 className="font-display font-bold text-lg mb-4 line-clamp-2 text-foreground group-hover:text-primary transition-colors leading-snug">
                           {language === 'ar' ? course.titleAr : course.title}
                         </h3>
-                        <div className="mt-auto pt-4 border-t border-border flex flex-col gap-2">
-                          <div className="flex items-center gap-3 text-xs text-muted-foreground flex-wrap">
-                            <span className="flex items-center gap-1.5 font-medium">
-                              <BookOpen className="w-3.5 h-3.5 text-primary" />
-                              {course.lessonCount} {t('courses.lessons')}
-                            </span>
-                            <span className="w-1 h-1 rounded-full bg-border" />
-                            <span>{Math.round(course.totalDuration / 60)}h</span>
-                            {Number((course as any).rating) > 0 && (
-                              <>
-                                <span className="w-1 h-1 rounded-full bg-border" />
-                                <span className="flex items-center gap-1 text-amber-600 font-bold">
-                                  <Star className="w-3.5 h-3.5 text-amber-500 fill-amber-500" />
-                                  {Number((course as any).rating).toFixed(1)}
-                                </span>
-                              </>
-                            )}
+                        
+                        {/* Sleek Pill Badges for Metadata */}
+                        <div className="mt-auto flex items-center gap-2 flex-wrap">
+                          <div className="flex items-center gap-1.5 bg-muted/50 border border-border/50 px-2.5 py-1 rounded-md text-[11px] font-medium text-muted-foreground">
+                            <BookOpen className="w-3 h-3 text-primary/70" />
+                            {course.lessonCount} {t('courses.lessons')}
                           </div>
-                          <div className="flex items-center justify-between mt-2">
-                             <span className="text-sm font-medium text-muted-foreground truncate pe-2">{course.teacherName}</span>
-                             <div className="font-bold text-primary shrink-0">
-                               {course.price === 0 ? t('course.free') : `${course.price} LYD`}
-                             </div>
+                          <div className="flex items-center gap-1.5 bg-muted/50 border border-border/50 px-2.5 py-1 rounded-md text-[11px] font-medium text-muted-foreground">
+                            <span>{Math.round(course.totalDuration / 60)}h total</span>
                           </div>
+                          {Number((course as any).rating) > 0 && (
+                            <div className="flex items-center gap-1 bg-amber-500/10 border border-amber-500/20 px-2.5 py-1 rounded-md text-[11px] font-bold text-amber-600">
+                              <Star className="w-3 h-3 fill-amber-500" />
+                              {Number((course as any).rating).toFixed(1)}
+                            </div>
+                          )}
                         </div>
+
                       </div>
                     </div>
                   </Link>
