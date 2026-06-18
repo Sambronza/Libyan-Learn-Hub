@@ -155,9 +155,16 @@ export default function CourseDetail() {
         </div>
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex flex-col lg:flex-row gap-12 relative z-10">
           <div className="flex-1">
+            <nav className="flex items-center gap-2 text-sm text-background/60 mb-6 font-medium">
+              <Link href="/"><a className="hover:text-background transition-colors">Home</a></Link>
+              <span className="opacity-50">/</span>
+              <Link href="/courses"><a className="hover:text-background transition-colors">Courses</a></Link>
+              <span className="opacity-50">/</span>
+              <span className="text-background/90 line-clamp-1">{title}</span>
+            </nav>
             <div className="flex items-center gap-3 mb-6">
-              <span className="px-3 py-1 rounded-full bg-white/10 text-sm font-medium">{course.category?.name}</span>
-              <span className="px-3 py-1 rounded-full bg-primary/20 text-primary-foreground text-sm font-medium capitalize">{course.level}</span>
+              <span className="px-3 py-1 rounded-full bg-white/10 border border-white/20 text-sm font-medium backdrop-blur-sm shadow-sm">{course.category?.name}</span>
+              <span className="px-3 py-1 rounded-full bg-primary/20 border border-primary/30 text-primary-foreground text-sm font-medium capitalize backdrop-blur-sm shadow-sm">{course.level}</span>
             </div>
             <h1 className="text-2xl sm:text-4xl lg:text-5xl font-display font-bold mb-6 leading-tight">
               {language === 'ar' ? course.titleAr : course.title}
@@ -165,24 +172,30 @@ export default function CourseDetail() {
             <p className="text-lg text-background/80 mb-8 max-w-2xl leading-relaxed">
               {language === 'ar' ? course.descriptionAr : course.description}
             </p>
-            <div className="flex flex-wrap items-center gap-6 text-sm text-background/70">
-              <div className="flex items-center gap-2">
-                <div className="w-10 h-10 rounded-full bg-secondary/20 flex items-center justify-center text-secondary font-bold text-lg">
-                  {course.teacherName.charAt(0)}
-                </div>
-                <div>
-                  <div className="text-xs opacity-70">Instructor</div>
-                  <div className="font-semibold text-background">{course.teacherName}</div>
-                </div>
-              </div>
-              <div className="h-10 w-px bg-white/10 hidden sm:block"></div>
+            <div className="flex flex-wrap items-center gap-6 text-sm text-background/70 mt-8 bg-black/10 p-4 rounded-2xl border border-white/10 w-fit backdrop-blur-md">
+              <Link href={`/teachers/${course.teacher?.id}`}>
+                <a className="group flex items-center gap-3 hover:text-primary-foreground transition-colors cursor-pointer">
+                  <div className="w-11 h-11 rounded-full bg-secondary/20 flex items-center justify-center text-secondary font-bold text-lg overflow-hidden border-2 border-transparent group-hover:border-secondary transition-all shadow-sm">
+                    {course.teacher?.avatarUrl ? (
+                      <img src={course.teacher.avatarUrl} alt={course.teacherName} className="w-full h-full object-cover" />
+                    ) : (
+                      course.teacherName.charAt(0)
+                    )}
+                  </div>
+                  <div>
+                    <div className="text-xs opacity-70 mb-0.5">Instructor</div>
+                    <div className="font-semibold text-background group-hover:text-primary-foreground transition-colors">{course.teacherName}</div>
+                  </div>
+                </a>
+              </Link>
+              <div className="h-10 w-px bg-white/20 hidden sm:block"></div>
               <div>
-                <div className="text-xs opacity-70">Enrolled</div>
+                <div className="text-xs opacity-70 mb-0.5">Enrolled</div>
                 <div className="font-semibold text-background">{course.enrollmentCount} students</div>
               </div>
-              <div className="h-10 w-px bg-white/10 hidden sm:block"></div>
+              <div className="h-10 w-px bg-white/20 hidden sm:block"></div>
               <div>
-                <div className="text-xs opacity-70">Last Updated</div>
+                <div className="text-xs opacity-70 mb-0.5">Last Updated</div>
                 <div className="font-semibold text-background">{new Date(course.createdAt).toLocaleDateString()}</div>
               </div>
             </div>
@@ -190,47 +203,61 @@ export default function CourseDetail() {
 
           {/* Floating Action Card */}
           <div className="w-full lg:w-96 shrink-0 lg:-mb-32 z-10">
-            <div className="bg-card text-foreground rounded-2xl shadow-2xl border border-border overflow-hidden">
-              <div className="aspect-video bg-muted relative">
+            <div className="bg-card text-foreground rounded-2xl shadow-2xl border border-border overflow-hidden ring-1 ring-black/5">
+              <div className="aspect-video bg-muted relative group">
+                <div className="absolute inset-0 bg-gradient-to-t from-black/40 to-transparent z-10 opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
                 {course.thumbnailUrl ? (
-                  <img src={course.thumbnailUrl} alt="Thumbnail" className="w-full h-full object-cover" />
+                  <img src={course.thumbnailUrl} alt="Thumbnail" className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
                 ) : (
                   <div className="w-full h-full flex items-center justify-center bg-primary/10">
                     <PlayCircle className="w-16 h-16 text-primary/40" />
                   </div>
                 )}
+                {/* Free Badge if free */}
+                {course.price === 0 && (
+                  <div className="absolute top-4 end-4 z-20 bg-gradient-to-r from-emerald-400 to-emerald-600 text-white px-3 py-1 rounded-full text-xs font-bold shadow-lg shadow-emerald-500/20">
+                    100% FREE
+                  </div>
+                )}
               </div>
               <div className="p-8">
-                <div className="text-3xl font-bold mb-6">
-                  {course.price === 0 ? 'Free' : `${course.price} LYD`}
+                <div className="text-3xl font-bold mb-6 flex items-end gap-2">
+                  {course.price === 0 ? (
+                    <span className="text-emerald-600 bg-emerald-50 px-4 py-1.5 rounded-lg border border-emerald-100 shadow-sm">Free</span>
+                  ) : (
+                    <span>{course.price} LYD</span>
+                  )}
                 </div>
                 
                 {course.isEnrolled ? (
                   <>
                     <Link href={`/courses/${course.id}/learn`}>
-                      <Button className="w-full h-14 text-lg rounded-xl mb-3 bg-secondary text-secondary-foreground hover:bg-secondary/90">
+                      <Button className="w-full h-14 text-lg font-bold rounded-xl mb-3 bg-secondary text-secondary-foreground hover:bg-secondary/90 transition-all shadow-md hover:shadow-lg hover:-translate-y-0.5">
                         Go to Lessons
                       </Button>
                     </Link>
                     <Button 
                       variant="outline"
-                      className="w-full mb-4 border-amber-200 text-amber-700 hover:bg-amber-50 gap-2"
+                      className="w-full mb-4 border-amber-200 text-amber-700 hover:bg-amber-50 gap-2 font-medium"
                       onClick={() => setShowReviewModal(true)}
                     >
                       <Star className="w-4 h-4 fill-amber-500" /> Write a Review
                     </Button>
                   </>
                 ) : (
-                  <Button 
-                    onClick={handleEnroll} 
-                    disabled={enrolling}
-                    className="w-full h-14 text-lg rounded-xl mb-4 bg-primary hover:bg-primary/90 shadow-lg shadow-primary/25"
-                  >
-                    {enrolling ? 'Processing...' : 'Enroll Now'}
-                  </Button>
+                  <div className="mb-6 relative">
+                    <Button 
+                      onClick={handleEnroll} 
+                      disabled={enrolling}
+                      className="w-full h-14 text-lg font-bold rounded-xl bg-gradient-to-r from-primary to-violet-600 hover:from-primary/90 hover:to-violet-600/90 text-white shadow-lg shadow-primary/25 hover:shadow-primary/40 hover:-translate-y-0.5 transition-all duration-300"
+                    >
+                      {enrolling ? 'Processing...' : 'Enroll Now'}
+                    </Button>
+                    <p className="text-center text-xs text-muted-foreground mt-3 font-medium">Start learning instantly</p>
+                  </div>
                 )}
                 
-                <p className="text-center text-xs text-muted-foreground mb-4">30-Day Money-Back Guarantee</p>
+                {course.price > 0 && <p className="text-center text-xs text-muted-foreground mb-4 font-medium">30-Day Money-Back Guarantee</p>}
 
                 <div className="flex justify-center mb-6">
                   <Button variant="ghost" size="sm" className="text-xs text-muted-foreground hover:text-destructive gap-1" onClick={() => setReportCourse(true)}>
