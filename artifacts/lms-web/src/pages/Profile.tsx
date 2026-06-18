@@ -94,12 +94,10 @@ export default function Profile() {
     }
   };
 
-  const { mutate: updateProfile, isPending: isUpdating } = useUpdateProfile({
+  const { mutateAsync: updateProfileAsync, isPending: isUpdating } = useUpdateProfile({
     mutation: {
       onSuccess: () => {
         toast({ title: t('profile.update_success') });
-        setIsSettingsOpen(false);
-        refetchUser();
       },
       onError: (err: any) => {
         toast({ title: 'Error', description: err.message, variant: 'destructive' });
@@ -120,7 +118,7 @@ export default function Profile() {
   const onSubmit = async (data: ProfileFormValues) => {
     try {
       // 1. Update Profile (Name, Bio, Language, Avatar)
-      updateProfile({ data: { fullName: data.fullName, bio: data.bio, language: data.language, avatarUrl: data.avatarUrl } as any });
+      await updateProfileAsync({ data: { fullName: data.fullName, bio: data.bio, language: data.language, avatarUrl: data.avatarUrl } as any });
       
       // 2. Update Email if changed
       if (data.email && data.email !== user?.email) {

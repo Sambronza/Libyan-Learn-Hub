@@ -155,7 +155,11 @@ export default function Courses() {
                       <div className="relative pt-8 px-6 pb-6 flex flex-col flex-1 bg-gradient-to-b from-card to-card/50">
                         {/* Overlapping Avatar */}
                         <div className="absolute -top-6 end-6 w-12 h-12 rounded-full border-4 border-card bg-gradient-to-br from-primary/20 to-violet-500/20 flex items-center justify-center shadow-sm overflow-hidden z-10 group-hover:scale-110 transition-transform duration-300">
-                          <span className="text-primary font-bold text-lg">{course.teacherName.charAt(0).toUpperCase()}</span>
+                          {course.teacherAvatar ? (
+                            <img src={course.teacherAvatar} alt={course.teacherName} className="w-full h-full object-cover" />
+                          ) : (
+                            <span className="text-primary font-bold text-lg">{course.teacherName.charAt(0).toUpperCase()}</span>
+                          )}
                         </div>
                         
                         {/* Instructor Name */}
