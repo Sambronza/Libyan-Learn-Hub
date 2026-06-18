@@ -161,24 +161,28 @@ function GlobalLockScreen() {
   return <PasscodeLock onUnlocked={unlock} />;
 }
 
+import { ThemeProvider } from 'next-themes';
+
 function App() {
   return (
-    <QueryClientProvider client={queryClient}>
-      <LanguageProvider>
-        <AuthProvider>
-          <MediaActivityProvider>
-            <TooltipProvider>
-              <WouterRouter base={import.meta.env.BASE_URL.replace(/\/$/, "")}>
-                <Router />
-              </WouterRouter>
-              <Toaster />
-              <InactivityTimerWrapper />
-              <GlobalLockScreen />
-            </TooltipProvider>
-          </MediaActivityProvider>
-        </AuthProvider>
-      </LanguageProvider>
-    </QueryClientProvider>
+    <ThemeProvider attribute="class" defaultTheme="system" enableSystem>
+      <QueryClientProvider client={queryClient}>
+        <LanguageProvider>
+          <AuthProvider>
+            <MediaActivityProvider>
+              <TooltipProvider>
+                <WouterRouter base={import.meta.env.BASE_URL.replace(/\/$/, "")}>
+                  <Router />
+                </WouterRouter>
+                <Toaster />
+                <InactivityTimerWrapper />
+                <GlobalLockScreen />
+              </TooltipProvider>
+            </MediaActivityProvider>
+          </AuthProvider>
+        </LanguageProvider>
+      </QueryClientProvider>
+    </ThemeProvider>
   );
 }
 

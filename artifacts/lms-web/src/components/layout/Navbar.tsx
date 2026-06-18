@@ -7,6 +7,7 @@ import { BookOpen, MonitorPlay, Users, Menu, X, Globe, User as UserIcon, LogOut,
 import { motion, AnimatePresence } from 'framer-motion';
 import { NotificationDropdown } from './NotificationDropdown';
 import { Logo } from '@/components/ui/Logo';
+import { ThemeToggle } from './ThemeToggle';
 
 export function Navbar() {
   const { t, language, setLanguage } = useLanguage();
@@ -94,6 +95,7 @@ export function Navbar() {
               <Globe className="w-4 h-4" />
               <span className="uppercase">{language}</span>
             </button>
+            <ThemeToggle />
 
             {isAuthenticated ? (
               <>
