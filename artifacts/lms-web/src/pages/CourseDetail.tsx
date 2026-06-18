@@ -21,7 +21,7 @@ export default function CourseDetail() {
   const [, params] = useRoute('/courses/:id');
   const courseId = parseInt(params?.id || '0');
   const { language, t } = useLanguage();
-  const { isAuthenticated } = useAuth();
+  const { isAuthenticated, user } = useAuth();
   const [, setLocation] = useLocation();
   const { toast } = useToast();
   const api = useApi();
@@ -310,15 +310,15 @@ export default function CourseDetail() {
             {course.lessons.map((lesson, idx) => (
               <div 
                 key={lesson.id} 
-                className={`p-4 sm:p-5 flex items-start gap-4 ${idx !== 0 ? 'border-t border-border' : ''} ${course.isEnrolled || lesson.isFree ? 'cursor-pointer hover:bg-muted/50' : 'opacity-80 hover:bg-muted/30'} transition-colors`}
+                className={`p-4 sm:p-5 flex items-start gap-4 ${idx !== 0 ? 'border-t border-border' : ''} ${course.isEnrolled || lesson.isFree || user?.id === course.teacherId ? 'cursor-pointer hover:bg-muted/50' : 'opacity-80 hover:bg-muted/30'} transition-colors`}
                 onClick={() => {
                   if (course.isEnrolled) {
                     setLocation(`/courses/${courseId}/learn`);
-                  } else if (lesson.isFree) {
+                  } else if (lesson.isFree || user?.id === course.teacherId) {
                     if (lesson.type === 'video') {
                       setPreviewLessonId(lesson.id);
                     } else {
-                      toast({ title: language === 'ar' ? 'المعاينة غير متاحة' : 'Preview not available', description: language === 'ar' ? 'لا يمكن معاينة هذا النوع من الدروس المجانية هنا.' : 'This free lesson type cannot be previewed here.', variant: 'default' });
+                      toast({ title: language === 'ar' ? 'المعاينة غير متاحة' : 'Preview not available', description: language === 'ar' ? 'لا يمكن معاينة هذا النوع من الدروس هنا.' : 'This lesson type cannot be previewed here.', variant: 'default' });
                     }
                   } else {
                     toast({ title: language === 'ar' ? 'مغلق' : 'Locked', description: language === 'ar' ? 'سجل في الدورة للوصول إلى هذا الدرس.' : 'Enroll in the course to access this lesson.', variant: 'default' });
