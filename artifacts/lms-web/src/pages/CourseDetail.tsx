@@ -156,9 +156,9 @@ export default function CourseDetail() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex flex-col lg:flex-row gap-12 relative z-10">
           <div className="flex-1">
             <nav className="flex items-center gap-2 text-sm text-background/60 mb-6 font-medium">
-              <Link href="/"><a className="hover:text-background transition-colors">Home</a></Link>
+              <Link href="/"><a className="hover:text-background transition-colors">{language === 'ar' ? 'الرئيسية' : 'Home'}</a></Link>
               <span className="opacity-50">/</span>
-              <Link href="/courses"><a className="hover:text-background transition-colors">Courses</a></Link>
+              <Link href="/courses"><a className="hover:text-background transition-colors">{language === 'ar' ? 'الدورات' : 'Courses'}</a></Link>
               <span className="opacity-50">/</span>
               <span className="text-background/90 line-clamp-1">{title}</span>
             </nav>
@@ -183,19 +183,19 @@ export default function CourseDetail() {
                     )}
                   </div>
                   <div>
-                    <div className="text-xs opacity-70 mb-0.5">Instructor</div>
+                    <div className="text-xs opacity-70 mb-0.5">{language === 'ar' ? 'المعلم' : 'Instructor'}</div>
                     <div className="font-semibold text-background group-hover:text-primary-foreground transition-colors">{course.teacherName}</div>
                   </div>
                 </a>
               </Link>
               <div className="h-10 w-px bg-white/20 hidden sm:block"></div>
               <div>
-                <div className="text-xs opacity-70 mb-0.5">Enrolled</div>
-                <div className="font-semibold text-background">{course.enrollmentCount} students</div>
+                <div className="text-xs opacity-70 mb-0.5">{language === 'ar' ? 'المسجلين' : 'Enrolled'}</div>
+                <div className="font-semibold text-background">{course.enrollmentCount} {language === 'ar' ? 'طلاب' : 'students'}</div>
               </div>
               <div className="h-10 w-px bg-white/20 hidden sm:block"></div>
               <div>
-                <div className="text-xs opacity-70 mb-0.5">Last Updated</div>
+                <div className="text-xs opacity-70 mb-0.5">{language === 'ar' ? 'آخر تحديث' : 'Last Updated'}</div>
                 <div className="font-semibold text-background">{new Date(course.createdAt).toLocaleDateString(language === 'ar' ? 'ar-EG' : 'en-US', { year: 'numeric', month: 'short', day: 'numeric' })}</div>
               </div>
             </div>
@@ -216,16 +216,16 @@ export default function CourseDetail() {
                 {/* Free Badge if free */}
                 {course.price === 0 && (
                   <div className="absolute top-4 end-4 z-20 bg-gradient-to-r from-emerald-400 to-emerald-600 text-white px-3 py-1 rounded-full text-xs font-bold shadow-lg shadow-emerald-500/20">
-                    100% FREE
+                    {language === 'ar' ? 'مجاني 100%' : '100% FREE'}
                   </div>
                 )}
               </div>
               <div className="p-8">
                 <div className="text-3xl font-bold mb-6 flex items-end gap-2">
                   {course.price === 0 ? (
-                    <span className="text-emerald-600 bg-emerald-50 px-4 py-1.5 rounded-lg border border-emerald-100 shadow-sm">Free</span>
+                    <span className="text-emerald-600 bg-emerald-50 px-4 py-1.5 rounded-lg border border-emerald-100 shadow-sm">{language === 'ar' ? 'مجاناً' : 'Free'}</span>
                   ) : (
-                    <span>{course.price} LYD</span>
+                    <span>{course.price} {language === 'ar' ? 'د.ل' : 'LYD'}</span>
                   )}
                 </div>
                 
@@ -233,7 +233,7 @@ export default function CourseDetail() {
                   <>
                     <Link href={`/courses/${course.id}/learn`}>
                       <Button className="w-full h-14 text-lg font-bold rounded-xl mb-3 bg-secondary text-secondary-foreground hover:bg-secondary/90 transition-all shadow-md hover:shadow-lg hover:-translate-y-0.5">
-                        Go to Lessons
+                        {language === 'ar' ? 'الذهاب للدروس' : 'Go to Lessons'}
                       </Button>
                     </Link>
                     <Button 
@@ -241,7 +241,7 @@ export default function CourseDetail() {
                       className="w-full mb-4 border-amber-200 text-amber-700 hover:bg-amber-50 gap-2 font-medium"
                       onClick={() => setShowReviewModal(true)}
                     >
-                      <Star className="w-4 h-4 fill-amber-500" /> Write a Review
+                      <Star className="w-4 h-4 fill-amber-500" /> {language === 'ar' ? 'كتابة مراجعة' : 'Write a Review'}
                     </Button>
                   </>
                 ) : (
@@ -251,29 +251,29 @@ export default function CourseDetail() {
                       disabled={enrolling}
                       className="w-full h-14 text-lg font-bold rounded-xl bg-gradient-to-r from-primary to-violet-600 hover:from-primary/90 hover:to-violet-600/90 text-white shadow-lg shadow-primary/25 hover:shadow-primary/40 hover:-translate-y-0.5 transition-all duration-300"
                     >
-                      {enrolling ? 'Processing...' : 'Enroll Now'}
+                      {enrolling ? (language === 'ar' ? 'جاري المعالجة...' : 'Processing...') : (language === 'ar' ? 'سجل الآن' : 'Enroll Now')}
                     </Button>
-                    <p className="text-center text-xs text-muted-foreground mt-3 font-medium">Start learning instantly</p>
+                    <p className="text-center text-xs text-muted-foreground mt-3 font-medium">{language === 'ar' ? 'ابدأ التعلم فوراً' : 'Start learning instantly'}</p>
                   </div>
                 )}
                 
-                {course.price > 0 && <p className="text-center text-xs text-muted-foreground mb-4 font-medium">30-Day Money-Back Guarantee</p>}
+                {course.price > 0 && <p className="text-center text-xs text-muted-foreground mb-4 font-medium">{language === 'ar' ? 'ضمان استرجاع الأموال خلال 30 يوماً' : '30-Day Money-Back Guarantee'}</p>}
 
                 <div className="flex justify-center mb-6">
                   <Button variant="ghost" size="sm" className="text-xs text-muted-foreground hover:text-destructive gap-1" onClick={() => setReportCourse(true)}>
-                    <Flag className="w-3 h-3" /> Report Course
+                    <Flag className="w-3 h-3" /> {language === 'ar' ? 'الإبلاغ عن الدورة' : 'Report Course'}
                   </Button>
                 </div>
                 
                 <div className="space-y-4 text-sm font-medium">
                   <div className="flex items-center gap-3">
-                    <PlayCircle className="w-5 h-5 text-primary" /> {course.lessonCount} video lessons
+                    <PlayCircle className="w-5 h-5 text-primary" /> {course.lessonCount} {language === 'ar' ? 'دروس فيديو' : 'video lessons'}
                   </div>
                   <div className="flex items-center gap-2">
-                    <Clock className="w-5 h-5 text-primary" /> {formatDuration(course.totalDuration)} total length
+                    <Clock className="w-5 h-5 text-primary" /> {formatDuration(course.totalDuration)} {language === 'ar' ? 'المدة الإجمالية' : 'total length'}
                   </div>
                   <div className="flex items-center gap-3">
-                    <ShieldAlert className="w-5 h-5 text-secondary" /> Protected content (no downloads)
+                    <ShieldAlert className="w-5 h-5 text-secondary" /> {language === 'ar' ? 'محتوى محمي (غير قابل للتنزيل)' : 'Protected content (no downloads)'}
                   </div>
                 </div>
               </div>
@@ -285,7 +285,7 @@ export default function CourseDetail() {
       {/* Content Section */}
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16 lg:py-24 flex flex-col lg:flex-row gap-12">
         <div className="flex-1 max-w-3xl">
-          <h2 className="text-2xl font-display font-bold mb-6">Course Curriculum</h2>
+          <h2 className="text-2xl font-display font-bold mb-6">{language === 'ar' ? 'منهج الدورة' : 'Course Curriculum'}</h2>
           <div className="bg-card border border-border rounded-2xl overflow-hidden shadow-sm">
             {course.lessons.map((lesson, idx) => (
               <div 
@@ -298,10 +298,10 @@ export default function CourseDetail() {
                     if (lesson.type === 'video') {
                       setPreviewLessonId(lesson.id);
                     } else {
-                      toast({ title: 'Preview not available', description: 'This free lesson type cannot be previewed here.', variant: 'default' });
+                      toast({ title: language === 'ar' ? 'المعاينة غير متاحة' : 'Preview not available', description: language === 'ar' ? 'لا يمكن معاينة هذا النوع من الدروس المجانية هنا.' : 'This free lesson type cannot be previewed here.', variant: 'default' });
                     }
                   } else {
-                    toast({ title: 'Locked', description: 'Enroll in the course to access this lesson.', variant: 'default' });
+                    toast({ title: language === 'ar' ? 'مغلق' : 'Locked', description: language === 'ar' ? 'سجل في الدورة للوصول إلى هذا الدرس.' : 'Enroll in the course to access this lesson.', variant: 'default' });
                   }
                 }}
               >
@@ -313,7 +313,7 @@ export default function CourseDetail() {
                     {idx + 1}. {language === 'ar' ? lesson.titleAr : lesson.title}
                   </h4>
                   {lesson.isFree && !course.isEnrolled && (
-                    <span className="inline-block mt-1 text-xs px-2 py-0.5 bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400 rounded">Free Preview</span>
+                    <span className="inline-block mt-1 text-xs px-2 py-0.5 bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400 rounded">{language === 'ar' ? 'معاينة مجانية' : 'Free Preview'}</span>
                   )}
                 </div>
                 <div className="flex items-center gap-3">
@@ -326,7 +326,7 @@ export default function CourseDetail() {
           </div>
 
           <div className="mt-16">
-            <h2 className="text-2xl font-display font-bold mb-6">About the Instructor</h2>
+            <h2 className="text-2xl font-display font-bold mb-6">{language === 'ar' ? 'عن المعلم' : 'About the Instructor'}</h2>
             {course.teacher && (
               <div className="flex items-start gap-6 p-6 bg-primary/5 rounded-2xl border border-primary/10">
                  <div className="w-20 h-20 rounded-full bg-primary/20 flex items-center justify-center text-primary font-bold text-2xl shrink-0 overflow-hidden">
@@ -334,9 +334,9 @@ export default function CourseDetail() {
                 </div>
                 <div>
                   <h3 className="font-bold text-xl text-foreground mb-1">{course.teacher.fullName}</h3>
-                  <p className="text-primary font-medium mb-4">{course.teacher.expertise || 'Expert Instructor'}</p>
+                  <p className="text-primary font-medium mb-4">{course.teacher.expertise || (language === 'ar' ? 'معلم خبير' : 'Expert Instructor')}</p>
                   <p className="text-muted-foreground leading-relaxed text-sm">
-                    {course.teacher.bio || 'This instructor has not provided a biography yet. They are a valued member of the EduLibya community teaching high-quality courses.'}
+                    {course.teacher.bio || (language === 'ar' ? 'لم يقدم هذا المعلم سيرة ذاتية بعد. إنه عضو قيم في مجتمع إديوليبيا لتدريس دورات عالية الجودة.' : 'This instructor has not provided a biography yet. They are a valued member of the EduLibya community teaching high-quality courses.')}
                   </p>
                 </div>
               </div>
@@ -383,27 +383,27 @@ export default function CourseDetail() {
       <Dialog open={reportCourse} onOpenChange={setReportCourse}>
         <DialogContent className="sm:max-w-[425px]">
           <DialogHeader>
-            <DialogTitle>Report Course</DialogTitle>
+            <DialogTitle>{language === 'ar' ? 'الإبلاغ عن الدورة' : 'Report Course'}</DialogTitle>
           </DialogHeader>
           <form onSubmit={handleReportSubmit(submitReport)} className="space-y-4 mt-4">
-            <div className="text-sm mb-4">You are reporting the course <span className="font-bold">{language === 'ar' ? course?.titleAr : course?.title}</span>.</div>
+            <div className="text-sm mb-4">{language === 'ar' ? 'أنت تبلغ عن الدورة' : 'You are reporting the course'} <span className="font-bold">{language === 'ar' ? course?.titleAr : course?.title}</span>.</div>
             <div>
-              <label className="text-sm font-medium mb-1 block">Reason *</label>
+              <label className="text-sm font-medium mb-1 block">{language === 'ar' ? 'السبب *' : 'Reason *'}</label>
               <select {...registerReport('reason', { required: true })} className="w-full h-10 px-3 rounded-md border border-input bg-background text-sm">
-                <option value="">Select a reason</option>
-                <option value="inappropriate_behavior">Inappropriate Content</option>
-                <option value="spam">Spam / Low Quality</option>
-                <option value="copyright">Copyright Violation</option>
-                <option value="other">Other</option>
+                <option value="">{language === 'ar' ? 'اختر سبباً' : 'Select a reason'}</option>
+                <option value="inappropriate_behavior">{language === 'ar' ? 'محتوى غير لائق' : 'Inappropriate Content'}</option>
+                <option value="spam">{language === 'ar' ? 'رسائل مزعجة / جودة منخفضة' : 'Spam / Low Quality'}</option>
+                <option value="copyright">{language === 'ar' ? 'انتهاك حقوق النشر' : 'Copyright Violation'}</option>
+                <option value="other">{language === 'ar' ? 'أخرى' : 'Other'}</option>
               </select>
             </div>
             <div>
-              <label className="text-sm font-medium mb-1 block">Description (optional)</label>
-              <Textarea {...registerReport('description')} placeholder="Please provide more details..." rows={3} />
+              <label className="text-sm font-medium mb-1 block">{language === 'ar' ? 'الوصف (اختياري)' : 'Description (optional)'}</label>
+              <Textarea {...registerReport('description')} placeholder={language === 'ar' ? 'يرجى تقديم مزيد من التفاصيل...' : 'Please provide more details...'} rows={3} />
             </div>
             <div className="flex gap-3 pt-2">
-              <Button type="button" variant="outline" className="flex-1" onClick={() => setReportCourse(false)}>Cancel</Button>
-              <Button type="submit" variant="destructive" className="flex-1">Submit Report</Button>
+              <Button type="button" variant="outline" className="flex-1" onClick={() => setReportCourse(false)}>{language === 'ar' ? 'إلغاء' : 'Cancel'}</Button>
+              <Button type="submit" variant="destructive" className="flex-1">{language === 'ar' ? 'إرسال البلاغ' : 'Submit Report'}</Button>
             </div>
           </form>
         </DialogContent>
@@ -413,10 +413,10 @@ export default function CourseDetail() {
       <Dialog open={showReviewModal} onOpenChange={setShowReviewModal}>
         <DialogContent className="sm:max-w-[425px]">
           <DialogHeader>
-            <DialogTitle>Write a Review</DialogTitle>
+            <DialogTitle>{language === 'ar' ? 'كتابة مراجعة' : 'Write a Review'}</DialogTitle>
           </DialogHeader>
           <div className="py-6 flex flex-col items-center">
-            <p className="text-sm text-muted-foreground mb-4 text-center">How would you rate your experience with this course?</p>
+            <p className="text-sm text-muted-foreground mb-4 text-center">{language === 'ar' ? 'كيف تقيم تجربتك مع هذه الدورة؟' : 'How would you rate your experience with this course?'}</p>
             <div className="flex gap-2 mb-6">
               {[1, 2, 3, 4, 5].map((star) => (
                 <button 
@@ -430,22 +430,22 @@ export default function CourseDetail() {
               ))}
             </div>
             <div className="w-full">
-              <label className="text-sm font-medium mb-1 block">Your Recommendation</label>
+              <label className="text-sm font-medium mb-1 block">{language === 'ar' ? 'توصيتك' : 'Your Recommendation'}</label>
               <Textarea 
                 value={reviewComment}
                 onChange={(e) => setReviewComment(e.target.value)}
-                placeholder="What did you like about this course? Would you recommend it?" 
+                placeholder={language === 'ar' ? 'ما الذي أعجبك في هذه الدورة؟ هل تنصح بها؟' : 'What did you like about this course? Would you recommend it?'} 
                 rows={4} 
               />
             </div>
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setShowReviewModal(false)}>Cancel</Button>
+            <Button variant="outline" onClick={() => setShowReviewModal(false)}>{language === 'ar' ? 'إلغاء' : 'Cancel'}</Button>
             <Button 
               onClick={() => submitReview.mutate()} 
               disabled={submitReview.isPending}
             >
-              {submitReview.isPending ? 'Submitting...' : 'Submit Review'}
+              {submitReview.isPending ? (language === 'ar' ? 'جاري الإرسال...' : 'Submitting...') : (language === 'ar' ? 'إرسال المراجعة' : 'Submit Review')}
             </Button>
           </DialogFooter>
         </DialogContent>
