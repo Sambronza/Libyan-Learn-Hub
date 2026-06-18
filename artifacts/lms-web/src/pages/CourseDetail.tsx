@@ -196,7 +196,7 @@ export default function CourseDetail() {
               <div className="h-10 w-px bg-white/20 hidden sm:block"></div>
               <div>
                 <div className="text-xs opacity-70 mb-0.5">Last Updated</div>
-                <div className="font-semibold text-background">{new Date(course.createdAt).toLocaleDateString()}</div>
+                <div className="font-semibold text-background">{new Date(course.createdAt).toLocaleDateString(language === 'ar' ? 'ar-EG' : 'en-US', { year: 'numeric', month: 'short', day: 'numeric' })}</div>
               </div>
             </div>
           </div>
@@ -362,7 +362,7 @@ export default function CourseDetail() {
                      <div className="flex-1">
                        <div className="flex items-center justify-between mb-1">
                          <h4 className="font-bold">{language === 'ar' ? (review.user?.fullNameAr || review.user?.fullName) : review.user?.fullName}</h4>
-                         <span className="text-xs text-muted-foreground">{new Date(review.createdAt).toLocaleDateString()}</span>
+                         <span className="text-xs text-muted-foreground">{new Date(review.createdAt).toLocaleDateString(language === 'ar' ? 'ar-EG' : 'en-US', { year: 'numeric', month: 'short', day: 'numeric' })}</span>
                        </div>
                        <div className="flex gap-0.5 mb-2">
                          {[...Array(5)].map((_, i) => (
