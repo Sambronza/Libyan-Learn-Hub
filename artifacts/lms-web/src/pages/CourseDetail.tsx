@@ -148,34 +148,44 @@ export default function CourseDetail() {
   return (
     <PageContainer>
       {/* Header Banner */}
-      <div className="relative bg-foreground text-background py-10 lg:py-24 overflow-hidden">
-        <div className="absolute inset-0 opacity-20 pointer-events-none">
-          <Blob color="bg-primary" size="w-[500px] h-[500px]" className="-top-24 -start-24" duration={25} />
-          <Blob color="bg-secondary" size="w-[400px] h-[400px]" className="top-1/2 -end-24" delay={2} duration={30} />
+      <div className="relative text-white py-12 lg:py-28 overflow-hidden min-h-[500px]">
+        {/* Background Image with blur and overlay */}
+        <div 
+          className="absolute inset-0 z-0 bg-cover bg-center scale-110"
+          style={{ backgroundImage: `url(${course.thumbnailUrl || ''})` }}
+        ></div>
+        <div className="absolute inset-0 z-0 bg-black/70 backdrop-blur-3xl"></div>
+        
+        {/* Ambient Blobs */}
+        <div className="absolute inset-0 opacity-30 pointer-events-none z-0 mix-blend-screen">
+          <Blob color="bg-primary" size="w-[600px] h-[600px]" className="-top-32 -start-32" duration={25} />
+          <Blob color="bg-secondary" size="w-[500px] h-[500px]" className="top-1/3 -end-32" delay={2} duration={30} />
         </div>
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex flex-col lg:flex-row gap-12 relative z-10">
-          <div className="flex-1">
-            <nav className="flex items-center gap-2 text-sm text-background/60 mb-6 font-medium">
-              <Link href="/"><a className="hover:text-background transition-colors">{language === 'ar' ? 'الرئيسية' : 'Home'}</a></Link>
+
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex flex-col lg:flex-row gap-12 lg:gap-20 relative z-10">
+          <div className="flex-1 pb-8 lg:pb-0">
+            <nav className="flex items-center gap-2 text-sm text-white/60 mb-8 font-medium tracking-wide">
+              <Link href="/"><a className="hover:text-white transition-colors">{language === 'ar' ? 'الرئيسية' : 'Home'}</a></Link>
               <span className="opacity-50">/</span>
-              <Link href="/courses"><a className="hover:text-background transition-colors">{language === 'ar' ? 'الدورات' : 'Courses'}</a></Link>
+              <Link href="/courses"><a className="hover:text-white transition-colors">{language === 'ar' ? 'الدورات' : 'Courses'}</a></Link>
               <span className="opacity-50">/</span>
-              <span className="text-background/90 line-clamp-1">{title}</span>
+              <span className="text-white/90 line-clamp-1">{title}</span>
             </nav>
             <div className="flex items-center gap-3 mb-6">
-              <span className="px-3 py-1 rounded-full bg-white/10 border border-white/20 text-sm font-medium backdrop-blur-sm shadow-sm">{course.category?.name}</span>
-              <span className="px-3 py-1 rounded-full bg-primary/20 border border-primary/30 text-primary-foreground text-sm font-medium capitalize backdrop-blur-sm shadow-sm">{course.level}</span>
+              <span className="px-4 py-1.5 rounded-full bg-white/10 border border-white/20 text-sm font-medium backdrop-blur-md shadow-sm">{course.category?.name}</span>
+              <span className="px-4 py-1.5 rounded-full bg-primary/40 border border-primary/30 text-white text-sm font-medium capitalize backdrop-blur-md shadow-sm">{course.level}</span>
             </div>
-            <h1 className="text-2xl sm:text-4xl lg:text-5xl font-display font-bold mb-6 leading-tight">
+            <h1 className="text-4xl sm:text-5xl lg:text-6xl font-display font-bold mb-6 leading-[1.15] text-white drop-shadow-lg">
               {language === 'ar' ? course.titleAr : course.title}
             </h1>
-            <p className="text-lg text-background/80 mb-8 max-w-2xl leading-relaxed">
+            <p className="text-lg sm:text-xl text-white/80 mb-10 max-w-2xl leading-relaxed drop-shadow-md">
               {language === 'ar' ? course.descriptionAr : course.description}
             </p>
-            <div className="flex flex-wrap items-center gap-6 text-sm text-background/70 mt-8 bg-black/10 p-4 rounded-2xl border border-white/10 w-fit backdrop-blur-md">
+            
+            <div className="flex flex-wrap items-center gap-8 text-sm text-white/80 mt-10">
               <Link href={`/teachers/${course.teacher?.id}`}>
-                <a className="group flex items-center gap-3 hover:text-primary-foreground transition-colors cursor-pointer">
-                  <div className="w-11 h-11 rounded-full bg-secondary/20 flex items-center justify-center text-secondary font-bold text-lg overflow-hidden border-2 border-transparent group-hover:border-secondary transition-all shadow-sm">
+                <a className="group flex items-center gap-4 hover:text-white transition-colors cursor-pointer">
+                  <div className="w-14 h-14 rounded-full bg-white/10 flex items-center justify-center text-white font-bold text-xl overflow-hidden border border-white/20 group-hover:border-primary transition-all shadow-xl backdrop-blur-md group-hover:scale-105">
                     {course.teacher?.avatarUrl ? (
                       <img src={course.teacher.avatarUrl} alt={course.teacherName} className="w-full h-full object-cover" />
                     ) : (
@@ -183,98 +193,108 @@ export default function CourseDetail() {
                     )}
                   </div>
                   <div>
-                    <div className="text-xs opacity-70 mb-0.5">{language === 'ar' ? 'المعلم' : 'Instructor'}</div>
-                    <div className="font-semibold text-background group-hover:text-primary-foreground transition-colors">{course.teacherName}</div>
+                    <div className="text-xs opacity-70 mb-1 uppercase tracking-wider">{language === 'ar' ? 'المعلم' : 'Instructor'}</div>
+                    <div className="font-semibold text-lg text-white group-hover:text-primary transition-colors">{course.teacherName}</div>
                   </div>
                 </a>
               </Link>
-              <div className="h-10 w-px bg-white/20 hidden sm:block"></div>
+              <div className="h-12 w-px bg-white/20 hidden sm:block"></div>
               <div>
-                <div className="text-xs opacity-70 mb-0.5">{language === 'ar' ? 'المسجلين' : 'Enrolled'}</div>
-                <div className="font-semibold text-background">{course.enrollmentCount} {language === 'ar' ? 'طلاب' : 'students'}</div>
+                <div className="text-xs opacity-70 mb-1 uppercase tracking-wider">{language === 'ar' ? 'المسجلين' : 'Enrolled'}</div>
+                <div className="font-semibold text-lg text-white">{course.enrollmentCount} <span className="text-sm font-normal opacity-80">{language === 'ar' ? 'طلاب' : 'students'}</span></div>
               </div>
-              <div className="h-10 w-px bg-white/20 hidden sm:block"></div>
+              <div className="h-12 w-px bg-white/20 hidden sm:block"></div>
               <div>
-                <div className="text-xs opacity-70 mb-0.5">{language === 'ar' ? 'آخر تحديث' : 'Last Updated'}</div>
-                <div className="font-semibold text-background">{new Date(course.createdAt).toLocaleDateString(language === 'ar' ? 'ar-EG' : 'en-US', { year: 'numeric', month: 'short', day: 'numeric' })}</div>
+                <div className="text-xs opacity-70 mb-1 uppercase tracking-wider">{language === 'ar' ? 'آخر تحديث' : 'Last Updated'}</div>
+                <div className="font-semibold text-lg text-white">{new Date(course.createdAt).toLocaleDateString(language === 'ar' ? 'ar-EG' : 'en-US', { year: 'numeric', month: 'short', day: 'numeric' })}</div>
               </div>
             </div>
           </div>
 
           {/* Floating Action Card */}
-          <div className="w-full lg:w-96 shrink-0 lg:-mb-32 z-10">
-            <div className="bg-card text-foreground rounded-2xl shadow-2xl border border-border overflow-hidden ring-1 ring-black/5">
-              <div className="aspect-video bg-muted relative group">
-                <div className="absolute inset-0 bg-gradient-to-t from-black/40 to-transparent z-10 opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
+          <div className="w-full lg:w-[420px] shrink-0 lg:-mb-40 z-20 perspective-1000">
+            <div className="bg-white/10 dark:bg-black/40 text-white rounded-[2rem] shadow-2xl border border-white/20 overflow-hidden backdrop-blur-xl ring-1 ring-white/10 transform-gpu hover:shadow-primary/20 transition-all duration-500">
+              <div className="aspect-video relative group overflow-hidden bg-black/40">
+                <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent z-10 opacity-70 group-hover:opacity-100 transition-opacity duration-300"></div>
                 {course.thumbnailUrl ? (
-                  <img src={course.thumbnailUrl} alt="Thumbnail" className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
+                  <img src={course.thumbnailUrl} alt="Thumbnail" className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700" />
                 ) : (
-                  <div className="w-full h-full flex items-center justify-center bg-primary/10">
-                    <PlayCircle className="w-16 h-16 text-primary/40" />
+                  <div className="w-full h-full flex items-center justify-center">
+                    <PlayCircle className="w-20 h-20 text-white/30" />
                   </div>
                 )}
+                <div className="absolute inset-0 flex items-center justify-center z-20 pointer-events-none">
+                   <div className="w-16 h-16 rounded-full bg-white/20 backdrop-blur-md flex items-center justify-center border border-white/30 text-white group-hover:bg-primary/80 group-hover:scale-110 transition-all duration-300 shadow-xl">
+                      <PlayCircle className="w-8 h-8 fill-white/20" />
+                   </div>
+                </div>
                 {/* Free Badge if free */}
                 {course.price === 0 && (
-                  <div className="absolute top-4 end-4 z-20 bg-gradient-to-r from-emerald-400 to-emerald-600 text-white px-3 py-1 rounded-full text-xs font-bold shadow-lg shadow-emerald-500/20">
+                  <div className="absolute top-4 end-4 z-20 bg-gradient-to-r from-emerald-400 to-emerald-600 text-white px-4 py-1.5 rounded-full text-xs font-bold shadow-lg border border-white/20 backdrop-blur-md">
                     {language === 'ar' ? 'مجاني 100%' : '100% FREE'}
                   </div>
                 )}
               </div>
-              <div className="p-8">
-                <div className="text-3xl font-bold mb-6 flex items-end gap-2">
+              <div className="p-8 lg:p-10 relative overflow-hidden">
+                <div className="absolute top-0 right-0 w-32 h-32 bg-primary/20 rounded-full blur-3xl -mr-16 -mt-16 pointer-events-none"></div>
+                
+                <div className="text-4xl font-bold mb-8 flex items-end gap-2 text-white">
                   {course.price === 0 ? (
-                    <span className="text-emerald-600 bg-emerald-50 px-4 py-1.5 rounded-lg border border-emerald-100 shadow-sm">{language === 'ar' ? 'مجاناً' : 'Free'}</span>
+                    <span className="text-emerald-400 drop-shadow-md">{language === 'ar' ? 'مجاناً' : 'Free'}</span>
                   ) : (
-                    <span>{course.price} {language === 'ar' ? 'د.ل' : 'LYD'}</span>
+                    <span>{course.price} <span className="text-2xl text-white/70">{language === 'ar' ? 'د.ل' : 'LYD'}</span></span>
                   )}
                 </div>
                 
                 {course.isEnrolled ? (
                   <>
                     <Link href={`/courses/${course.id}/learn`}>
-                      <Button className="w-full h-14 text-lg font-bold rounded-xl mb-3 bg-secondary text-secondary-foreground hover:bg-secondary/90 transition-all shadow-md hover:shadow-lg hover:-translate-y-0.5">
+                      <Button className="w-full h-16 text-lg font-bold rounded-2xl mb-4 bg-white/20 hover:bg-white/30 text-white border border-white/20 transition-all shadow-xl hover:-translate-y-1 backdrop-blur-sm">
                         {language === 'ar' ? 'الذهاب للدروس' : 'Go to Lessons'}
                       </Button>
                     </Link>
                     <Button 
                       variant="outline"
-                      className="w-full mb-4 border-amber-200 text-amber-700 hover:bg-amber-50 gap-2 font-medium"
+                      className="w-full h-12 mb-6 bg-transparent border-white/20 text-white hover:bg-white/10 gap-2 font-medium rounded-xl"
                       onClick={() => setShowReviewModal(true)}
                     >
-                      <Star className="w-4 h-4 fill-amber-500" /> {language === 'ar' ? 'كتابة مراجعة' : 'Write a Review'}
+                      <Star className="w-4 h-4 text-amber-400" /> {language === 'ar' ? 'كتابة مراجعة' : 'Write a Review'}
                     </Button>
                   </>
                 ) : (
-                  <div className="mb-6 relative">
+                  <div className="mb-8 relative">
                     <Button 
                       onClick={handleEnroll} 
                       disabled={enrolling}
-                      className="w-full h-14 text-lg font-bold rounded-xl bg-gradient-to-r from-primary to-violet-600 hover:from-primary/90 hover:to-violet-600/90 text-white shadow-lg shadow-primary/25 hover:shadow-primary/40 hover:-translate-y-0.5 transition-all duration-300"
+                      className="w-full h-16 text-xl font-bold rounded-2xl bg-gradient-to-r from-primary to-violet-500 hover:from-primary/90 hover:to-violet-500/90 text-white shadow-[0_0_40px_-10px_rgba(var(--primary),0.5)] hover:shadow-[0_0_60px_-15px_rgba(var(--primary),0.6)] border border-white/10 hover:-translate-y-1 transition-all duration-300"
                     >
                       {enrolling ? (language === 'ar' ? 'جاري المعالجة...' : 'Processing...') : (language === 'ar' ? 'سجل الآن' : 'Enroll Now')}
                     </Button>
-                    <p className="text-center text-xs text-muted-foreground mt-3 font-medium">{language === 'ar' ? 'ابدأ التعلم فوراً' : 'Start learning instantly'}</p>
+                    <p className="text-center text-sm text-white/60 mt-4 font-medium">{language === 'ar' ? 'ابدأ التعلم فوراً' : 'Start learning instantly'}</p>
                   </div>
                 )}
                 
-                {course.price > 0 && <p className="text-center text-xs text-muted-foreground mb-4 font-medium">{language === 'ar' ? 'ضمان استرجاع الأموال خلال 30 يوماً' : '30-Day Money-Back Guarantee'}</p>}
+                {course.price > 0 && <p className="text-center text-sm text-white/60 mb-6 font-medium">{language === 'ar' ? 'ضمان استرجاع الأموال خلال 30 يوماً' : '30-Day Money-Back Guarantee'}</p>}
 
-                <div className="flex justify-center mb-6">
-                  <Button variant="ghost" size="sm" className="text-xs text-muted-foreground hover:text-destructive gap-1" onClick={() => setReportCourse(true)}>
+                <div className="space-y-5 text-sm font-medium text-white/80 pt-6 border-t border-white/10">
+                  <div className="flex items-center gap-4">
+                    <div className="w-8 h-8 rounded-full bg-white/5 flex items-center justify-center border border-white/10"><PlayCircle className="w-4 h-4 text-white/90" /></div>
+                    {course.lessonCount} {language === 'ar' ? 'دروس فيديو' : 'video lessons'}
+                  </div>
+                  <div className="flex items-center gap-4">
+                    <div className="w-8 h-8 rounded-full bg-white/5 flex items-center justify-center border border-white/10"><Clock className="w-4 h-4 text-white/90" /></div>
+                    {formatDuration(course.totalDuration)} {language === 'ar' ? 'المدة الإجمالية' : 'total length'}
+                  </div>
+                  <div className="flex items-center gap-4">
+                    <div className="w-8 h-8 rounded-full bg-white/5 flex items-center justify-center border border-white/10"><ShieldAlert className="w-4 h-4 text-white/90" /></div>
+                    {language === 'ar' ? 'محتوى محمي (غير قابل للتنزيل)' : 'Protected content (no downloads)'}
+                  </div>
+                </div>
+
+                <div className="flex justify-center mt-8">
+                  <Button variant="ghost" size="sm" className="text-xs text-white/40 hover:text-white hover:bg-white/10 gap-1 rounded-lg px-3 py-1" onClick={() => setReportCourse(true)}>
                     <Flag className="w-3 h-3" /> {language === 'ar' ? 'الإبلاغ عن الدورة' : 'Report Course'}
                   </Button>
-                </div>
-                
-                <div className="space-y-4 text-sm font-medium">
-                  <div className="flex items-center gap-3">
-                    <PlayCircle className="w-5 h-5 text-primary" /> {course.lessonCount} {language === 'ar' ? 'دروس فيديو' : 'video lessons'}
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <Clock className="w-5 h-5 text-primary" /> {formatDuration(course.totalDuration)} {language === 'ar' ? 'المدة الإجمالية' : 'total length'}
-                  </div>
-                  <div className="flex items-center gap-3">
-                    <ShieldAlert className="w-5 h-5 text-secondary" /> {language === 'ar' ? 'محتوى محمي (غير قابل للتنزيل)' : 'Protected content (no downloads)'}
-                  </div>
                 </div>
               </div>
             </div>
