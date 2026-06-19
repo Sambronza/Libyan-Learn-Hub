@@ -124,6 +124,7 @@ export default function AdminDashboard() {
                 </span>
               )}
             </TabsTrigger>
+            <TabsTrigger value="tutoring_reviews" className="gap-2"><Presentation className="w-4 h-4" /> Tutoring Reviews</TabsTrigger>
             <TabsTrigger value="courses" className="gap-2"><BookOpen className="w-4 h-4" /> Courses</TabsTrigger>
             <TabsTrigger value="categories" className="gap-2"><Tag className="w-4 h-4" /> Categories</TabsTrigger>
             <TabsTrigger value="payments" className="gap-2"><CreditCard className="w-4 h-4" /> Payments</TabsTrigger>
@@ -139,6 +140,7 @@ export default function AdminDashboard() {
           <TabsContent value="users"><UsersTab api={api} queryClient={queryClient} toast={toast} stats={stats} user={user} /></TabsContent>
           <TabsContent value="teachers"><TeachersManagementTab api={api} queryClient={queryClient} toast={toast} /></TabsContent>
           <TabsContent value="approvals"><PendingApprovalsTab api={api} queryClient={queryClient} toast={toast} initialPendingCourses={pendingCourses} /></TabsContent>
+          <TabsContent value="tutoring_reviews"><TutoringReviewsTab api={api} queryClient={queryClient} toast={toast} /></TabsContent>
           <TabsContent value="courses"><CoursesTab api={api} queryClient={queryClient} toast={toast} /></TabsContent>
           <TabsContent value="categories"><CategoriesTab api={api} queryClient={queryClient} toast={toast} /></TabsContent>
           <TabsContent value="payments"><PaymentsTab api={api} queryClient={queryClient} toast={toast} /></TabsContent>
@@ -2310,6 +2312,197 @@ function PendingApprovalsTab({ api, queryClient, toast, initialPendingCourses }:
           )}
         </DialogContent>
       </Dialog>
+    </div>
+  );
+}
+
+// ─── TUTORING REVIEWS TAB ─────────────────────────────────────────────────────
+
+function TutoringReviewsTab({ api, queryClient, toast }: any) {
+  const [statusFilter, setStatusFilter] = useState('all');
+  const [processing, setProcessing] = useState<number | null>(null);
+  const [partialAmounts, setPartialAmounts] = useState<Record<number, string>>({});
+  const [adminReviews, setAdminReviews] = useState<Record<number, string>>({});
+
+  const { data: reviews, isLoading, refetch } = useQuery({
+    queryKey: ['/api/admin/tutoring-reviews', statusFilter],
+    queryFn: () => api.get(`/admin/tutoring-reviews?status=${statusFilter}`),
+    refetchInterval: 15000,
+  });
+
+  const handleAction = async (id: number, action: 'approve' | 'reject' | 'partial-approve') => {
+    setProcessing(id);
+    try {
+      const payload: any = { adminReview: adminReviews[id] };
+      if (action === 'partial-approve') {
+        payload.teacherAmount = partialAmounts[id];
+      }
+      await api.post(`/admin/tutoring-reviews/${id}/${action}`, payload);
+      toast({ title: `Session marked as ${action.replace('-', ' ')}` });
+      queryClient.invalidateQueries({ queryKey: ['/api/admin/tutoring-reviews'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/admin/stats'] });
+    } catch (err: any) {
+      toast({ title: 'Error', description: err.message, variant: 'destructive' });
+    } finally {
+      setProcessing(null);
+    }
+  };
+
+  const statusColors: Record<string, string> = {
+    completed_pending_review: 'bg-indigo-100 text-indigo-800 border-indigo-200',
+    approved: 'bg-emerald-100 text-emerald-800 border-emerald-200',
+    rejected: 'bg-red-100 text-red-800 border-red-200',
+    partially_approved: 'bg-teal-100 text-teal-800 border-teal-200',
+  };
+
+  const statusLabels: Record<string, string> = {
+    completed_pending_review: 'Pending Review',
+    approved: 'Approved (Teacher Paid)',
+    rejected: 'Rejected (Student Refunded)',
+    partially_approved: 'Partially Approved',
+  };
+
+  return (
+    <div className="space-y-4">
+      <div className="flex gap-3 flex-wrap justify-between items-center">
+        <div className="flex gap-3 items-center">
+          <select
+            value={statusFilter}
+            onChange={(e) => setStatusFilter(e.target.value)}
+            className="h-10 px-3 rounded-md border border-input bg-background text-sm"
+          >
+            <option value="all">All Reviews</option>
+            <option value="completed_pending_review">Pending Review</option>
+            <option value="approved">Approved</option>
+            <option value="rejected">Rejected</option>
+            <option value="partially_approved">Partially Approved</option>
+          </select>
+          <Button variant="outline" size="sm" onClick={() => refetch()} className="gap-2">
+            <RefreshCw className="w-3.5 h-3.5" /> Refresh
+          </Button>
+        </div>
+      </div>
+
+      {isLoading ? (
+        <div className="p-10 text-center text-muted-foreground">Loading reviews...</div>
+      ) : (reviews || []).length === 0 ? (
+        <div className="text-center py-20 bg-card rounded-3xl border border-dashed border-border">
+          <Presentation className="w-12 h-12 text-muted-foreground mx-auto mb-3 opacity-20" />
+          <h3 className="font-bold">No sessions pending review</h3>
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-2 gap-4">
+          {(reviews || []).map((r: any) => (
+            <div key={r.id} className="bg-card rounded-2xl border border-border p-5 shadow-sm flex flex-col">
+              <div className="flex justify-between items-start mb-3">
+                <span className={`text-xs px-2.5 py-1 rounded-full font-semibold border ${statusColors[r.status] || 'bg-gray-100 text-gray-700'}`}>
+                  {statusLabels[r.status] || r.status}
+                </span>
+                <span className="text-xs text-muted-foreground font-mono">#{r.id}</span>
+              </div>
+              <div className="mb-4">
+                <div className="text-xl font-bold text-primary">{r.totalAmount} <span className="text-sm font-normal text-muted-foreground">LYD</span></div>
+                <div className="text-sm font-bold mt-1">{r.subject} {r.topic ? `— ${r.topic}` : ''}</div>
+                <div className="text-xs text-muted-foreground mt-1">{r.durationMinutes} minutes</div>
+              </div>
+              <div className="space-y-1.5 mb-4 text-sm">
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">Student:</span>
+                  <span className="font-medium text-right">{r.studentName} <br/><span className="text-xs text-muted-foreground">{r.studentEmail}</span></span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">Teacher:</span>
+                  <span className="font-medium text-right">{r.teacherName} <br/><span className="text-xs text-muted-foreground">{r.teacherEmail}</span></span>
+                </div>
+              </div>
+
+              {/* Feedback Section */}
+              <div className="bg-muted/50 rounded-lg p-3 mb-4 text-sm border border-border/50">
+                <div className="font-semibold mb-1">Student Feedback:</div>
+                {r.studentRating ? (
+                  <>
+                    <div className="flex items-center gap-1 text-yellow-500 mb-1">
+                      {[...Array(5)].map((_, i) => (
+                        <svg key={i} xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill={i < r.studentRating ? "currentColor" : "none"} stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
+                      ))}
+                      <span className="text-muted-foreground text-xs ml-1">({r.studentRating}/5)</span>
+                    </div>
+                    <div className="italic text-muted-foreground">"{r.studentReview || 'No comment provided'}"</div>
+                  </>
+                ) : (
+                  <div className="text-muted-foreground italic">Student has not provided feedback yet.</div>
+                )}
+              </div>
+
+              {r.recordingUrl && (
+                <div className="mb-4">
+                  <Button variant="outline" size="sm" asChild className="w-full gap-2">
+                    <a href={r.recordingUrl} target="_blank" rel="noreferrer">
+                      <Video className="w-4 h-4 text-blue-500" />
+                      Watch Session Recording
+                    </a>
+                  </Button>
+                </div>
+              )}
+
+              {/* Admin Actions */}
+              {r.status === 'completed_pending_review' ? (
+                <div className="mt-auto space-y-3 pt-4 border-t border-border">
+                  <div>
+                    <label className="text-xs font-medium block mb-1">Admin Note / Reason (Optional)</label>
+                    <Textarea 
+                      placeholder="Visible in logs..."
+                      className="text-xs min-h-[60px]"
+                      value={adminReviews[r.id] || ''}
+                      onChange={e => setAdminReviews({ ...adminReviews, [r.id]: e.target.value })}
+                    />
+                  </div>
+                  <div className="flex gap-2">
+                    <Button
+                      className="flex-1 bg-green-600 hover:bg-green-700 text-white text-xs h-9"
+                      disabled={processing === r.id}
+                      onClick={() => handleAction(r.id, 'approve')}
+                    >
+                      <CheckCircle className="w-3.5 h-3.5 mr-1" /> Approve Full
+                    </Button>
+                    <Button
+                      variant="outline"
+                      className="flex-1 text-destructive border-destructive/30 hover:bg-destructive/5 text-xs h-9"
+                      disabled={processing === r.id}
+                      onClick={() => handleAction(r.id, 'reject')}
+                    >
+                      <XCircle className="w-3.5 h-3.5 mr-1" /> Reject Full
+                    </Button>
+                  </div>
+                  <div className="flex gap-2 items-center">
+                    <Input 
+                      placeholder="Teacher amt" 
+                      type="number"
+                      step="0.01"
+                      className="w-24 text-xs h-9"
+                      value={partialAmounts[r.id] || ''}
+                      onChange={e => setPartialAmounts({ ...partialAmounts, [r.id]: e.target.value })}
+                    />
+                    <Button
+                      variant="outline"
+                      className="flex-1 text-teal-700 border-teal-200 hover:bg-teal-50 text-xs h-9"
+                      disabled={processing === r.id || !partialAmounts[r.id]}
+                      onClick={() => handleAction(r.id, 'partial-approve')}
+                    >
+                      Partial Approve
+                    </Button>
+                  </div>
+                </div>
+              ) : (
+                <div className="mt-auto pt-4 border-t border-border text-sm">
+                  <div className="font-semibold mb-1">Admin Review Note:</div>
+                  <div className="text-muted-foreground italic">{r.adminReview || 'No note provided'}</div>
+                </div>
+              )}
+            </div>
+          ))}
+        </div>
+      )}
     </div>
   );
 }

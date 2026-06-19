@@ -41,6 +41,10 @@ const STATUS_COLORS: Record<string, string> = {
   declined:                'bg-red-100 text-red-800 border-red-200',
   cancelled:               'bg-gray-100 text-gray-700 border-gray-200',
   completed:               'bg-purple-100 text-purple-800 border-purple-200',
+  completed_pending_review:'bg-indigo-100 text-indigo-800 border-indigo-200',
+  approved:                'bg-emerald-100 text-emerald-800 border-emerald-200',
+  rejected:                'bg-red-100 text-red-800 border-red-200',
+  partially_approved:      'bg-teal-100 text-teal-800 border-teal-200',
   cancelled_no_show:       'bg-orange-100 text-orange-800 border-orange-200',
 };
 
@@ -51,6 +55,10 @@ const STATUS_LABELS: Record<string, string> = {
   declined:               'Declined / مرفوض',
   cancelled:              'Cancelled / ملغي',
   completed:              'Completed / مكتمل',
+  completed_pending_review:'Pending Admin Review / قيد مراجعة الإدارة',
+  approved:               'Approved / تمت الموافقة',
+  rejected:               'Rejected / مرفوض',
+  partially_approved:     'Partially Approved / موافقة جزئية',
   cancelled_no_show:      'No-Show / لم يحضر المعلم',
 };
 
@@ -149,6 +157,77 @@ function SettingsModal({ open, onClose }: { open: boolean; onClose: () => void }
             <Button type="button" variant="outline" onClick={onClose}>Cancel</Button>
           </div>
         </form>
+      </DialogContent>
+    </Dialog>
+  );
+}
+// ─── Feedback Modal (Student) ─────────────────────────────────────────────────
+function FeedbackModal({ requestId, open, onClose }: { requestId: number | null; open: boolean; onClose: () => void }) {
+  const api = useApi();
+  const { toast } = useToast();
+  const queryClient = useQueryClient();
+  const [rating, setRating] = useState(5);
+  const [review, setReview] = useState('');
+  const [loading, setLoading] = useState(false);
+
+  const onSubmit = async () => {
+    if (!requestId) return;
+    setLoading(true);
+    try {
+      await api.post(`/tutoring/requests/${requestId}/rate`, { rating, review });
+      toast({ title: 'Feedback submitted successfully. Thank you!' });
+      queryClient.invalidateQueries({ queryKey: ['/api/tutoring/requests'] });
+      setRating(5);
+      setReview('');
+      onClose();
+    } catch (err: any) {
+      toast({ title: 'Error', description: err.message, variant: 'destructive' });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <Dialog open={open} onOpenChange={v => { if (!v) onClose(); }}>
+      <DialogContent className="sm:max-w-[420px]">
+        <DialogHeader>
+          <DialogTitle>Session Feedback / تقييم الجلسة</DialogTitle>
+        </DialogHeader>
+        <div className="py-4 space-y-4">
+          <p className="text-sm text-muted-foreground">
+            Please rate your recent session. Your feedback helps us ensure quality tutoring.
+          </p>
+          <div>
+            <label className="text-sm font-medium block mb-2">Rating (1-5 Stars)</label>
+            <div className="flex gap-2">
+              {[1, 2, 3, 4, 5].map((star) => (
+                <button
+                  key={star}
+                  onClick={() => setRating(star)}
+                  className={`p-2 rounded-full transition-colors ${rating >= star ? 'text-yellow-500 hover:text-yellow-600' : 'text-gray-300 hover:text-gray-400'}`}
+                >
+                  <svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24 24" fill={rating >= star ? "currentColor" : "none"} stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
+                </button>
+              ))}
+            </div>
+          </div>
+          <div>
+            <label className="text-sm font-medium block mb-1">Comment (Optional)</label>
+            <textarea
+              value={review}
+              onChange={e => setReview(e.target.value)}
+              rows={3}
+              className="w-full px-3 py-2 rounded-xl border border-input bg-background text-sm resize-none"
+              placeholder="How was the session?"
+            />
+          </div>
+          <div className="flex gap-2 pt-2">
+            <Button onClick={onSubmit} disabled={loading} className="flex-1">
+              {loading ? 'Submitting...' : 'Submit Feedback'}
+            </Button>
+            <Button variant="outline" onClick={onClose}>Skip</Button>
+          </div>
+        </div>
       </DialogContent>
     </Dialog>
   );
@@ -537,12 +616,9 @@ function RequestCard({
             </Button>
           )}
 
-          {/* Student: mark accepted session as complete or report no-show */}
+          {/* Student: report no-show */}
           {!isTeacher && r.status === 'accepted' && (
             <div className="flex flex-col gap-2 w-full">
-              <Button size="sm" variant="outline" className="w-full border-purple-200 text-purple-700 hover:bg-purple-50" onClick={() => onStudentAction(r.id, 'complete')}>
-                ✓ Mark as Complete
-              </Button>
               <Button size="sm" variant="ghost" className="w-full text-orange-600 hover:text-orange-700 hover:bg-orange-50" onClick={() => onStudentAction(r.id, 'no-show')}>
                 🚨 Teacher Didn't Show Up
               </Button>
@@ -566,6 +642,16 @@ export default function Tutoring() {
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [proposeFor, setProposeFor] = useState<any>(null);
   const [requestModalOpen, setRequestModalOpen] = useState(false);
+  const [feedbackRequestId, setFeedbackRequestId] = useState<number | null>(null);
+
+  React.useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const id = params.get('feedbackFor');
+    if (id) {
+      setFeedbackRequestId(parseInt(id));
+      window.history.replaceState({}, '', '/tutoring');
+    }
+  }, []);
 
   const { data: requests = [], isLoading } = useQuery<any[]>({
     queryKey: ['/api/tutoring/requests'],
@@ -738,6 +824,7 @@ export default function Tutoring() {
       <SettingsModal open={settingsOpen} onClose={() => setSettingsOpen(false)} />
       <ProposeTimeModal request={proposeFor} open={!!proposeFor} onClose={() => setProposeFor(null)} />
       <RequestSessionModal open={requestModalOpen} onClose={() => setRequestModalOpen(false)} />
+      <FeedbackModal requestId={feedbackRequestId} open={!!feedbackRequestId} onClose={() => setFeedbackRequestId(null)} />
     </PageContainer>
   );
 }

@@ -7,7 +7,7 @@ import { useQuery } from '@tanstack/react-query';
 import { useToast } from '@/hooks/use-toast';
 import { Button } from '@/components/ui/button';
 import {
-  ArrowLeft, Circle, Square, Radio
+  ArrowLeft, Circle, Square, Radio, Clock
 } from 'lucide-react';
 import { useLocalRecording } from '@/hooks/useLocalRecording';
 import { ScreenProtection } from '@/components/ScreenProtection';
@@ -19,8 +19,44 @@ import {
   RoomAudioRenderer,
   PreJoin,
   LocalUserChoices,
+  useParticipants,
 } from '@livekit/components-react';
 import '@livekit/components-styles';
+
+function SessionTimerOverlay({ durationMinutes, onEnd }: { durationMinutes: number, onEnd: () => void }) {
+  const participants = useParticipants();
+  const [timeLeft, setTimeLeft] = useState(durationMinutes * 60);
+  const [started, setStarted] = useState(false);
+
+  useEffect(() => {
+    if (!started && participants.length >= 2) {
+      setStarted(true);
+    }
+  }, [participants.length, started]);
+
+  useEffect(() => {
+    if (!started) return;
+    if (timeLeft <= 0) {
+      onEnd();
+      return;
+    }
+    const timer = setInterval(() => setTimeLeft(prev => prev - 1), 1000);
+    return () => clearInterval(timer);
+  }, [started, timeLeft, onEnd]);
+
+  if (!started) return null;
+
+  const mins = Math.floor(timeLeft / 60);
+  const secs = timeLeft % 60;
+  return (
+    <div className="absolute top-4 left-1/2 -translate-x-1/2 z-[100] bg-black/60 px-4 py-2 rounded-full border border-white/20 backdrop-blur-md flex items-center gap-2 shadow-xl">
+      <Clock className={`w-4 h-4 ${timeLeft < 300 ? 'text-red-400 animate-pulse' : 'text-green-400'}`} />
+      <span className={`font-mono font-bold ${timeLeft < 300 ? 'text-red-400' : 'text-white'}`}>
+        {mins.toString().padStart(2, '0')}:{secs.toString().padStart(2, '0')}
+      </span>
+    </div>
+  );
+}
 
 export default function TutoringRoom() {
   const [, params] = useRoute('/tutoring/room/:id');
@@ -88,6 +124,22 @@ export default function TutoringRoom() {
       setHasJoined(true);
     } catch (err: any) {
       toast({ title: 'Error joining', description: err.message, variant: 'destructive' });
+    }
+  };
+
+  const handleSessionEnd = async () => {
+    try {
+      if (sessionType === 'request') {
+        await api.post(`/tutoring/requests/${requestId}/complete`, {});
+      }
+    } catch(e) {
+      console.error('Error completing session', e);
+    }
+    // Redirect to tutoring page, and open feedback modal if student
+    if (!isTeacher && sessionType === 'request') {
+      setLocation(`/tutoring?feedbackFor=${requestId}`);
+    } else {
+      setLocation('/tutoring');
     }
   };
 
@@ -171,6 +223,7 @@ export default function TutoringRoom() {
                 style={{ height: '100%', '--lk-bg': '#020817' } as React.CSSProperties}
                 onDisconnected={() => setLocation('/tutoring')}
               >
+                <SessionTimerOverlay durationMinutes={session.durationMinutes || 60} onEnd={handleSessionEnd} />
                 <VideoConference />
                 <RoomAudioRenderer />
               </LiveKitRoom>

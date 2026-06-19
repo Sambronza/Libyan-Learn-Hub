@@ -4,7 +4,8 @@ import { categoriesTable } from "./categories";
 
 export const tutoringStatusEnum = pgEnum("tutoring_status", [
   "pending", "accepted", "declined", "completed", "cancelled",
-  "cancelled_no_show", "rescheduled_by_teacher", "rescheduled_by_student"
+  "cancelled_no_show", "rescheduled_by_teacher", "rescheduled_by_student",
+  "completed_pending_review", "approved", "rejected", "partially_approved"
 ]);
 
 export const tutoringRequestsTable = pgTable("tutoring_requests", {
@@ -30,6 +31,7 @@ export const tutoringRequestsTable = pgTable("tutoring_requests", {
   paymentId: integer("payment_id"),
   studentRating: integer("student_rating"),
   studentReview: text("student_review"),
+  adminReview: text("admin_review"),
   createdAt: timestamp("created_at").notNull().defaultNow(),
   updatedAt: timestamp("updated_at").notNull().defaultNow(),
 });

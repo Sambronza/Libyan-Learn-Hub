@@ -534,7 +534,7 @@ router.post("/requests/:id/rate", requireAuth, async (req, res) => {
       )).limit(1);
 
     if (!request) { res.status(404).json({ error: "Request not found" }); return; }
-    if (request.status !== "completed") {
+    if (!["completed", "completed_pending_review", "approved", "partially_approved"].includes(request.status)) {
       res.status(400).json({ error: "Can only rate completed sessions" }); return;
     }
 
@@ -570,38 +570,13 @@ router.post("/requests/:id/complete", requireAuth, async (req, res) => {
 
     await db.transaction(async (tx) => {
       await tx.update(tutoringRequestsTable)
-        .set({ status: "completed", updatedAt: new Date() })
+        .set({ status: "completed_pending_review", updatedAt: new Date() })
         .where(eq(tutoringRequestsTable.id, requestId));
 
-      await tx.update(paymentsTable)
-        .set({ status: "completed", updatedAt: new Date() })
-        .where(eq(paymentsTable.tutoringRequestId, requestId));
-
-      // Pay teacher
-      if (request.teacherId) {
-        const platformFeePercent = 10;
-        const platformFee = parseFloat(request.totalAmount) * (platformFeePercent / 100);
-        const teacherPayout = parseFloat(request.totalAmount) - platformFee;
-        
-        await tx.insert(teacherEarningsTable).values({
-          teacherId: request.teacherId,
-          paymentId: 0, // No specific payment ID for wallet transfer, or we can look up the payment
-          tutoringRequestId: request.id,
-          grossAmount: parseFloat(request.totalAmount).toFixed(2),
-          platformFeePercent: platformFeePercent.toFixed(2),
-          platformFee: platformFee.toFixed(2),
-          netAmount: teacherPayout.toFixed(2),
-          currency: "LYD",
-          status: "available", // Matches course sales logic
-        });
-
-        await tx.update(usersTable)
-          .set({ balance: sql`${usersTable.balance} + ${teacherPayout}` })
-          .where(eq(usersTable.id, request.teacherId));
-      }
+      // Payment remains pending until admin review
     });
 
-    res.json({ success: true, status: "completed" });
+    res.json({ success: true, status: "completed_pending_review" });
   } catch (err: any) {
     res.status(500).json({ error: "Server error", message: err.message });
   }

@@ -3,9 +3,10 @@ import { db } from "@workspace/db";
 import {
   usersTable, coursesTable, paymentsTable, enrollmentsTable,
   teacherEarningsTable, liveSessionsTable, categoriesTable, lessonsTable,
-  platformSettingsTable, redeemCardsTable, withdrawalRequestsTable, notificationsTable
+  platformSettingsTable, redeemCardsTable, withdrawalRequestsTable, notificationsTable,
+  tutoringRequestsTable
 } from "@workspace/db";
-import { eq, count, sql, sum, desc, and, ne } from "drizzle-orm";
+import { eq, count, sql, sum, desc, and, ne, or } from "drizzle-orm";
 import { requireAuth, requireRole } from "../lib/auth.js";
 import bcrypt from "bcryptjs";
 import crypto from "crypto";
@@ -752,6 +753,204 @@ router.put("/withdrawals/:id/status", async (req, res) => {
     });
 
     res.json({ success: true, withdrawal: updated });
+  } catch (err: any) {
+    res.status(500).json({ error: "Server error", message: err.message });
+  }
+});
+// ─── TUTORING REVIEWS ───────────────────────────────────────────────────────────
+
+router.get("/tutoring-reviews", async (req, res) => {
+  try {
+    const { status } = req.query as { status?: string };
+    let conditions = [eq(tutoringRequestsTable.status, "completed_pending_review")];
+    if (status === "all") {
+      conditions = [or(
+        eq(tutoringRequestsTable.status, "completed_pending_review"),
+        eq(tutoringRequestsTable.status, "approved"),
+        eq(tutoringRequestsTable.status, "rejected"),
+        eq(tutoringRequestsTable.status, "partially_approved")
+      )];
+    } else if (status) {
+      conditions = [eq(tutoringRequestsTable.status, status as any)];
+    }
+
+    const requests = await db.select().from(tutoringRequestsTable)
+      .where(and(...conditions))
+      .orderBy(desc(tutoringRequestsTable.updatedAt));
+
+    const result = await Promise.all(requests.map(async (r) => {
+      const [student] = await db.select().from(usersTable).where(eq(usersTable.id, r.studentId)).limit(1);
+      const [teacher] = r.teacherId ? await db.select().from(usersTable).where(eq(usersTable.id, r.teacherId)).limit(1) : [null];
+      return {
+        ...r,
+        hourlyRate: parseFloat(r.hourlyRate),
+        totalAmount: parseFloat(r.totalAmount),
+        studentName: student?.fullName,
+        studentEmail: student?.email,
+        teacherName: teacher?.fullName,
+        teacherEmail: teacher?.email,
+      };
+    }));
+
+    res.json(result);
+  } catch (err: any) {
+    res.status(500).json({ error: "Server error", message: err.message });
+  }
+});
+
+router.post("/tutoring-reviews/:id/approve", async (req, res) => {
+  try {
+    const requestId = parseInt(req.params.id);
+    const { adminReview } = req.body;
+
+    const [request] = await db.select().from(tutoringRequestsTable)
+      .where(eq(tutoringRequestsTable.id, requestId)).limit(1);
+
+    if (!request) { res.status(404).json({ error: "Request not found" }); return; }
+    if (request.status !== "completed_pending_review") {
+      res.status(400).json({ error: "Only pending review sessions can be approved" }); return;
+    }
+
+    await db.transaction(async (tx) => {
+      await tx.update(tutoringRequestsTable)
+        .set({ status: "approved", adminReview: adminReview || null, updatedAt: new Date() })
+        .where(eq(tutoringRequestsTable.id, requestId));
+
+      await tx.update(paymentsTable)
+        .set({ status: "completed", updatedAt: new Date() })
+        .where(eq(paymentsTable.tutoringRequestId, requestId));
+
+      // Pay teacher
+      if (request.teacherId) {
+        const platformFeePercent = 10;
+        const platformFee = parseFloat(request.totalAmount) * (platformFeePercent / 100);
+        const teacherPayout = parseFloat(request.totalAmount) - platformFee;
+        
+        await tx.insert(teacherEarningsTable).values({
+          teacherId: request.teacherId,
+          paymentId: 0,
+          tutoringRequestId: request.id,
+          grossAmount: parseFloat(request.totalAmount).toFixed(2),
+          platformFeePercent: platformFeePercent.toFixed(2),
+          platformFee: platformFee.toFixed(2),
+          netAmount: teacherPayout.toFixed(2),
+          currency: "LYD",
+          status: "available",
+        });
+
+        await tx.update(usersTable)
+          .set({ balance: sql`${usersTable.balance} + ${teacherPayout}` })
+          .where(eq(usersTable.id, request.teacherId));
+      }
+    });
+
+    res.json({ success: true, status: "approved" });
+  } catch (err: any) {
+    res.status(500).json({ error: "Server error", message: err.message });
+  }
+});
+
+router.post("/tutoring-reviews/:id/reject", async (req, res) => {
+  try {
+    const requestId = parseInt(req.params.id);
+    const { adminReview } = req.body;
+
+    const [request] = await db.select().from(tutoringRequestsTable)
+      .where(eq(tutoringRequestsTable.id, requestId)).limit(1);
+
+    if (!request) { res.status(404).json({ error: "Request not found" }); return; }
+    if (request.status !== "completed_pending_review") {
+      res.status(400).json({ error: "Only pending review sessions can be rejected" }); return;
+    }
+
+    await db.transaction(async (tx) => {
+      await tx.update(tutoringRequestsTable)
+        .set({ status: "rejected", adminReview: adminReview || null, updatedAt: new Date() })
+        .where(eq(tutoringRequestsTable.id, requestId));
+
+      await tx.update(paymentsTable)
+        .set({ status: "refunded", updatedAt: new Date() })
+        .where(eq(paymentsTable.tutoringRequestId, requestId));
+
+      // Refund student in full
+      await tx.update(usersTable)
+        .set({ balance: sql`${usersTable.balance} + ${parseFloat(request.totalAmount)}` })
+        .where(eq(usersTable.id, request.studentId));
+    });
+
+    res.json({ success: true, status: "rejected" });
+  } catch (err: any) {
+    res.status(500).json({ error: "Server error", message: err.message });
+  }
+});
+
+router.post("/tutoring-reviews/:id/partial-approve", async (req, res) => {
+  try {
+    const requestId = parseInt(req.params.id);
+    const { teacherAmount, adminReview } = req.body;
+
+    if (teacherAmount === undefined || isNaN(parseFloat(teacherAmount)) || parseFloat(teacherAmount) < 0) {
+      res.status(400).json({ error: "Valid teacherAmount is required" }); return;
+    }
+
+    const [request] = await db.select().from(tutoringRequestsTable)
+      .where(eq(tutoringRequestsTable.id, requestId)).limit(1);
+
+    if (!request) { res.status(404).json({ error: "Request not found" }); return; }
+    if (request.status !== "completed_pending_review") {
+      res.status(400).json({ error: "Only pending review sessions can be partially approved" }); return;
+    }
+
+    const total = parseFloat(request.totalAmount);
+    const approvedTeacherAmount = parseFloat(teacherAmount);
+
+    if (approvedTeacherAmount > total) {
+      res.status(400).json({ error: "Teacher amount cannot exceed total session amount" }); return;
+    }
+
+    const refundAmount = total - approvedTeacherAmount;
+
+    await db.transaction(async (tx) => {
+      await tx.update(tutoringRequestsTable)
+        .set({ status: "partially_approved", adminReview: adminReview || null, updatedAt: new Date() })
+        .where(eq(tutoringRequestsTable.id, requestId));
+
+      await tx.update(paymentsTable)
+        .set({ status: "completed", notes: `Partially refunded: ${refundAmount}`, updatedAt: new Date() })
+        .where(eq(paymentsTable.tutoringRequestId, requestId));
+
+      // Pay teacher part
+      if (request.teacherId && approvedTeacherAmount > 0) {
+        const platformFeePercent = 10;
+        const platformFee = approvedTeacherAmount * (platformFeePercent / 100);
+        const teacherPayout = approvedTeacherAmount - platformFee;
+        
+        await tx.insert(teacherEarningsTable).values({
+          teacherId: request.teacherId,
+          paymentId: 0,
+          tutoringRequestId: request.id,
+          grossAmount: approvedTeacherAmount.toFixed(2),
+          platformFeePercent: platformFeePercent.toFixed(2),
+          platformFee: platformFee.toFixed(2),
+          netAmount: teacherPayout.toFixed(2),
+          currency: "LYD",
+          status: "available",
+        });
+
+        await tx.update(usersTable)
+          .set({ balance: sql`${usersTable.balance} + ${teacherPayout}` })
+          .where(eq(usersTable.id, request.teacherId));
+      }
+
+      // Refund student part
+      if (refundAmount > 0) {
+        await tx.update(usersTable)
+          .set({ balance: sql`${usersTable.balance} + ${refundAmount}` })
+          .where(eq(usersTable.id, request.studentId));
+      }
+    });
+
+    res.json({ success: true, status: "partially_approved" });
   } catch (err: any) {
     res.status(500).json({ error: "Server error", message: err.message });
   }
