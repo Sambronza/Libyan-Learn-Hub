@@ -99,12 +99,13 @@ export default function Auth() {
     if (resendTimer > 0) return;
     setErrorMsg('');
     try {
+      localStorage.setItem('lms_token', pendingToken);
       const isPhone = !!registerForm.getValues('phoneNumber');
-      const data = await api.post('/auth/send-otp', { 
-        email: registerForm.getValues('email'), 
+      await api.post('/auth/send-otp', { 
         type: isPhone ? 'phone' : 'email' 
       });
       setResendTimer(60);
+      toast({ title: 'Code resent!', description: 'Please check your inbox (and spam folder).' });
     } catch (err: any) {
       setErrorMsg(err.message || 'Resend failed');
     }
