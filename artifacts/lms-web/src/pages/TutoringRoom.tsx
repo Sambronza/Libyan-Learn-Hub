@@ -9,7 +9,6 @@ import { Button } from '@/components/ui/button';
 import {
   ArrowLeft, Circle, Square, Radio, Clock
 } from 'lucide-react';
-import { useLocalRecording } from '@/hooks/useLocalRecording';
 import { ScreenProtection } from '@/components/ScreenProtection';
 import { WatermarkOverlay } from '@/components/WatermarkOverlay';
 
@@ -103,18 +102,6 @@ export default function TutoringRoom() {
     ? (requestList && !Array.isArray(requestList) ? requestList : null)
     : (Array.isArray(requestList) ? requestList.find((r: any) => r.id === requestId) : null);
 
-  const handleRecordingSaved = async (url: string) => {
-    try {
-      await api.post(`/tutoring/requests/${requestId}/recording`, { recordingUrl: url });
-      toast({ title: 'Recording saved successfully.' });
-    } catch (err: any) {
-      console.error(err);
-      toast({ title: 'Failed to save recording URL', description: err.message, variant: 'destructive' });
-    }
-  };
-
-  const { isRecording, isUploading, startRecording, stopRecording, isSupported } = useLocalRecording(session?.subject || 'TutoringSession', handleRecordingSaved);
-
   useEffect(() => {
     if (hasJoined) setMediaActive(true);
     else setMediaActive(false);
@@ -186,22 +173,6 @@ export default function TutoringRoom() {
             </div>
             <h1 className="font-bold text-base">Tutoring: {session.subject}</h1>
           </div>
-        </div>
-        <div className="flex items-center gap-4">
-          {hasJoined && isTeacher && (
-            <div title={!isSupported ? "Screen recording is not supported on this device. Please use a desktop browser." : ""}>
-              <Button 
-                variant={isRecording ? 'outline' : 'secondary'} 
-                size="sm" 
-                className={`gap-2 h-8 ${isRecording ? 'border-red-500 text-red-500 animate-pulse bg-transparent hover:bg-red-500/10' : 'bg-white/10 hover:bg-white/20'}`}
-                onClick={isRecording ? stopRecording : startRecording}
-                disabled={isUploading || !isSupported}
-              >
-                {isUploading ? <Radio className="w-4 h-4 animate-spin" /> : (isRecording ? <Square className="w-4 h-4 fill-current" /> : <Circle className="w-4 h-4 fill-current text-red-500" />)}
-                {isUploading ? 'Saving...' : (isRecording ? 'Stop Rec' : 'Record')}
-              </Button>
-            </div>
-          )}
         </div>
       </div>
 
