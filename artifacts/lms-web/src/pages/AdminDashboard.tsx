@@ -2435,13 +2435,12 @@ function TutoringReviewsTab({ api, queryClient, toast }: any) {
               </div>
 
               {r.recordingUrl && (
-                <div className="mb-4">
-                  <Button variant="outline" size="sm" asChild className="w-full gap-2">
-                    <a href={r.recordingUrl} target="_blank" rel="noreferrer">
-                      <Video className="w-4 h-4 text-blue-500" />
-                      Watch Session Recording
-                    </a>
-                  </Button>
+                <div className="mb-4 bg-muted/30 p-3 rounded-lg border border-border/50">
+                  <div className="text-xs font-semibold mb-2 flex items-center gap-1.5 text-muted-foreground">
+                    <Radio className="w-3.5 h-3.5 text-blue-500" />
+                    Temporary Session Audio
+                  </div>
+                  <audio src={r.recordingUrl} controls className="w-full h-10" />
                 </div>
               )}
 

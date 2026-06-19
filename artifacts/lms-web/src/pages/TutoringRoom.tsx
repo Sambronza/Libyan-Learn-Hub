@@ -11,6 +11,7 @@ import {
 } from 'lucide-react';
 import { ScreenProtection } from '@/components/ScreenProtection';
 import { WatermarkOverlay } from '@/components/WatermarkOverlay';
+import { useAudioRecording } from '@/hooks/useAudioRecording';
 
 import {
   LiveKitRoom,
@@ -22,7 +23,7 @@ import {
 } from '@livekit/components-react';
 import '@livekit/components-styles';
 
-function SessionTimerOverlay({ durationMinutes, onEnd }: { durationMinutes: number, onEnd: () => void }) {
+function SessionTimerOverlay({ durationMinutes, onEnd, onStart }: { durationMinutes: number, onEnd: () => void, onStart?: () => void }) {
   const participants = useParticipants();
   const [timeLeft, setTimeLeft] = useState(durationMinutes * 60);
   const [started, setStarted] = useState(false);
@@ -31,8 +32,9 @@ function SessionTimerOverlay({ durationMinutes, onEnd }: { durationMinutes: numb
   useEffect(() => {
     if (!started && participants.length >= 2) {
       setStarted(true);
+      if (onStart) onStart();
     }
-  }, [participants.length, started]);
+  }, [participants.length, started, onStart]);
 
   useEffect(() => {
     if (!started) return;
@@ -83,6 +85,7 @@ export default function TutoringRoom() {
   const [liveKitToken, setLiveKitToken] = useState<string | null>(null);
   const [liveKitUrl, setLiveKitUrl] = useState<string | null>(null);
   const [isTeacher, setIsTeacher] = useState(false);
+  const { startRecording, stopRecording } = useAudioRecording(requestId);
 
   useEffect(() => {
     if (!authLoading && !isAuthenticated) setLocation('/login');
@@ -124,6 +127,7 @@ export default function TutoringRoom() {
   };
 
   const handleSessionEnd = useCallback(async () => {
+    stopRecording();
     try {
       if (sessionType === 'request') {
         await api.post(`/tutoring/requests/${requestId}/complete`, {});
@@ -137,7 +141,13 @@ export default function TutoringRoom() {
     } else {
       setLocation('/tutoring');
     }
-  }, [api, requestId, sessionType, isTeacher, setLocation]);
+  }, [api, requestId, sessionType, isTeacher, setLocation, stopRecording]);
+
+  const handleSessionStart = useCallback(() => {
+    if (isTeacher) {
+      startRecording();
+    }
+  }, [isTeacher, startRecording]);
 
   if (authLoading || isLoading) {
     return (
@@ -203,7 +213,11 @@ export default function TutoringRoom() {
                 style={{ height: '100%', '--lk-bg': '#020817' } as React.CSSProperties}
                 onDisconnected={() => setLocation('/tutoring')}
               >
-                <SessionTimerOverlay durationMinutes={session.durationMinutes || 60} onEnd={handleSessionEnd} />
+                <SessionTimerOverlay 
+                  durationMinutes={session.durationMinutes} 
+                  onEnd={handleSessionEnd} 
+                  onStart={handleSessionStart}
+                />
                 <VideoConference />
                 <RoomAudioRenderer />
               </LiveKitRoom>

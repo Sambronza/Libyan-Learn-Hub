@@ -813,7 +813,7 @@ router.post("/tutoring-reviews/:id/approve", async (req, res) => {
 
     await db.transaction(async (tx) => {
       await tx.update(tutoringRequestsTable)
-        .set({ status: "approved", adminReview: adminReview || null, updatedAt: new Date() })
+        .set({ status: "approved", adminReview: adminReview || null, recordingUrl: null, updatedAt: new Date() })
         .where(eq(tutoringRequestsTable.id, requestId));
 
       await tx.update(paymentsTable)
@@ -844,6 +844,10 @@ router.post("/tutoring-reviews/:id/approve", async (req, res) => {
       }
     });
 
+    if (request.recordingUrl) {
+      await deleteFromCloudinaryByUrl(request.recordingUrl).catch(console.error);
+    }
+
     res.json({ success: true, status: "approved" });
   } catch (err: any) {
     res.status(500).json({ error: "Server error", message: err.message });
@@ -865,7 +869,7 @@ router.post("/tutoring-reviews/:id/reject", async (req, res) => {
 
     await db.transaction(async (tx) => {
       await tx.update(tutoringRequestsTable)
-        .set({ status: "rejected", adminReview: adminReview || null, updatedAt: new Date() })
+        .set({ status: "rejected", adminReview: adminReview || null, recordingUrl: null, updatedAt: new Date() })
         .where(eq(tutoringRequestsTable.id, requestId));
 
       await tx.update(paymentsTable)
@@ -877,6 +881,10 @@ router.post("/tutoring-reviews/:id/reject", async (req, res) => {
         .set({ balance: sql`${usersTable.balance} + ${parseFloat(request.totalAmount)}` })
         .where(eq(usersTable.id, request.studentId));
     });
+
+    if (request.recordingUrl) {
+      await deleteFromCloudinaryByUrl(request.recordingUrl).catch(console.error);
+    }
 
     res.json({ success: true, status: "rejected" });
   } catch (err: any) {
@@ -912,7 +920,7 @@ router.post("/tutoring-reviews/:id/partial-approve", async (req, res) => {
 
     await db.transaction(async (tx) => {
       await tx.update(tutoringRequestsTable)
-        .set({ status: "partially_approved", adminReview: adminReview || null, updatedAt: new Date() })
+        .set({ status: "partially_approved", adminReview: adminReview || null, recordingUrl: null, updatedAt: new Date() })
         .where(eq(tutoringRequestsTable.id, requestId));
 
       await tx.update(paymentsTable)
@@ -949,6 +957,10 @@ router.post("/tutoring-reviews/:id/partial-approve", async (req, res) => {
           .where(eq(usersTable.id, request.studentId));
       }
     });
+
+    if (request.recordingUrl) {
+      await deleteFromCloudinaryByUrl(request.recordingUrl).catch(console.error);
+    }
 
     res.json({ success: true, status: "partially_approved" });
   } catch (err: any) {

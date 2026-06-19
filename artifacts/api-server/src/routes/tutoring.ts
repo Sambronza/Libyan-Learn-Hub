@@ -6,8 +6,11 @@ import { requireAuth } from "../lib/auth.js";
 import { parseParam } from "../lib/utils.js";
 import crypto from "crypto";
 import { AccessToken } from "livekit-server-sdk";
+import multer from "multer";
+import { uploadToCloudinary } from "../lib/cloudinary.js";
 
 const router = Router();
+const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 50 * 1024 * 1024 } });
 
 // ─── Grade-level minimum hourly rates (LYD/hour) ─────────────────────────────
 export const GRADE_LEVEL_RATES: Record<string, number> = {
@@ -708,5 +711,40 @@ router.post("/requests/:id/recording", requireAuth, async (req, res) => {
     res.status(500).json({ error: "Server error", message: err.message });
   }
 });
+// ─── Upload Audio Recording (Temporary) ─────────────────────────────────────────
+router.post("/requests/:id/upload-audio", requireAuth, upload.single("audio"), async (req, res) => {
+  try {
+    const { userId } = (req as any).user;
+    const requestId = parseParam(req.params.id);
 
+    if (!req.file) {
+      res.status(400).json({ error: "No audio file provided" });
+      return;
+    }
+
+    const [request] = await db.select().from(tutoringRequestsTable)
+      .where(eq(tutoringRequestsTable.id, requestId)).limit(1);
+
+    if (!request) { res.status(404).json({ error: "Request not found" }); return; }
+
+    // Upload to Cloudinary securely with unguessable string
+    const randomSuffix = Math.random().toString(36).substring(2, 8);
+    const safePublicId = `session_${requestId}_audio_${randomSuffix}`;
+
+    const result = await uploadToCloudinary(req.file.buffer, {
+      resource_type: "video", // audio works under video in Cloudinary
+      folder: "libyan-learn-hub/tutoring-audio",
+      public_id: safePublicId,
+    });
+
+    await db.update(tutoringRequestsTable)
+      .set({ recordingUrl: result.secure_url, updatedAt: new Date() })
+      .where(eq(tutoringRequestsTable.id, requestId));
+
+    res.json({ success: true, recordingUrl: result.secure_url });
+  } catch (err: any) {
+    console.error("Audio upload error:", err);
+    res.status(500).json({ error: "Server error", message: err.message });
+  }
+});
 export default router;

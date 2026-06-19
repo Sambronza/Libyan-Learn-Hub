@@ -1,4 +1,5 @@
 import { v2 as cloudinary } from "cloudinary";
+import { Readable } from "stream";
 
 // Initialize using environment variables
 cloudinary.config({
@@ -8,6 +9,22 @@ cloudinary.config({
 });
 
 export { cloudinary };
+
+/**
+ * Uploads a buffer to Cloudinary using a stream.
+ */
+export function uploadToCloudinary(
+  buffer: Buffer,
+  options: Record<string, any>
+): Promise<any> {
+  return new Promise((resolve, reject) => {
+    const stream = cloudinary.uploader.upload_stream(options, (err, result) => {
+      if (err) return reject(err);
+      resolve(result);
+    });
+    Readable.from(buffer).pipe(stream);
+  });
+}
 
 /**
  * Deletes a Cloudinary asset given its secure URL.
