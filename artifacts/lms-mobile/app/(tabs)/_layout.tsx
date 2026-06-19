@@ -83,14 +83,6 @@ export default function TabLayout() {
         options={{
           title: t("الأكاديمية", "Academy"),
           tabBarIcon: ({ color }) => <Ionicons name="school" size={22} color={color} />,
-          tabBarBadge: "✨",
-          tabBarBadgeStyle: {
-            backgroundColor: "transparent",
-            fontSize: 10,
-            minWidth: 14,
-            height: 14,
-            lineHeight: 14,
-          },
         }}
       />
 

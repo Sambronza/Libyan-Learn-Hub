@@ -5,7 +5,7 @@ import { useGetCourses, useGetCategories, type GetCoursesLevel, type GetCoursesL
 import { Link } from 'wouter';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
-import { Search, Filter, BookOpen, Star, PlayCircle } from 'lucide-react';
+import { Search, Filter, BookOpen, Star, PlayCircle, ChevronDown, ChevronUp } from 'lucide-react';
 import { CourseCardSkeleton } from '@/components/ui/skeleton';
 import { EmptyState } from '@/components/ui/EmptyState';
 
@@ -15,6 +15,7 @@ export default function Courses() {
   const [categoryId, setCategoryId] = useState<number | undefined>();
   const [level, setLevel] = useState<GetCoursesLevel | undefined>();
   const [courseLanguage, setCourseLanguage] = useState<GetCoursesLanguage | undefined>();
+  const [filtersOpen, setFiltersOpen] = useState(false);
 
   const { data: categories } = useGetCategories();
   
@@ -49,13 +50,21 @@ export default function Courses() {
         </div>
       </div>
 
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12 flex flex-col md:flex-row gap-8">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 sm:py-12 flex flex-col md:flex-row gap-6 sm:gap-8">
         
         {/* Filters Sidebar */}
-        <div className="w-full md:w-64 shrink-0 space-y-8">
-          <div className="flex items-center gap-2 font-display font-bold text-lg mb-4">
-            <Filter className="w-5 h-5 text-primary" /> {t('courses.filters')}
-          </div>
+        <div className="w-full md:w-64 shrink-0">
+          <button
+            className="flex md:hidden items-center gap-2 font-display font-bold text-base mb-3 w-full justify-between px-3 py-2 rounded-xl bg-muted/50 border border-border/50"
+            onClick={() => setFiltersOpen(f => !f)}
+          >
+            <span className="flex items-center gap-2"><Filter className="w-4 h-4 text-primary" />{t('courses.filters')}</span>
+            {filtersOpen ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+          </button>
+          <div className={`space-y-8 ${filtersOpen ? 'block' : 'hidden'} md:block`}>
+            <div className="flex items-center gap-2 font-display font-bold text-lg mb-4">
+              <Filter className="w-5 h-5 text-primary" /> {t('courses.filters')}
+            </div>
 
           <div className="space-y-3">
             <h3 className="font-semibold text-sm uppercase tracking-wider text-muted-foreground">{t('courses.category')}</h3>
@@ -102,6 +111,7 @@ export default function Courses() {
               ))}
             </div>
           </div>
+          </div>
         </div>
 
         {/* Results */}
@@ -116,17 +126,17 @@ export default function Courses() {
               description={t('courses.adjustFilters')}
               icon={BookOpen}
               actionLabel={t('courses.clearFilters')}
-              onAction={() => {setSearch(''); setCategoryId(undefined); setLevel(undefined);}}
+              onAction={() => { setSearch(''); setCategoryId(undefined); setLevel(undefined); }}
             />
           ) : (
             <>
-              <div className="mb-6 text-sm text-muted-foreground">
+              <div className="mb-4 sm:mb-6 text-sm text-muted-foreground">
                 {t('courses.showingResults', { count: String(coursesData?.courses.length || 0), total: String(coursesData?.total || 0) })}
               </div>
-              <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-6">
+              <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4 sm:gap-6">
                 {coursesData?.courses.map((course) => (
                   <Link key={course.id} href={`/courses/${course.id}`}>
-                    <div className="bg-card rounded-3xl border border-border/60 overflow-hidden shadow-sm hover:shadow-xl hover:-translate-y-1 transition-all duration-300 group flex flex-col h-full relative">
+                    <div className="bg-card rounded-2xl sm:rounded-3xl border border-border/60 overflow-hidden shadow-sm hover:shadow-xl hover:-translate-y-1 transition-all duration-300 group flex flex-col h-full relative cursor-pointer">
                       
                       {/* Image Thumbnail (4:3) */}
                       <div className="aspect-[4/3] relative overflow-hidden bg-muted">
@@ -138,57 +148,52 @@ export default function Courses() {
                           </div>
                         )}
                         
-                        {/* Top Floating Tags */}
-                        <div className="absolute top-4 start-4 flex flex-col gap-2">
-                          <div className="bg-background/95 backdrop-blur-md px-3 py-1.5 rounded-full text-[11px] font-bold text-foreground shadow-sm uppercase tracking-wider">
+                        <div className="absolute top-3 start-3 sm:top-4 sm:start-4">
+                          <div className="bg-background/95 backdrop-blur-md px-2.5 py-1 rounded-full text-[10px] sm:text-[11px] font-bold text-foreground shadow-sm uppercase tracking-wider">
                             {course.level}
                           </div>
                         </div>
-                        <div className="absolute top-4 end-4">
-                           <div className="bg-primary text-primary-foreground px-3 py-1.5 rounded-full text-xs font-bold shadow-md">
-                             {course.price === 0 ? t('course.free') : `${course.price} LYD`}
-                           </div>
+                        <div className="absolute top-3 end-3 sm:top-4 sm:end-4">
+                          <div className="bg-primary text-primary-foreground px-2.5 py-1 rounded-full text-xs font-bold shadow-md">
+                            {course.price === 0 ? t('course.free') : `${course.price} LYD`}
+                          </div>
                         </div>
                       </div>
                       
-                      {/* Content Section */}
-                      <div className="relative pt-8 px-6 pb-6 flex flex-col flex-1 bg-gradient-to-b from-card to-card/50">
-                        {/* Overlapping Avatar */}
-                        <div className="absolute -top-6 end-6 w-12 h-12 rounded-full border-4 border-card bg-gradient-to-br from-primary/20 to-violet-500/20 flex items-center justify-center shadow-sm overflow-hidden z-10 group-hover:scale-110 transition-transform duration-300">
+                      {/* Content */}
+                      <div className="relative pt-7 px-4 sm:px-6 pb-5 sm:pb-6 flex flex-col flex-1 bg-gradient-to-b from-card to-card/50">
+                        {/* Avatar */}
+                        <div className="absolute -top-5 end-4 sm:end-6 w-10 h-10 sm:w-12 sm:h-12 rounded-full border-4 border-card bg-gradient-to-br from-primary/20 to-violet-500/20 flex items-center justify-center shadow-sm overflow-hidden z-10 group-hover:scale-110 transition-transform duration-300">
                           {course.teacherAvatar ? (
                             <img src={course.teacherAvatar} alt={course.teacherName} className="w-full h-full object-cover" />
                           ) : (
-                            <span className="text-primary font-bold text-lg">{course.teacherName.charAt(0).toUpperCase()}</span>
+                            <span className="text-primary font-bold text-base sm:text-lg">{course.teacherName.charAt(0).toUpperCase()}</span>
                           )}
                         </div>
                         
-                        {/* Instructor Name */}
-                        <div className="text-xs font-medium text-muted-foreground mb-2 truncate pe-12">
+                        <div className="text-xs font-medium text-muted-foreground mb-1 truncate pe-10 sm:pe-12">
                           by {course.teacherName}
                         </div>
 
-                        {/* Course Title */}
-                        <h3 className="font-display font-bold text-lg mb-4 line-clamp-2 text-foreground group-hover:text-primary transition-colors leading-snug">
+                        <h3 className="font-display font-bold text-base sm:text-lg mb-3 sm:mb-4 line-clamp-2 text-foreground group-hover:text-primary transition-colors leading-snug">
                           {language === 'ar' ? course.titleAr : course.title}
                         </h3>
                         
-                        {/* Sleek Pill Badges for Metadata */}
-                        <div className="mt-auto flex items-center gap-2 flex-wrap">
-                          <div className="flex items-center gap-1.5 bg-muted/50 border border-border/50 px-2.5 py-1 rounded-md text-[11px] font-medium text-muted-foreground">
+                        <div className="mt-auto flex items-center gap-1.5 sm:gap-2 flex-wrap">
+                          <div className="flex items-center gap-1 sm:gap-1.5 bg-muted/50 border border-border/50 px-2 sm:px-2.5 py-1 rounded-md text-[10px] sm:text-[11px] font-medium text-muted-foreground">
                             <BookOpen className="w-3 h-3 text-primary/70" />
                             {course.lessonCount} {t('courses.lessons')}
                           </div>
-                          <div className="flex items-center gap-1.5 bg-muted/50 border border-border/50 px-2.5 py-1 rounded-md text-[11px] font-medium text-muted-foreground">
-                            <span>{Math.round(course.totalDuration / 60)}h total</span>
+                          <div className="flex items-center gap-1 sm:gap-1.5 bg-muted/50 border border-border/50 px-2 sm:px-2.5 py-1 rounded-md text-[10px] sm:text-[11px] font-medium text-muted-foreground">
+                            <span>{Math.round(course.totalDuration / 60)}h</span>
                           </div>
                           {Number((course as any).rating) > 0 && (
-                            <div className="flex items-center gap-1 bg-amber-500/10 border border-amber-500/20 px-2.5 py-1 rounded-md text-[11px] font-bold text-amber-600">
+                            <div className="flex items-center gap-1 bg-amber-500/10 border border-amber-500/20 px-2 sm:px-2.5 py-1 rounded-md text-[10px] sm:text-[11px] font-bold text-amber-600">
                               <Star className="w-3 h-3 fill-amber-500" />
                               {Number((course as any).rating).toFixed(1)}
                             </div>
                           )}
                         </div>
-
                       </div>
                     </div>
                   </Link>
