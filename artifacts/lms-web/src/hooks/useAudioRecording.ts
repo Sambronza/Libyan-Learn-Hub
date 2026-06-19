@@ -9,6 +9,11 @@ export function useAudioRecording(requestId: number, onRecordingSaved?: (url: st
   const streamRef = useRef<MediaStream | null>(null);
 
   const startRecording = useCallback(async () => {
+    // Guard: don't double-start
+    if (mediaRecorderRef.current && mediaRecorderRef.current.state !== 'inactive') {
+      console.warn('[AudioRecording] Already recording, ignoring duplicate start.');
+      return;
+    }
     try {
       // Capture microphone only
       let micStream: MediaStream;
@@ -20,16 +25,19 @@ export function useAudioRecording(requestId: number, onRecordingSaved?: (url: st
         return;
       }
 
-      // Initialize MediaRecorder
-      let mimeType = 'audio/webm;codecs=opus';
-      if (typeof MediaRecorder !== 'undefined') {
-        if (MediaRecorder.isTypeSupported('audio/mp4')) {
-          mimeType = 'audio/mp4';
-        }
-      }
+      // Initialize MediaRecorder — pick best supported audio mime type
+      const preferredMimeTypes = [
+        'audio/webm;codecs=opus',
+        'audio/webm',
+        'audio/ogg;codecs=opus',
+        'audio/mp4',
+      ];
+      const mimeType = preferredMimeTypes.find(
+        (t) => typeof MediaRecorder !== 'undefined' && MediaRecorder.isTypeSupported(t)
+      );
 
       const mediaRecorder = new MediaRecorder(micStream, {
-        mimeType: MediaRecorder.isTypeSupported(mimeType) ? mimeType : '' // fallback to default if not supported
+        ...(mimeType ? { mimeType } : {}), // omit mimeType entirely if none supported to use browser default
       });
 
       mediaRecorder.ondataavailable = (e) => {
@@ -100,6 +108,7 @@ export function useAudioRecording(requestId: number, onRecordingSaved?: (url: st
   const stopRecording = useCallback(() => {
     if (mediaRecorderRef.current && mediaRecorderRef.current.state !== 'inactive') {
       mediaRecorderRef.current.stop();
+      mediaRecorderRef.current = null; // clear ref so we can't double-stop
     }
   }, []);
 

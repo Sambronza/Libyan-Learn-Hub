@@ -2440,7 +2440,7 @@ function TutoringReviewsTab({ api, queryClient, toast }: any) {
                     <Radio className="w-3.5 h-3.5 text-blue-500" />
                     Temporary Session Audio
                   </div>
-                  <audio src={r.recordingUrl} controls className="w-full h-10" />
+                  <audio src={r.recordingUrl} controls className="w-full" style={{ minHeight: '40px' }} />
                 </div>
               )}
 

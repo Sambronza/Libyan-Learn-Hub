@@ -144,10 +144,11 @@ export default function TutoringRoom() {
   }, [api, requestId, sessionType, isTeacher, setLocation, stopRecording]);
 
   const handleSessionStart = useCallback(() => {
-    if (isTeacher) {
+    // Only record for standard tutoring requests (not listing-type sessions)
+    if (isTeacher && sessionType === 'request') {
       startRecording();
     }
-  }, [isTeacher, startRecording]);
+  }, [isTeacher, sessionType, startRecording]);
 
   if (authLoading || isLoading) {
     return (
@@ -214,7 +215,7 @@ export default function TutoringRoom() {
                 onDisconnected={() => setLocation('/tutoring')}
               >
                 <SessionTimerOverlay 
-                  durationMinutes={session.durationMinutes} 
+                  durationMinutes={session.durationMinutes || 60} 
                   onEnd={handleSessionEnd} 
                   onStart={handleSessionStart}
                 />

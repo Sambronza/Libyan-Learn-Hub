@@ -727,6 +727,17 @@ router.post("/requests/:id/upload-audio", requireAuth, upload.single("audio"), a
 
     if (!request) { res.status(404).json({ error: "Request not found" }); return; }
 
+    // Only a participant of the session may upload audio
+    if (request.teacherId !== userId && request.studentId !== userId) {
+      res.status(403).json({ error: "Not authorized to upload audio for this session" }); return;
+    }
+
+    // Only upload if session is active or pending review (not already resolved)
+    const allowedStatuses = ["accepted", "completed_pending_review"];
+    if (!allowedStatuses.includes(request.status)) {
+      res.status(400).json({ error: "Cannot upload audio for a session that has already been resolved" }); return;
+    }
+
     // Upload to Cloudinary securely with unguessable string
     const randomSuffix = Math.random().toString(36).substring(2, 8);
     const safePublicId = `session_${requestId}_audio_${randomSuffix}`;
