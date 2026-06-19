@@ -61,11 +61,17 @@ router.post("/register", authLimiter, async (req, res) => {
     
     // Support phoneNumber in the validation gracefully
     const body = RegisterBody.passthrough().parse(req.body);
-    const existing = await db.select().from(usersTable).where(ilike(usersTable.email, body.email)).limit(1);
-    if (existing.length > 0) {
-      res.status(400).json({ error: "Email already registered" });
-      return;
+    const existingList = await db.select().from(usersTable).where(ilike(usersTable.email, body.email)).limit(1);
+    const existing = existingList[0];
+    
+    if (existing) {
+      if (existing.emailVerified || existing.phoneVerified) {
+        res.status(400).json({ error: "Email already registered" });
+        return;
+      }
+      // If the email exists but is not verified, we allow overwriting the unverified account.
     }
+    
     const passwordHash = await bcrypt.hash(body.password, 10);
     const passkeyHash = body.passkey ? await bcrypt.hash(body.passkey, 8) : null;
     const otpCode = generateOtp();
@@ -86,19 +92,36 @@ router.post("/register", authLimiter, async (req, res) => {
       }
     }
 
-    const [user] = await db.insert(usersTable).values({
-      email: body.email,
-      passwordHash,
-      fullName: body.fullName,
-      fullNameAr: body.fullNameAr,
-      role: body.role as any,
-      passkeyHash,
-      language: (body.language as any) || "ar",
-      phoneNumber,
-      otpCode,
-      otpExpiry,
-      tier,
-    }).returning();
+    let user;
+    if (existing) {
+      [user] = await db.update(usersTable).set({
+        passwordHash,
+        fullName: body.fullName,
+        fullNameAr: body.fullNameAr,
+        role: body.role as any,
+        passkeyHash,
+        language: (body.language as any) || "ar",
+        phoneNumber,
+        otpCode,
+        otpExpiry,
+        tier,
+      }).where(eq(usersTable.id, existing.id)).returning();
+    } else {
+      [user] = await db.insert(usersTable).values({
+        email: body.email,
+        passwordHash,
+        fullName: body.fullName,
+        fullNameAr: body.fullNameAr,
+        role: body.role as any,
+        passkeyHash,
+        language: (body.language as any) || "ar",
+        phoneNumber,
+        otpCode,
+        otpExpiry,
+        tier,
+      }).returning();
+    }
+    
     const token = signToken({ userId: user.id, role: user.role });
     const plan = PLANS[(user.tier as TeacherTier) || "free"];
 
