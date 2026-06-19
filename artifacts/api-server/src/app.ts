@@ -61,6 +61,31 @@ app.use((req, _res, next) => {
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
+// 4. Performance Monitoring Middleware
+let isColdStart = true;
+app.use((req, res, next) => {
+  const start = Date.now();
+  
+  // Log cold start if it's the very first request
+  if (isColdStart) {
+    console.log(`[Cold Start] First request received: ${req.method} ${req.url}`);
+    isColdStart = false;
+  }
+
+  // Hook into response finish to log duration
+  res.on('finish', () => {
+    const duration = Date.now() - start;
+    if (duration > 1000) {
+      console.warn(`[Performance] SLOW REQUEST: ${req.method} ${req.originalUrl} took ${duration}ms`);
+    } else {
+      // Optional: log all requests if needed for debugging
+      // console.log(`[Performance] ${req.method} ${req.originalUrl} took ${duration}ms`);
+    }
+  });
+  
+  next();
+});
+
 app.use("/api", router);
 
 export default app;

@@ -12,6 +12,14 @@ import { useAuth } from "@/contexts/AuthContext";
 import { MediaActivityProvider, useMediaActivity } from "@/contexts/MediaActivityContext";
 import { useLocation } from "wouter";
 
+// Eagerly pre-warm the backend as soon as the JS bundle loads
+const prewarmBackend = () => {
+  fetch(import.meta.env.VITE_API_URL + '/api/healthz')
+    .then(() => console.log('Backend pre-warmed'))
+    .catch(err => console.warn('Pre-warm failed', err));
+};
+prewarmBackend();
+
 const NotFound = React.lazy(() => import("@/pages/not-found"));
 const Home = React.lazy(() => import("@/pages/Home"));
 const Courses = React.lazy(() => import("@/pages/Courses"));
@@ -188,6 +196,16 @@ function App() {
 
 function InactivityTimerWrapper() {
   const { isMediaActive } = useMediaActivity();
+  
+  // Keep the backend alive by pinging every 10 minutes
+  React.useEffect(() => {
+    const pingInterval = setInterval(() => {
+      fetch(import.meta.env.VITE_API_URL + '/api/healthz').catch(() => {});
+    }, 10 * 60 * 1000); // 10 minutes
+    
+    return () => clearInterval(pingInterval);
+  }, []);
+
   return <InactivityTimer suppressWhenActive={isMediaActive} />;
 }
 
