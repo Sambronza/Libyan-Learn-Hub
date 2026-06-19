@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useRoute, useLocation } from 'wouter';
 import { useAuth } from '@/contexts/AuthContext';
 import { useApi } from '@/hooks/useApi';
@@ -27,6 +27,7 @@ function SessionTimerOverlay({ durationMinutes, onEnd }: { durationMinutes: numb
   const participants = useParticipants();
   const [timeLeft, setTimeLeft] = useState(durationMinutes * 60);
   const [started, setStarted] = useState(false);
+  const endedRef = useRef(false);
 
   useEffect(() => {
     if (!started && participants.length >= 2) {
@@ -36,13 +37,21 @@ function SessionTimerOverlay({ durationMinutes, onEnd }: { durationMinutes: numb
 
   useEffect(() => {
     if (!started) return;
-    if (timeLeft <= 0) {
-      onEnd();
-      return;
-    }
-    const timer = setInterval(() => setTimeLeft(prev => prev - 1), 1000);
+    const timer = setInterval(() => {
+      setTimeLeft(prev => {
+        if (prev <= 1) {
+          clearInterval(timer);
+          if (!endedRef.current) {
+            endedRef.current = true;
+            onEnd();
+          }
+          return 0;
+        }
+        return prev - 1;
+      });
+    }, 1000);
     return () => clearInterval(timer);
-  }, [started, timeLeft, onEnd]);
+  }, [started, onEnd]);
 
   if (!started) return null;
 
@@ -127,7 +136,7 @@ export default function TutoringRoom() {
     }
   };
 
-  const handleSessionEnd = async () => {
+  const handleSessionEnd = useCallback(async () => {
     try {
       if (sessionType === 'request') {
         await api.post(`/tutoring/requests/${requestId}/complete`, {});
@@ -141,7 +150,7 @@ export default function TutoringRoom() {
     } else {
       setLocation('/tutoring');
     }
-  };
+  }, [api, requestId, sessionType, isTeacher, setLocation]);
 
   if (authLoading || isLoading) {
     return (

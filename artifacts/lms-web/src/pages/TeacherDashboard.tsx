@@ -584,7 +584,7 @@ export default function TeacherDashboard() {
                   <li>Register with your subjects and hourly rate (max 100 LYD).</li>
                   <li>Students can browse and request a private session with you.</li>
                   <li>Accept or propose a new time — a meeting link is auto-generated.</li>
-                  <li>After the session, the student marks it complete and 90% of the fee is credited to your wallet.</li>
+                  <li>After the session ends, the admin reviews student feedback and approves payment. Once approved, 90% of the fee is credited to your wallet.</li>
                   <li>If you accept a request but don't attend, you will be suspended for 1 week.</li>
                 </ul>
               </div>

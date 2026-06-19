@@ -762,20 +762,20 @@ router.put("/withdrawals/:id/status", async (req, res) => {
 router.get("/tutoring-reviews", async (req, res) => {
   try {
     const { status } = req.query as { status?: string };
-    let conditions = [eq(tutoringRequestsTable.status, "completed_pending_review")];
-    if (status === "all") {
-      conditions = [or(
-        eq(tutoringRequestsTable.status, "completed_pending_review"),
-        eq(tutoringRequestsTable.status, "approved"),
-        eq(tutoringRequestsTable.status, "rejected"),
-        eq(tutoringRequestsTable.status, "partially_approved")
-      )];
-    } else if (status) {
-      conditions = [eq(tutoringRequestsTable.status, status as any)];
+
+    const reviewStatuses = ["completed_pending_review", "approved", "rejected", "partially_approved"] as const;
+
+    let whereClause;
+    if (!status || status === "all") {
+      whereClause = or(
+        ...reviewStatuses.map(s => eq(tutoringRequestsTable.status, s as any))
+      );
+    } else {
+      whereClause = eq(tutoringRequestsTable.status, status as any);
     }
 
     const requests = await db.select().from(tutoringRequestsTable)
-      .where(and(...conditions))
+      .where(whereClause)
       .orderBy(desc(tutoringRequestsTable.updatedAt));
 
     const result = await Promise.all(requests.map(async (r) => {

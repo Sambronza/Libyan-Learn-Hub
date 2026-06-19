@@ -490,8 +490,8 @@ router.post("/requests/:id/cancel", requireAuth, async (req, res) => {
 
     if (!request) { res.status(404).json({ error: "Request not found" }); return; }
 
-    if (["completed", "cancelled", "declined"].includes(request.status)) {
-      res.status(400).json({ error: "Cannot cancel a request that is already completed, cancelled, or declined" });
+    if (["completed", "cancelled", "declined", "completed_pending_review", "approved", "rejected", "partially_approved"].includes(request.status)) {
+      res.status(400).json({ error: "Cannot cancel a request that is already completed, under review, or in a terminal state" });
       return;
     }
 
@@ -644,7 +644,7 @@ router.post("/requests/:id/join", requireAuth, async (req, res) => {
 
     if (!request) { res.status(404).json({ error: "Request not found" }); return; }
 
-    if (!["accepted", "completed"].includes(request.status)) {
+    if (!["accepted", "completed", "completed_pending_review"].includes(request.status)) {
       res.status(403).json({ error: "Session is not active or completed" }); return;
     }
 
