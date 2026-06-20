@@ -357,7 +357,8 @@ function RequestSessionModal({ open, onClose }: { open: boolean; onClose: () => 
 
   const minDT = new Date();
   minDT.setHours(minDT.getHours() + 1);
-  const minDTStr = minDT.toISOString().slice(0, 16);
+  // Format as local YYYY-MM-DDTHH:mm to avoid UTC offset bugs in datetime-local
+  const minDTStr = new Date(minDT.getTime() - minDT.getTimezoneOffset() * 60000).toISOString().slice(0, 16);
 
   const onSubmit = async (data: any) => {
     try {
@@ -385,6 +386,7 @@ function RequestSessionModal({ open, onClose }: { open: boolean; onClose: () => 
       <DialogContent 
         className="sm:max-w-[580px] max-h-[90vh] overflow-y-auto"
         onInteractOutside={(e) => e.preventDefault()}
+        onEscapeKeyDown={(e) => e.preventDefault()}
       >
         <DialogHeader>
           <DialogTitle className="text-xl">
