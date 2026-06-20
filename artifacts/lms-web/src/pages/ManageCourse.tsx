@@ -4,7 +4,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useLocation, Link, useParams } from 'wouter';
 import {
   Plus, Edit, Trash2, ArrowLeft, Video, FileText, Upload,
-  Eye, EyeOff, Clock, ChevronUp, ChevronDown, ChevronRight, FolderOpen, Layers, Paperclip, BookOpen, SendHorizonal
+  Eye, EyeOff, Clock, ChevronUp, ChevronDown, ChevronRight, FolderOpen, Layers, Paperclip, BookOpen, SendHorizonal, PlayCircle
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
@@ -15,6 +15,7 @@ import { useToast } from '@/hooks/use-toast';
 import { useApi } from '@/hooks/useApi';
 import { useMediaActivity } from '@/contexts/MediaActivityContext';
 import { Badge } from '@/components/ui/badge';
+import { ProtectedPlayer } from '@/components/ProtectedPlayer';
 
 export default function ManageCourse() {
   const { user, isAuthenticated, isLoading: authLoading } = useAuth();
@@ -36,6 +37,7 @@ export default function ManageCourse() {
   const [editingLesson, setEditingLesson] = useState<any>(null);
   const [deletingSection, setDeletingSection] = useState<any>(null);
   const [deletingLesson, setDeletingLesson] = useState<any>(null);
+  const [previewLesson, setPreviewLesson] = useState<any>(null);
 
   // File upload state
   const [videoFile, setVideoFile] = useState<File | null>(null);
@@ -883,6 +885,9 @@ export default function ManageCourse() {
                                 </span>
                               )}
                               <div className="flex gap-1 shrink-0">
+                                <Button variant="ghost" size="icon" className="h-7 w-7 text-muted-foreground hover:text-green-600" title="Preview Lesson" onClick={() => setPreviewLesson(lesson)}>
+                                  <PlayCircle className="w-3.5 h-3.5" />
+                                </Button>
                                 <Button variant="ghost" size="icon" className="h-7 w-7 text-muted-foreground hover:text-blue-600" title={lesson.isFree ? 'Remove free' : 'Mark free'} onClick={() => handleToggleFree(lesson)}>
                                   {lesson.isFree ? <Eye className="w-3.5 h-3.5 text-blue-500" /> : <EyeOff className="w-3.5 h-3.5" />}
                                 </Button>
@@ -1004,6 +1009,40 @@ export default function ManageCourse() {
               Delete Lesson
             </Button>
           </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Preview Lesson Modal */}
+      <Dialog open={!!previewLesson} onOpenChange={(o) => !o && setPreviewLesson(null)}>
+        <DialogContent className="sm:max-w-[800px] bg-black border-none text-white p-0 overflow-hidden" aria-describedby={undefined}>
+          <DialogHeader className="p-4 absolute top-0 w-full z-10 bg-gradient-to-b from-black/80 to-transparent">
+            <DialogTitle className="text-xl font-display text-white drop-shadow-md">
+              Preview: {previewLesson?.title}
+            </DialogTitle>
+          </DialogHeader>
+          {previewLesson && (
+            <div className="w-full aspect-video bg-black flex items-center justify-center pt-14">
+              {previewLesson.type === 'video' && (previewLesson.videoUrl || previewLesson.videoFilePath) ? (
+                <ProtectedPlayer 
+                  url={(previewLesson.videoUrl || previewLesson.videoFilePath)!} 
+                  courseId={parseInt(courseId || '0')} 
+                  lessonId={previewLesson.id} 
+                />
+              ) : previewLesson.type === 'text' && previewLesson.documentFilePath ? (
+                <iframe
+                  src={`https://docs.google.com/viewer?url=${encodeURIComponent(previewLesson.documentFilePath)}&embedded=true`}
+                  className="w-full h-full bg-white"
+                  title={previewLesson.documentFileName || 'document'}
+                  allow="fullscreen"
+                />
+              ) : (
+                <div className="text-center p-12 text-white/50">
+                  <FileText className="w-16 h-16 mx-auto mb-4 opacity-50" />
+                  <p>Content unavailable for preview.</p>
+                </div>
+              )}
+            </div>
+          )}
         </DialogContent>
       </Dialog>
     </PageContainer>
