@@ -596,8 +596,9 @@ router.post("/requests/:id/no-show", requireAuth, async (req, res) => {
 
     if (!request) { res.status(404).json({ error: "Request not found" }); return; }
     
-    if (request.studentId !== userId && (req as any).user.role !== "admin") {
-      res.status(403).json({ error: "Not authorized to report a no-show for this request" }); return;
+    // ONLY Admins can manually trigger a no-show now (automated system handles the rest)
+    if ((req as any).user.role !== "admin") {
+      res.status(403).json({ error: "Only admins can manually report a no-show" }); return;
     }
 
     if (request.status !== "accepted") {
@@ -802,11 +803,21 @@ router.post("/requests/:id/timer/sync", requireAuth, async (req, res) => {
         elapsed += liveSecs;
       }
 
-      // ── Auto-complete if time has fully elapsed ───────────────────────────────
+      // ── Auto-complete if time has fully elapsed or wall-clock grace period expired ──
       const totalSecs = (request.durationMinutes || 60) * 60;
-      if (elapsed >= totalSecs && request.status === "accepted") {
+      const realScheduledEndMs = new Date(request.preferredAt).getTime() + totalSecs * 1000 + (15 * 60 * 1000); // 15 min grace period
+      
+      if ((elapsed >= totalSecs || now.getTime() > realScheduledEndMs) && request.status === "accepted") {
+        const neverJoined = (request.elapsedSeconds ?? 0) === 0 && request.sessionStartedAt === null;
+        const teacherAbandoned = !!request.teacherLeftAt;
+        const isNoShow = neverJoined || teacherAbandoned;
+
         await db.update(tutoringRequestsTable)
-          .set({ status: "completed_pending_review", updatedAt: now })
+          .set({ 
+            status: isNoShow ? "cancelled_no_show" : "completed_pending_review", 
+            earlyTerminationFlagged: teacherAbandoned,
+            updatedAt: now 
+          })
           .where(and(eq(tutoringRequestsTable.id, requestId), eq(tutoringRequestsTable.status, "accepted")));
       }
 
@@ -876,15 +887,29 @@ router.post("/requests/:id/leave", requireAuth, async (req, res) => {
     const studentGone = !!fresh.studentLeftAt;
     const sessionNotComplete = (fresh.elapsedSeconds ?? 0) < totalSecs;
 
-    if (teacherGone && studentGone && sessionNotComplete && fresh.status === "accepted") {
-      // Both left before scheduled end → flag for admin review
-      await db.update(tutoringRequestsTable)
-        .set({
-          status: "completed_pending_review",
-          earlyTerminationFlagged: true,
-          updatedAt: now,
-        })
-        .where(eq(tutoringRequestsTable.id, requestId));
+    if (studentGone && sessionNotComplete && fresh.status === "accepted") {
+      const neverJoined = (fresh.elapsedSeconds ?? 0) === 0 && fresh.sessionStartedAt === null;
+      const isPastStartTime = now.getTime() >= new Date(fresh.preferredAt).getTime();
+
+      if (neverJoined && isPastStartTime) {
+        // Teacher never joined, and student gave up after start time
+        await db.update(tutoringRequestsTable)
+          .set({
+            status: "cancelled_no_show",
+            earlyTerminationFlagged: false,
+            updatedAt: now,
+          })
+          .where(eq(tutoringRequestsTable.id, requestId));
+      } else if (teacherGone) {
+        // Teacher joined but left early, and student eventually left
+        await db.update(tutoringRequestsTable)
+          .set({
+            status: "cancelled_no_show",
+            earlyTerminationFlagged: true,
+            updatedAt: now,
+          })
+          .where(eq(tutoringRequestsTable.id, requestId));
+      }
     }
 
     res.json({ success: true, elapsedSeconds: elapsed });

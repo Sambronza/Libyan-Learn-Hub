@@ -528,7 +528,7 @@ function RequestCard({
   r: any;
   isTeacher: boolean;
   onTeacherAction: (id: number, action: 'accept' | 'decline') => void;
-  onStudentAction: (id: number, action: 'accept-proposed-time' | 'cancel' | 'complete' | 'no-show') => void;
+  onStudentAction: (id: number, action: 'accept-proposed-time' | 'cancel' | 'complete') => void;
   onProposeTime: (r: any) => void;
 }) {
   return (
@@ -636,14 +636,7 @@ function RequestCard({
             </Button>
           )}
 
-          {/* Student: report no-show */}
-          {!isTeacher && r.status === 'accepted' && (
-            <div className="flex flex-col gap-2 w-full">
-              <Button size="sm" variant="ghost" className="w-full text-orange-600 hover:text-orange-700 hover:bg-orange-50" onClick={() => onStudentAction(r.id, 'no-show')}>
-                🚨 Teacher Didn't Show Up
-              </Button>
-            </div>
-          )}
+
         </div>
       </div>
     </div>
@@ -690,14 +683,13 @@ export default function Tutoring() {
     }
   };
 
-  const handleStudentAction = async (id: number, action: 'accept-proposed-time' | 'cancel' | 'complete' | 'no-show') => {
+  const handleStudentAction = async (id: number, action: 'accept-proposed-time' | 'cancel' | 'complete') => {
     try {
       await api.post(`/tutoring/requests/${id}/${action}`, {});
       const messages: Record<string, string> = {
         'accept-proposed-time': '✅ New time accepted! Meeting link is ready.',
         'cancel': '✅ Request cancelled. Your balance has been refunded.',
         'complete': '✅ Session marked as complete. Thank you!',
-        'no-show': '🚨 No-show reported. You have been refunded and the teacher has been suspended for 1 week.',
       };
       toast({ title: messages[action] });
       queryClient.invalidateQueries({ queryKey: ['/api/tutoring/requests'] });

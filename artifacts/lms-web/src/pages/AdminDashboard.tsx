@@ -2350,6 +2350,7 @@ function TutoringReviewsTab({ api, queryClient, toast }: any) {
 
   const statusColors: Record<string, string> = {
     completed_pending_review: 'bg-indigo-100 text-indigo-800 border-indigo-200',
+    cancelled_no_show: 'bg-orange-100 text-orange-800 border-orange-200',
     approved: 'bg-emerald-100 text-emerald-800 border-emerald-200',
     rejected: 'bg-red-100 text-red-800 border-red-200',
     partially_approved: 'bg-teal-100 text-teal-800 border-teal-200',
@@ -2357,6 +2358,7 @@ function TutoringReviewsTab({ api, queryClient, toast }: any) {
 
   const statusLabels: Record<string, string> = {
     completed_pending_review: 'Pending Review',
+    cancelled_no_show: 'No-Show (Needs Review)',
     approved: 'Approved (Teacher Paid)',
     rejected: 'Rejected (Student Refunded)',
     partially_approved: 'Partially Approved',
@@ -2373,6 +2375,7 @@ function TutoringReviewsTab({ api, queryClient, toast }: any) {
           >
             <option value="all">All Reviews</option>
             <option value="completed_pending_review">Pending Review</option>
+            <option value="cancelled_no_show">No-Shows</option>
             <option value="approved">Approved</option>
             <option value="rejected">Rejected</option>
             <option value="partially_approved">Partially Approved</option>
@@ -2393,7 +2396,7 @@ function TutoringReviewsTab({ api, queryClient, toast }: any) {
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-2 gap-4">
           {(reviews || []).map((r: any) => (
-            <div key={r.id} className={`bg-card rounded-2xl border p-5 shadow-sm flex flex-col ${r.earlyTerminationFlagged ? 'border-red-400/60 bg-red-50/30 dark:bg-red-950/10' : 'border-border'}`}>
+            <div key={r.id} className={`bg-card rounded-2xl border p-5 shadow-sm flex flex-col ${r.earlyTerminationFlagged || r.status === 'cancelled_no_show' ? 'border-red-400/60 bg-red-50/30 dark:bg-red-950/10' : 'border-border'}`}>
               <div className="flex justify-between items-start mb-3 gap-2 flex-wrap">
                 <div className="flex flex-wrap gap-2">
                   <span className={`text-xs px-2.5 py-1 rounded-full font-semibold border ${statusColors[r.status] || 'bg-gray-100 text-gray-700'}`}>

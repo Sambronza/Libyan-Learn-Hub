@@ -763,7 +763,7 @@ router.get("/tutoring-reviews", async (req, res) => {
   try {
     const { status } = req.query as { status?: string };
 
-    const reviewStatuses = ["completed_pending_review", "approved", "rejected", "partially_approved"] as const;
+    const reviewStatuses = ["completed_pending_review", "cancelled_no_show", "approved", "rejected", "partially_approved"] as const;
 
     let whereClause;
     if (!status || status === "all") {
