@@ -1015,33 +1015,42 @@ export default function ManageCourse() {
       {/* Preview Lesson Modal */}
       <Dialog open={!!previewLesson} onOpenChange={(o) => !o && setPreviewLesson(null)}>
         <DialogContent className="sm:max-w-[800px] bg-black border-none text-white p-0 overflow-hidden" aria-describedby={undefined}>
-          <DialogHeader className="p-4 absolute top-0 w-full z-10 bg-gradient-to-b from-black/80 to-transparent">
-            <DialogTitle className="text-xl font-display text-white drop-shadow-md">
-              Preview: {previewLesson?.title}
-            </DialogTitle>
-          </DialogHeader>
+          {/* Floating title overlay — sits on top of content, does NOT push it down */}
+          <div className="absolute top-0 left-0 right-0 z-10 px-4 pt-4 pb-8 bg-gradient-to-b from-black/80 to-transparent pointer-events-none">
+            <p className="text-xs font-semibold uppercase tracking-widest text-white/60 mb-0.5">Teacher Preview</p>
+            <h2 className="text-lg font-display font-bold text-white drop-shadow-md line-clamp-1">
+              {previewLesson?.title}
+            </h2>
+          </div>
+
           {previewLesson && (
-            <div className="w-full aspect-video bg-black flex items-center justify-center pt-14">
+            <>
               {previewLesson.type === 'video' && (previewLesson.videoUrl || previewLesson.videoFilePath) ? (
-                <ProtectedPlayer 
-                  url={(previewLesson.videoUrl || previewLesson.videoFilePath)!} 
-                  courseId={parseInt(courseId || '0')} 
-                  lessonId={previewLesson.id} 
-                />
+                /* Video: ProtectedPlayer already renders aspect-video — don't wrap in another one */
+                <div className="w-full">
+                  <ProtectedPlayer
+                    url={(previewLesson.videoUrl || previewLesson.videoFilePath)!}
+                    courseId={parseInt(courseId || '0')}
+                    lessonId={previewLesson.id}
+                  />
+                </div>
               ) : previewLesson.type === 'text' && previewLesson.documentFilePath ? (
+                /* Document: iframe needs an explicit height to render inside the dialog */
                 <iframe
                   src={`https://docs.google.com/viewer?url=${encodeURIComponent(previewLesson.documentFilePath)}&embedded=true`}
-                  className="w-full h-full bg-white"
+                  className="w-full bg-white"
+                  style={{ height: '65vh', minHeight: '400px' }}
                   title={previewLesson.documentFileName || 'document'}
                   allow="fullscreen"
                 />
               ) : (
-                <div className="text-center p-12 text-white/50">
-                  <FileText className="w-16 h-16 mx-auto mb-4 opacity-50" />
-                  <p>Content unavailable for preview.</p>
+                /* Fallback: no uploadable content yet */
+                <div className="flex flex-col items-center justify-center py-20 text-white/50 gap-4">
+                  <FileText className="w-16 h-16 opacity-40" />
+                  <p className="text-sm">No content uploaded for this lesson yet.</p>
                 </div>
               )}
-            </div>
+            </>
           )}
         </DialogContent>
       </Dialog>
