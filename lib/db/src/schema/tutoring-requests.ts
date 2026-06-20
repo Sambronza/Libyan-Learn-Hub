@@ -32,6 +32,14 @@ export const tutoringRequestsTable = pgTable("tutoring_requests", {
   studentRating: integer("student_rating"),
   studentReview: text("student_review"),
   adminReview: text("admin_review"),
+  // ── Server-authoritative session timer ───────────────────────────────────────
+  sessionStartedAt: timestamp("session_started_at"),            // set when both participants first join
+  timerPausedAt: timestamp("timer_paused_at"),                  // non-null means timer is paused (teacher left)
+  elapsedSeconds: integer("elapsed_seconds").notNull().default(0), // accumulated seconds before current pause
+  teacherLeftAt: timestamp("teacher_left_at"),                  // last time teacher disconnected
+  studentLeftAt: timestamp("student_left_at"),                  // last time student disconnected
+  earlyTerminationFlagged: boolean("early_termination_flagged").notNull().default(false),
+  // ─────────────────────────────────────────────────────────────────────────────
   createdAt: timestamp("created_at").notNull().defaultNow(),
   updatedAt: timestamp("updated_at").notNull().defaultNow(),
 });

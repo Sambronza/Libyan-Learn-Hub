@@ -7,7 +7,7 @@ import { useQuery } from '@tanstack/react-query';
 import { useToast } from '@/hooks/use-toast';
 import { Button } from '@/components/ui/button';
 import {
-  ArrowLeft, Circle, Square, Radio, Clock
+  ArrowLeft, Radio, Clock, PauseCircle
 } from 'lucide-react';
 import { ScreenProtection } from '@/components/ScreenProtection';
 import { WatermarkOverlay } from '@/components/WatermarkOverlay';
@@ -20,58 +20,193 @@ import {
   PreJoin,
   LocalUserChoices,
   useParticipants,
+  useRoomContext,
 } from '@livekit/components-react';
 import '@livekit/components-styles';
 
-function SessionTimerOverlay({ durationMinutes, onEnd, onStart }: { durationMinutes: number, onEnd: () => void, onStart?: () => void }) {
+// ─── Server-Synced Timer Overlay ──────────────────────────────────────────────
+// Polls /timer/sync every 5 s.  Starts when both participants join.
+// Pauses on teacher leave; resumes when teacher rejoins.
+function ServerSyncedTimer({
+  requestId,
+  sessionType,
+  onEnd,
+  onStart,
+  isTeacher,
+}: {
+  requestId: number;
+  sessionType: string;
+  onEnd: () => void;
+  onStart?: () => void;
+  isTeacher: boolean;
+}) {
+  const api = useApi();
   const participants = useParticipants();
-  const [timeLeft, setTimeLeft] = useState(durationMinutes * 60);
+  const participantCount = participants.length;
+
+  // Local display state – updated from server
+  const [timeLeft, setTimeLeft] = useState<number | null>(null);
+  const [isPaused, setIsPaused] = useState(false);
   const [started, setStarted] = useState(false);
   const endedRef = useRef(false);
+  const onStartFiredRef = useRef(false);
+  const localTickRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
-  useEffect(() => {
-    if (!started && participants.length >= 2) {
-      setStarted(true);
+  // Fire onStart once when the timer first becomes active
+  const fireOnStart = useCallback(() => {
+    if (!onStartFiredRef.current) {
+      onStartFiredRef.current = true;
       if (onStart) onStart();
     }
-  }, [participants.length, started, onStart]);
+  }, [onStart]);
 
-  useEffect(() => {
-    if (!started) return;
-    const timer = setInterval(() => {
-      setTimeLeft(prev => {
-        if (prev <= 1) {
-          clearInterval(timer);
-          if (!endedRef.current) {
-            endedRef.current = true;
-            onEnd();
-          }
-          return 0;
-        }
-        return prev - 1;
+  // Poll the server every 5 s and update display state
+  const poll = useCallback(async () => {
+    if (sessionType !== 'request') return; // listing-type sessions don't use this timer
+    try {
+      const data = await api.post(`/tutoring/requests/${requestId}/timer/sync`, {
+        participantCount,
       });
-    }, 1000);
-    return () => clearInterval(timer);
-  }, [started, onEnd]);
 
-  if (!started) return null;
+      const { elapsedSeconds, isPaused: paused, totalDurationSeconds } = data;
+      const remaining = Math.max(totalDurationSeconds - elapsedSeconds, 0);
+
+      setIsPaused(paused);
+
+      if (elapsedSeconds > 0 || participantCount >= 2) {
+        setStarted(true);
+        fireOnStart();
+      }
+
+      setTimeLeft(remaining);
+
+      // Stop local tick interval and recalibrate
+      if (localTickRef.current) {
+        clearInterval(localTickRef.current);
+        localTickRef.current = null;
+      }
+
+      if (!paused && remaining > 0) {
+        // Run a local tick between polls so the UI is smooth
+        localTickRef.current = setInterval(() => {
+          setTimeLeft(prev => {
+            if (prev === null || prev <= 1) {
+              clearInterval(localTickRef.current!);
+              localTickRef.current = null;
+              if (!endedRef.current) {
+                endedRef.current = true;
+                onEnd();
+              }
+              return 0;
+            }
+            return prev - 1;
+          });
+        }, 1000);
+      }
+
+      if (remaining === 0 && !endedRef.current) {
+        endedRef.current = true;
+        onEnd();
+      }
+    } catch {
+      // Ignore network errors during poll — will retry
+    }
+  }, [api, requestId, sessionType, participantCount, onEnd, fireOnStart]);
+
+  // Set up 5-second polling interval
+  useEffect(() => {
+    poll(); // immediate first call
+    const interval = setInterval(poll, 5000);
+    return () => {
+      clearInterval(interval);
+      if (localTickRef.current) clearInterval(localTickRef.current);
+    };
+  }, [poll]);
+
+  if (!started || timeLeft === null) return null;
 
   const mins = Math.floor(timeLeft / 60);
   const secs = timeLeft % 60;
+  const isLow = timeLeft < 300 && !isPaused;
+
   return (
-    <div className="absolute top-4 left-1/2 -translate-x-1/2 z-[100] bg-black/60 px-4 py-2 rounded-full border border-white/20 backdrop-blur-md flex items-center gap-2 shadow-xl">
-      <Clock className={`w-4 h-4 ${timeLeft < 300 ? 'text-red-400 animate-pulse' : 'text-green-400'}`} />
-      <span className={`font-mono font-bold ${timeLeft < 300 ? 'text-red-400' : 'text-white'}`}>
-        {mins.toString().padStart(2, '0')}:{secs.toString().padStart(2, '0')}
-      </span>
-    </div>
+    <>
+      {/* Timer pill */}
+      <div className="absolute top-4 left-1/2 -translate-x-1/2 z-[100] flex flex-col items-center gap-2 pointer-events-none">
+        <div className={`bg-black/70 px-4 py-2 rounded-full border backdrop-blur-md flex items-center gap-2 shadow-xl transition-colors ${
+          isPaused ? 'border-amber-400/60' : isLow ? 'border-red-400/60' : 'border-white/20'
+        }`}>
+          <Clock className={`w-4 h-4 ${isPaused ? 'text-amber-400' : isLow ? 'text-red-400 animate-pulse' : 'text-green-400'}`} />
+          <span className={`font-mono font-bold ${isPaused ? 'text-amber-400' : isLow ? 'text-red-400' : 'text-white'}`}>
+            {mins.toString().padStart(2, '0')}:{secs.toString().padStart(2, '0')}
+          </span>
+        </div>
+
+        {/* Pause banner – shown when teacher is absent */}
+        {isPaused && (
+          <div className="bg-amber-500/90 text-black text-xs font-bold px-3 py-1 rounded-full flex items-center gap-1.5 shadow-lg backdrop-blur-sm pointer-events-none">
+            <PauseCircle className="w-3.5 h-3.5" />
+            Timer paused — waiting for teacher
+          </div>
+        )}
+      </div>
+    </>
   );
 }
 
+// ─── Inner LiveKit wrapper that has access to room context ───────────────────
+// We need this because useRoomContext() only works inside <LiveKitRoom>.
+function RoomContent({
+  requestId,
+  sessionType,
+  isTeacher,
+  session,
+  onEnd,
+  onStart,
+}: {
+  requestId: number;
+  sessionType: string;
+  isTeacher: boolean;
+  session: any;
+  onEnd: () => void;
+  onStart: () => void;
+}) {
+  const room = useRoomContext();
+
+  // Resume timer when teacher reconnects
+  useEffect(() => {
+    if (!isTeacher || sessionType !== 'request') return;
+    const handleConnected = async () => {
+      try {
+        await fetch(`/api/tutoring/requests/${requestId}/timer/resume`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${localStorage.getItem('token')}` },
+        });
+      } catch { /* best-effort */ }
+    };
+    room.on('connected', handleConnected);
+    return () => { room.off('connected', handleConnected); };
+  }, [room, isTeacher, requestId, sessionType]);
+
+  return (
+    <>
+      <ServerSyncedTimer
+        requestId={requestId}
+        sessionType={sessionType}
+        onEnd={onEnd}
+        onStart={onStart}
+        isTeacher={isTeacher}
+      />
+      <VideoConference />
+      <RoomAudioRenderer />
+    </>
+  );
+}
+
+// ─── Main TutoringRoom Page ───────────────────────────────────────────────────
 export default function TutoringRoom() {
   const [, params] = useRoute('/tutoring/room/:id');
   const requestId = parseInt(params?.id || '0');
-  // Distinguish listing-based applications from tutoring requests via ?type=listing
   const searchParams = new URLSearchParams(window.location.search);
   const sessionType = searchParams.get('type') === 'listing' ? 'listing' : 'request';
   const { user, isAuthenticated, isLoading: authLoading } = useAuth();
@@ -79,7 +214,7 @@ export default function TutoringRoom() {
   const api = useApi();
   const { toast } = useToast();
   const { setMediaActive } = useMediaActivity();
-  
+
   const [hasJoined, setHasJoined] = useState(false);
   const [userChoices, setUserChoices] = useState<LocalUserChoices | undefined>(undefined);
   const [liveKitToken, setLiveKitToken] = useState<string | null>(null);
@@ -98,9 +233,7 @@ export default function TutoringRoom() {
       : api.get(`/tutoring/requests`),
     enabled: !!requestId && !!user,
   });
-  
-  // For listing-based: the API returns a single application object directly
-  // For request-based: the API returns an array; find by id
+
   const session = sessionType === 'listing'
     ? (requestList && !Array.isArray(requestList) ? requestList : null)
     : (Array.isArray(requestList) ? requestList.find((r: any) => r.id === requestId) : null);
@@ -126,16 +259,26 @@ export default function TutoringRoom() {
     }
   };
 
+  // Called when participant intentionally or unintentionally disconnects from LiveKit
+  const handleDisconnected = useCallback(async () => {
+    if (sessionType === 'request') {
+      try {
+        // best-effort: tell server this participant left so timer can be paused / early-termination flagged
+        await api.post(`/tutoring/requests/${requestId}/leave`, {});
+      } catch { /* ignore */ }
+    }
+    setLocation('/tutoring');
+  }, [api, requestId, sessionType, setLocation]);
+
   const handleSessionEnd = useCallback(async () => {
     stopRecording();
     try {
       if (sessionType === 'request') {
         await api.post(`/tutoring/requests/${requestId}/complete`, {});
       }
-    } catch(e) {
+    } catch (e) {
       console.error('Error completing session', e);
     }
-    // Redirect to tutoring page, and open feedback modal if student
     if (!isTeacher && sessionType === 'request') {
       setLocation(`/tutoring?feedbackFor=${requestId}`);
     } else {
@@ -144,7 +287,6 @@ export default function TutoringRoom() {
   }, [api, requestId, sessionType, isTeacher, setLocation, stopRecording]);
 
   const handleSessionStart = useCallback(() => {
-    // Only record for standard tutoring requests (not listing-type sessions)
     if (isTeacher && sessionType === 'request') {
       startRecording();
     }
@@ -191,14 +333,14 @@ export default function TutoringRoom() {
         {!hasJoined ? (
           <div className="flex-1 overflow-y-auto bg-slate-800" data-lk-theme="default">
             <div className="min-h-full flex flex-col justify-center items-center p-4 py-8">
-               <PreJoin
-                 defaults={{ videoEnabled: true, audioEnabled: true }}
-                 onSubmit={(choices) => {
-                   setUserChoices(choices);
-                   joinSession();
-                 }}
-                 className="bg-slate-900 border border-white/10 rounded-2xl shadow-2xl p-4 w-full max-w-md mx-auto"
-               />
+              <PreJoin
+                defaults={{ videoEnabled: true, audioEnabled: true }}
+                onSubmit={(choices) => {
+                  setUserChoices(choices);
+                  joinSession();
+                }}
+                className="bg-slate-900 border border-white/10 rounded-2xl shadow-2xl p-4 w-full max-w-md mx-auto"
+              />
             </div>
           </div>
         ) : (
@@ -212,15 +354,16 @@ export default function TutoringRoom() {
                 className="absolute inset-0 w-full h-full"
                 data-lk-theme="default"
                 style={{ height: '100%', '--lk-bg': '#020817' } as React.CSSProperties}
-                onDisconnected={() => setLocation('/tutoring')}
+                onDisconnected={handleDisconnected}
               >
-                <SessionTimerOverlay 
-                  durationMinutes={session.durationMinutes || 60} 
-                  onEnd={handleSessionEnd} 
+                <RoomContent
+                  requestId={requestId}
+                  sessionType={sessionType}
+                  isTeacher={isTeacher}
+                  session={session}
+                  onEnd={handleSessionEnd}
                   onStart={handleSessionStart}
                 />
-                <VideoConference />
-                <RoomAudioRenderer />
               </LiveKitRoom>
             ) : (
               <div className="flex items-center justify-center h-full bg-slate-900">

@@ -2393,17 +2393,35 @@ function TutoringReviewsTab({ api, queryClient, toast }: any) {
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-2 gap-4">
           {(reviews || []).map((r: any) => (
-            <div key={r.id} className="bg-card rounded-2xl border border-border p-5 shadow-sm flex flex-col">
-              <div className="flex justify-between items-start mb-3">
-                <span className={`text-xs px-2.5 py-1 rounded-full font-semibold border ${statusColors[r.status] || 'bg-gray-100 text-gray-700'}`}>
-                  {statusLabels[r.status] || r.status}
-                </span>
+            <div key={r.id} className={`bg-card rounded-2xl border p-5 shadow-sm flex flex-col ${r.earlyTerminationFlagged ? 'border-red-400/60 bg-red-50/30 dark:bg-red-950/10' : 'border-border'}`}>
+              <div className="flex justify-between items-start mb-3 gap-2 flex-wrap">
+                <div className="flex flex-wrap gap-2">
+                  <span className={`text-xs px-2.5 py-1 rounded-full font-semibold border ${statusColors[r.status] || 'bg-gray-100 text-gray-700'}`}>
+                    {statusLabels[r.status] || r.status}
+                  </span>
+                  {r.earlyTerminationFlagged && (
+                    <span className="text-xs px-2.5 py-1 rounded-full font-bold border bg-red-100 text-red-700 border-red-300 flex items-center gap-1">
+                      ⚠ Early Termination
+                    </span>
+                  )}
+                </div>
                 <span className="text-xs text-muted-foreground font-mono">#{r.id}</span>
               </div>
               <div className="mb-4">
                 <div className="text-xl font-bold text-primary">{r.totalAmount} <span className="text-sm font-normal text-muted-foreground">LYD</span></div>
                 <div className="text-sm font-bold mt-1">{r.subject} {r.topic ? `— ${r.topic}` : ''}</div>
-                <div className="text-xs text-muted-foreground mt-1">{r.durationMinutes} minutes</div>
+                <div className="flex items-center gap-3 mt-1">
+                  <div className="text-xs text-muted-foreground">{r.durationMinutes} min scheduled</div>
+                  {r.elapsedSeconds != null && r.elapsedSeconds > 0 && (
+                    <div className={`text-xs font-semibold px-2 py-0.5 rounded-full ${
+                      r.elapsedSeconds >= r.durationMinutes * 60
+                        ? 'bg-green-100 text-green-700'
+                        : 'bg-amber-100 text-amber-700'
+                    }`}>
+                      {Math.floor(r.elapsedSeconds / 60)}m {r.elapsedSeconds % 60}s elapsed
+                    </div>
+                  )}
+                </div>
               </div>
               <div className="space-y-1.5 mb-4 text-sm">
                 <div className="flex justify-between">

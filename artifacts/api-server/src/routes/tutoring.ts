@@ -758,4 +758,178 @@ router.post("/requests/:id/upload-audio", requireAuth, upload.single("audio"), a
     res.status(500).json({ error: "Server error", message: err.message });
   }
 });
+
+// ─── Server-Authoritative Timer: Sync ────────────────────────────────────────
+// Called by both teacher and student every ~5 s while inside the room.
+// On the teacher's FIRST call it starts the session timer if both are present.
+router.post("/requests/:id/timer/sync", requireAuth, async (req, res) => {
+  try {
+    const { userId } = (req as any).user;
+    const requestId = parseParam(req.params.id);
+    const { participantCount } = req.body; // client sends LiveKit participant count
+
+    const [request] = await db.select().from(tutoringRequestsTable)
+      .where(eq(tutoringRequestsTable.id, requestId)).limit(1);
+
+    if (!request) { res.status(404).json({ error: "Request not found" }); return; }
+    if (request.teacherId !== userId && request.studentId !== userId) {
+      res.status(403).json({ error: "Not authorized" }); return;
+    }
+
+    const isTeacher = request.teacherId === userId;
+    const now = new Date();
+
+    // ── Start the timer if both are present and it hasn't started yet ──────────
+    if (!request.sessionStartedAt && participantCount >= 2) {
+      await db.update(tutoringRequestsTable)
+        .set({ sessionStartedAt: now, timerPausedAt: null, updatedAt: now })
+        .where(eq(tutoringRequestsTable.id, requestId));
+
+      res.json({
+        elapsedSeconds: 0,
+        isPaused: false,
+        totalDurationSeconds: (request.durationMinutes || 60) * 60,
+        sessionStartedAt: now.toISOString(),
+      });
+    } else {
+      // ── Compute current elapsed time ─────────────────────────────────────────
+      let elapsed = request.elapsedSeconds ?? 0;
+      const isPaused = !!request.timerPausedAt;
+
+      if (request.sessionStartedAt && !isPaused) {
+        // Timer is running: add live seconds since start
+        const liveSecs = Math.floor((now.getTime() - new Date(request.sessionStartedAt).getTime()) / 1000);
+        elapsed += liveSecs;
+      }
+
+      // ── Auto-complete if time has fully elapsed ───────────────────────────────
+      const totalSecs = (request.durationMinutes || 60) * 60;
+      if (elapsed >= totalSecs && request.status === "accepted") {
+        await db.update(tutoringRequestsTable)
+          .set({ status: "completed_pending_review", updatedAt: now })
+          .where(and(eq(tutoringRequestsTable.id, requestId), eq(tutoringRequestsTable.status, "accepted")));
+      }
+
+      res.json({
+        elapsedSeconds: Math.min(elapsed, totalSecs ?? 3600),
+        isPaused,
+        totalDurationSeconds: totalSecs,
+        sessionStartedAt: request.sessionStartedAt?.toISOString() ?? null,
+      });
+    }
+  } catch (err: any) {
+    res.status(500).json({ error: "Server error", message: err.message });
+  }
+});
+
+// ─── Server-Authoritative Timer: Participant Leaves ───────────────────────────
+// Called when teacher or student disconnects from the room.
+// If teacher leaves → pause timer. If both leave before end → flag early termination.
+router.post("/requests/:id/leave", requireAuth, async (req, res) => {
+  try {
+    const { userId } = (req as any).user;
+    const requestId = parseParam(req.params.id);
+
+    const [request] = await db.select().from(tutoringRequestsTable)
+      .where(eq(tutoringRequestsTable.id, requestId)).limit(1);
+
+    if (!request) { res.status(404).json({ error: "Request not found" }); return; }
+    if (request.teacherId !== userId && request.studentId !== userId) {
+      res.status(403).json({ error: "Not authorized" }); return;
+    }
+    if (request.status !== "accepted") {
+      res.json({ success: true, skipped: true }); return; // session already ended
+    }
+
+    const isTeacher = request.teacherId === userId;
+    const now = new Date();
+
+    // ── Compute current accumulated elapsed before we do anything ─────────────
+    let elapsed = request.elapsedSeconds ?? 0;
+    if (request.sessionStartedAt && !request.timerPausedAt) {
+      const liveSecs = Math.floor((now.getTime() - new Date(request.sessionStartedAt).getTime()) / 1000);
+      elapsed = Math.min(elapsed + liveSecs, (request.durationMinutes || 60) * 60);
+    }
+
+    const updateFields: any = { updatedAt: now };
+
+    if (isTeacher) {
+      // Pause the timer and record accumulated elapsed
+      updateFields.timerPausedAt = now;
+      updateFields.teacherLeftAt = now;
+      updateFields.elapsedSeconds = elapsed;
+      updateFields.sessionStartedAt = null; // will be reset on resume
+    } else {
+      updateFields.studentLeftAt = now;
+    }
+
+    await db.update(tutoringRequestsTable)
+      .set(updateFields)
+      .where(eq(tutoringRequestsTable.id, requestId));
+
+    // Re-fetch to check if BOTH have now left ──────────────────────────────────
+    const [fresh] = await db.select().from(tutoringRequestsTable)
+      .where(eq(tutoringRequestsTable.id, requestId)).limit(1);
+
+    const totalSecs = (fresh.durationMinutes || 60) * 60;
+    const teacherGone = !!fresh.teacherLeftAt;
+    const studentGone = !!fresh.studentLeftAt;
+    const sessionNotComplete = (fresh.elapsedSeconds ?? 0) < totalSecs;
+
+    if (teacherGone && studentGone && sessionNotComplete && fresh.status === "accepted") {
+      // Both left before scheduled end → flag for admin review
+      await db.update(tutoringRequestsTable)
+        .set({
+          status: "completed_pending_review",
+          earlyTerminationFlagged: true,
+          updatedAt: now,
+        })
+        .where(eq(tutoringRequestsTable.id, requestId));
+    }
+
+    res.json({ success: true, elapsedSeconds: elapsed });
+  } catch (err: any) {
+    res.status(500).json({ error: "Server error", message: err.message });
+  }
+});
+
+// ─── Server-Authoritative Timer: Teacher Rejoins ─────────────────────────────
+// Called by the teacher when they reconnect. Resumes the paused timer.
+router.post("/requests/:id/timer/resume", requireAuth, async (req, res) => {
+  try {
+    const { userId } = (req as any).user;
+    const requestId = parseParam(req.params.id);
+
+    const [request] = await db.select().from(tutoringRequestsTable)
+      .where(eq(tutoringRequestsTable.id, requestId)).limit(1);
+
+    if (!request) { res.status(404).json({ error: "Request not found" }); return; }
+    if (request.teacherId !== userId) {
+      res.status(403).json({ error: "Only the teacher can resume the timer" }); return;
+    }
+    if (request.status !== "accepted") {
+      res.json({ success: true, skipped: true }); return;
+    }
+
+    const now = new Date();
+
+    await db.update(tutoringRequestsTable)
+      .set({
+        timerPausedAt: null,
+        teacherLeftAt: null,
+        sessionStartedAt: now,   // reset live-clock anchor; elapsed already banked
+        updatedAt: now,
+      })
+      .where(eq(tutoringRequestsTable.id, requestId));
+
+    res.json({
+      success: true,
+      elapsedSeconds: request.elapsedSeconds ?? 0,
+      totalDurationSeconds: (request.durationMinutes || 60) * 60,
+    });
+  } catch (err: any) {
+    res.status(500).json({ error: "Server error", message: err.message });
+  }
+});
+
 export default router;
