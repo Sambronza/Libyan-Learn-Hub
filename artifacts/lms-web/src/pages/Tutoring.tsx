@@ -22,6 +22,19 @@ const GRADE_LEVELS = [
   { value: 'university',  label: 'University / الجامعة' },
 ];
 
+const TUTORING_SUBJECTS = [
+  'Mathematics / الرياضيات',
+  'Physics / الفيزياء',
+  'Chemistry / الكيمياء',
+  'Biology / الأحياء',
+  'English / اللغة الإنجليزية',
+  'Arabic / اللغة العربية',
+  'History / التاريخ',
+  'Geography / الجغرافيا',
+  'Computer Science / علوم الحاسوب',
+  'Islamic Studies / التربية الإسلامية',
+];
+
 /** Minimum hourly rates per grade level — must mirror the backend constant. */
 const GRADE_LEVEL_RATES: Record<string, number> = {
   grade_1_6:   70,
@@ -369,7 +382,10 @@ function RequestSessionModal({ open, onClose }: { open: boolean; onClose: () => 
 
   return (
     <Dialog open={open} onOpenChange={v => { if (!v) onClose(); }}>
-      <DialogContent className="sm:max-w-[580px] max-h-[90vh] overflow-y-auto">
+      <DialogContent 
+        className="sm:max-w-[580px] max-h-[90vh] overflow-y-auto"
+        onInteractOutside={(e) => e.preventDefault()}
+      >
         <DialogHeader>
           <DialogTitle className="text-xl">
             Request a 1-to-1 Session
@@ -394,11 +410,13 @@ function RequestSessionModal({ open, onClose }: { open: boolean; onClose: () => 
             </div>
             <div>
               <label className="text-sm font-medium block mb-1">Subject <span className="text-destructive">*</span></label>
-              <Input
+              <select
                 {...register('subject', { required: 'Subject is required' })}
-                placeholder="e.g. Mathematics"
-                className={errors.subject ? 'border-destructive' : ''}
-              />
+                className={`w-full px-3 py-2 rounded-xl border bg-background text-sm ${errors.subject ? 'border-destructive' : 'border-input'}`}
+              >
+                <option value="">-- Select Subject / اختر المادة --</option>
+                {TUTORING_SUBJECTS.map(s => <option key={s} value={s}>{s}</option>)}
+              </select>
               {errors.subject && <p className="text-xs text-destructive mt-1">{errors.subject.message as string}</p>}
             </div>
           </div>
