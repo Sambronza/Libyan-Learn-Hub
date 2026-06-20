@@ -807,8 +807,8 @@ router.post("/tutoring-reviews/:id/approve", async (req, res) => {
       .where(eq(tutoringRequestsTable.id, requestId)).limit(1);
 
     if (!request) { res.status(404).json({ error: "Request not found" }); return; }
-    if (request.status !== "completed_pending_review") {
-      res.status(400).json({ error: "Only pending review sessions can be approved" }); return;
+    if (request.status !== "completed_pending_review" && request.status !== "cancelled_no_show") {
+      res.status(400).json({ error: "Only pending or no-show sessions can be approved" }); return;
     }
 
     await db.transaction(async (tx) => {
@@ -863,8 +863,8 @@ router.post("/tutoring-reviews/:id/reject", async (req, res) => {
       .where(eq(tutoringRequestsTable.id, requestId)).limit(1);
 
     if (!request) { res.status(404).json({ error: "Request not found" }); return; }
-    if (request.status !== "completed_pending_review") {
-      res.status(400).json({ error: "Only pending review sessions can be rejected" }); return;
+    if (request.status !== "completed_pending_review" && request.status !== "cancelled_no_show") {
+      res.status(400).json({ error: "Only pending or no-show sessions can be rejected" }); return;
     }
 
     await db.transaction(async (tx) => {
@@ -905,8 +905,8 @@ router.post("/tutoring-reviews/:id/partial-approve", async (req, res) => {
       .where(eq(tutoringRequestsTable.id, requestId)).limit(1);
 
     if (!request) { res.status(404).json({ error: "Request not found" }); return; }
-    if (request.status !== "completed_pending_review") {
-      res.status(400).json({ error: "Only pending review sessions can be partially approved" }); return;
+    if (request.status !== "completed_pending_review" && request.status !== "cancelled_no_show") {
+      res.status(400).json({ error: "Only pending or no-show sessions can be partially approved" }); return;
     }
 
     const total = parseFloat(request.totalAmount);

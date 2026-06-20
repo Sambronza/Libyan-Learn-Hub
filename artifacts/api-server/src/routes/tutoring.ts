@@ -809,7 +809,7 @@ router.post("/requests/:id/timer/sync", requireAuth, async (req, res) => {
       
       if ((elapsed >= totalSecs || now.getTime() > realScheduledEndMs) && request.status === "accepted") {
         const neverJoined = (request.elapsedSeconds ?? 0) === 0 && request.sessionStartedAt === null;
-        const teacherAbandoned = !!request.teacherLeftAt;
+        const teacherAbandoned = !!request.teacherLeftAt && elapsed < totalSecs;
         const isNoShow = neverJoined || teacherAbandoned;
 
         await db.update(tutoringRequestsTable)

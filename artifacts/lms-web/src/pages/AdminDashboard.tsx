@@ -2466,7 +2466,7 @@ function TutoringReviewsTab({ api, queryClient, toast }: any) {
               )}
 
               {/* Admin Actions */}
-              {r.status === 'completed_pending_review' ? (
+              {r.status === 'completed_pending_review' || r.status === 'cancelled_no_show' ? (
                 <div className="mt-auto space-y-3 pt-4 border-t border-border">
                   <div>
                     <label className="text-xs font-medium block mb-1">Admin Note / Reason (Optional)</label>
