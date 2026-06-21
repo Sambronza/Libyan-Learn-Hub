@@ -16,16 +16,7 @@ import { useForm, Controller } from 'react-hook-form';
 import { TUTORING_SUBJECTS } from '@/constants/subjects';
 
 // ─── Constants ─────────────────────────────────────────────────────────────────
-const GRADE_LEVELS = [
-  { value: 'grade_1_6',   label: 'Grade 1–6 / الصف الأول - السادس' },
-  { value: 'grade_7',     label: 'Grade 7 / الصف السابع' },
-  { value: 'grade_8',     label: 'Grade 8 / الصف الثامن' },
-  { value: 'grade_9',     label: 'Grade 9 / الصف التاسع' },
-  { value: 'grade_10',    label: 'Grade 10 / الصف العاشر' },
-  { value: 'grade_11',    label: 'Grade 11 / الصف الحادي عشر' },
-  { value: 'grade_12',    label: 'Grade 12 / الصف الثاني عشر' },
-  { value: 'university',  label: 'University / الجامعة' },
-];
+import { GRADE_LEVELS } from '@/constants/levels';
 
 
 
@@ -90,12 +81,14 @@ function SettingsModal({ open, onClose }: { open: boolean; onClose: () => void }
   const api = useApi();
   const { toast } = useToast();
   const { user, refetchUser } = useAuth();
+  const userAny = user as any;
 
-  const { control, register, handleSubmit, reset, formState: { isSubmitting } } = useForm({
+  const { register, handleSubmit, control, reset, formState: { isSubmitting } } = useForm({
     defaultValues: {
-      isTutoringEnabled: !!(user as any)?.isTutoringEnabled,
-      tutoringHourlyRate: (user as any)?.tutoringHourlyRate?.toString() || '0',
-      tutoringSubjects: (user as any)?.tutoringSubjects || '',
+      isTutoringEnabled: !!userAny?.isTutoringEnabled,
+      tutoringHourlyRate: userAny?.tutoringHourlyRate?.toString() || '0',
+      tutoringSubjects: userAny?.tutoringSubjects || '',
+      tutoringLevels: userAny?.tutoringLevels || ''
     }
   });
 
@@ -103,9 +96,10 @@ function SettingsModal({ open, onClose }: { open: boolean; onClose: () => void }
   React.useEffect(() => {
     if (user) {
       reset({
-        isTutoringEnabled: !!(user as any).isTutoringEnabled,
-        tutoringHourlyRate: (user as any).tutoringHourlyRate?.toString() || '0',
-        tutoringSubjects: (user as any).tutoringSubjects || '',
+        isTutoringEnabled: !!userAny.isTutoringEnabled,
+        tutoringHourlyRate: userAny.tutoringHourlyRate?.toString() || '0',
+        tutoringSubjects: userAny.tutoringSubjects || '',
+        tutoringLevels: userAny.tutoringLevels || ''
       });
     }
   }, [user, open, reset]);
@@ -116,6 +110,7 @@ function SettingsModal({ open, onClose }: { open: boolean; onClose: () => void }
         isTutoringEnabled: !!data.isTutoringEnabled,
         tutoringHourlyRate: parseFloat(data.tutoringHourlyRate) || 0,
         tutoringSubjects: data.tutoringSubjects,
+        tutoringLevels: data.tutoringLevels
       });
       refetchUser();
       toast({ title: 'Tutoring settings updated successfully!' });
@@ -189,6 +184,38 @@ function SettingsModal({ open, onClose }: { open: boolean; onClose: () => void }
                           className="w-4 h-4 accent-primary rounded"
                         />
                         {subject}
+                      </label>
+                    ))}
+                  </div>
+                );
+              }}
+            />
+          </div>
+
+          <div>
+            <label className="text-sm font-medium block mb-2">Grade Levels Taught <span className="text-destructive">*</span></label>
+            <Controller
+              name="tutoringLevels"
+              control={control}
+              render={({ field }) => {
+                const selectedLevels = field.value ? field.value.split(',').filter(Boolean) : [];
+                return (
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 max-h-48 overflow-y-auto p-1">
+                    {GRADE_LEVELS.map((level) => (
+                      <label key={level.value} className="flex items-center gap-2 cursor-pointer text-sm">
+                        <input
+                          type="checkbox"
+                          checked={selectedLevels.includes(level.value)}
+                          onChange={(e) => {
+                            if (e.target.checked) {
+                              field.onChange([...selectedLevels, level.value].join(','));
+                            } else {
+                              field.onChange(selectedLevels.filter((s: string) => s !== level.value).join(','));
+                            }
+                          }}
+                          className="w-4 h-4 accent-primary rounded"
+                        />
+                        {level.label}
                       </label>
                     ))}
                   </div>
@@ -385,7 +412,7 @@ function RequestSessionModal({ open, onClose }: { open: boolean; onClose: () => 
     let hourlyRate = gradeMinRate;
     if (!isUrgent && selectedTeacherId && selectedTeacher) {
       const teacherRate = parseFloat(selectedTeacher.tutoringHourlyRate ?? 0);
-      hourlyRate = Math.max(teacherRate, gradeMinRate);
+      hourlyRate = teacherRate;
     }
 
     return parseFloat(((hourlyRate * mins) / 60).toFixed(2));
@@ -514,7 +541,9 @@ function RequestSessionModal({ open, onClose }: { open: boolean; onClose: () => 
               <label className="text-sm font-medium block mb-1">Select Teacher (Optional)</label>
               <select {...register('teacherId')} className="w-full px-3 py-2 rounded-xl border border-input bg-background text-sm">
                 <option value="">Any Teacher / أي معلم متاح</option>
-                {tutors.map((t: any) => (
+                {tutors
+                  .filter((t: any) => t.tutoringLevels?.includes(selectedLevel))
+                  .map((t: any) => (
                   <option key={t.id} value={t.id}>
                     {t.fullName}{t.tutoringSubjects ? ` — ${t.tutoringSubjects}` : ''}
                   </option>

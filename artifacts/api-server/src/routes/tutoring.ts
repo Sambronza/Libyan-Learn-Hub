@@ -58,6 +58,7 @@ router.get("/tutors", async (_req, res) => {
       avatarUrl: t.avatarUrl,
       tutoringHourlyRate: parseFloat(t.tutoringHourlyRate || "0"),
       tutoringSubjects: t.tutoringSubjects,
+      tutoringLevels: t.tutoringLevels,
       isVerified: t.isVerified,
     })));
   } catch (err: any) {
@@ -73,7 +74,7 @@ router.post("/register", requireAuth, async (req, res) => {
       res.status(403).json({ error: "Only teachers can register for tutoring" });
       return;
     }
-    const { tutoringHourlyRate, tutoringSubjects, commissionAgreed } = req.body;
+    const { tutoringHourlyRate, tutoringSubjects, tutoringLevels, commissionAgreed } = req.body;
     
     if (!commissionAgreed) {
       res.status(400).json({ error: "You must agree to the 10% commission" });
@@ -91,6 +92,7 @@ router.post("/register", requireAuth, async (req, res) => {
         isTutoringEnabled: true,
         tutoringHourlyRate: rate.toFixed(2),
         tutoringSubjects: tutoringSubjects || null,
+        tutoringLevels: tutoringLevels || null,
         commissionAgreed: true,
         updatedAt: new Date()
       })
@@ -110,7 +112,7 @@ router.put("/settings", requireAuth, async (req, res) => {
       res.status(403).json({ error: "Only teachers can update tutoring settings" });
       return;
     }
-    const { isTutoringEnabled, tutoringHourlyRate, tutoringSubjects } = req.body;
+    const { isTutoringEnabled, tutoringHourlyRate, tutoringSubjects, tutoringLevels } = req.body;
 
     // Validate hourly rate
     if (tutoringHourlyRate != null) {
@@ -126,6 +128,7 @@ router.put("/settings", requireAuth, async (req, res) => {
         isTutoringEnabled: !!isTutoringEnabled,
         tutoringHourlyRate: tutoringHourlyRate != null ? parseFloat(tutoringHourlyRate).toFixed(2) : "0.00",
         tutoringSubjects: tutoringSubjects || null,
+        tutoringLevels: tutoringLevels || null,
         updatedAt: new Date()
       })
       .where(eq(usersTable.id, userId))
@@ -149,10 +152,14 @@ router.get("/requests", requireAuth, async (req, res) => {
         .orderBy(desc(tutoringRequestsTable.createdAt));
     } else {
       let teacherSubjects: string[] = [];
+      let teacherLevels: string[] = [];
       if (role === "teacher") {
         const [teacher] = await db.select().from(usersTable).where(eq(usersTable.id, userId)).limit(1);
         if (teacher && teacher.tutoringSubjects) {
           teacherSubjects = teacher.tutoringSubjects.split(',').map(s => s.trim()).filter(Boolean);
+        }
+        if (teacher && teacher.tutoringLevels) {
+          teacherLevels = teacher.tutoringLevels.split(',').map(s => s.trim()).filter(Boolean);
         }
       }
 
@@ -163,11 +170,12 @@ router.get("/requests", requireAuth, async (req, res) => {
           eq(tutoringRequestsTable.status, "pending")
         );
       } else {
-        if (teacherSubjects.length > 0) {
+        if (teacherSubjects.length > 0 && teacherLevels.length > 0) {
           unassignedCondition = and(
             isNull(tutoringRequestsTable.teacherId),
             eq(tutoringRequestsTable.status, "pending"),
-            inArray(tutoringRequestsTable.subject, teacherSubjects)
+            inArray(tutoringRequestsTable.subject, teacherSubjects),
+            inArray(tutoringRequestsTable.lecturerLevel, teacherLevels)
           );
         } else {
           unassignedCondition = sql`false`;
@@ -259,9 +267,9 @@ router.post("/requests", requireAuth, async (req, res) => {
         if (teacher.tutoringSuspendedUntil && new Date(teacher.tutoringSuspendedUntil) > new Date()) {
            throw new Error("Selected teacher is currently suspended and cannot accept requests");
         }
-        // Use the higher of the teacher's rate or the grade-level minimum
+        // Use the exact teacher rate as requested
         const teacherRate = parseFloat(teacher.tutoringHourlyRate || "0");
-        hourlyRate = Math.max(teacherRate, gradeMinRate).toFixed(2);
+        hourlyRate = teacherRate.toFixed(2);
       } else {
         // Urgent / any-teacher: use grade-level minimum rate
         hourlyRate = gradeMinRate.toFixed(2);

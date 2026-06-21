@@ -27,6 +27,7 @@ export const usersTable = pgTable("users", {
   isTutoringEnabled: boolean("is_tutoring_enabled").notNull().default(false),
   tutoringHourlyRate: numeric("tutoring_hourly_rate", { precision: 10, scale: 2 }).default("0"),
   tutoringSubjects: text("tutoring_subjects"),
+  tutoringLevels: text("tutoring_levels"),
   commissionAgreed: boolean("commission_agreed").notNull().default(false),
   tutoringSuspendedUntil: timestamp("tutoring_suspended_until"),
   // Teacher profile & verification fields

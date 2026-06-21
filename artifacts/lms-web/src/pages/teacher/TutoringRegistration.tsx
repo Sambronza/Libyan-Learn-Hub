@@ -11,6 +11,7 @@ import { AlertCircle, CheckCircle2 } from "lucide-react";
 import { useLocation } from "wouter";
 import { useQueryClient } from "@tanstack/react-query";
 import { TUTORING_SUBJECTS } from "@/constants/subjects";
+import { GRADE_LEVELS } from "@/constants/levels";
 
 export default function TutoringRegistration() {
   const { user } = useAuth();
@@ -21,7 +22,9 @@ export default function TutoringRegistration() {
 
   const userAny = user as any;
   const initialSubjects = userAny?.tutoringSubjects ? userAny.tutoringSubjects.split(',').map((s: string) => s.trim()) : [];
+  const initialLevels = userAny?.tutoringLevels ? userAny.tutoringLevels.split(',').map((s: string) => s.trim()) : [];
   const [selectedSubjects, setSelectedSubjects] = useState<string[]>(initialSubjects);
+  const [selectedLevels, setSelectedLevels] = useState<string[]>(initialLevels);
   const [hourlyRate, setHourlyRate] = useState(userAny?.tutoringHourlyRate || "");
   const [commissionAgreed, setCommissionAgreed] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
@@ -56,13 +59,24 @@ export default function TutoringRegistration() {
       return;
     }
 
+    if (selectedLevels.length === 0) {
+      toast({
+        title: "Grade Levels Required",
+        description: "Please specify at least one grade level you teach.",
+        variant: "destructive",
+      });
+      return;
+    }
+
     const subjectsString = selectedSubjects.join(',');
+    const levelsString = selectedLevels.join(',');
 
     try {
       setIsLoading(true);
       await api.post("/tutoring/register", {
         tutoringHourlyRate: rate,
         tutoringSubjects: subjectsString,
+        tutoringLevels: levelsString,
         commissionAgreed: true
       });
       
@@ -145,6 +159,33 @@ export default function TutoringRegistration() {
                         className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 cursor-pointer"
                       >
                         {subject}
+                      </label>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              <div className="space-y-2">
+                <Label>Grade Levels Taught <span className="text-destructive">*</span></Label>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 mt-2">
+                  {GRADE_LEVELS.map((level) => (
+                    <div key={level.value} className="flex items-center space-x-2">
+                      <Checkbox 
+                        id={level.value} 
+                        checked={selectedLevels.includes(level.value)}
+                        onCheckedChange={(checked) => {
+                          if (checked) {
+                            setSelectedLevels([...selectedLevels, level.value]);
+                          } else {
+                            setSelectedLevels(selectedLevels.filter(s => s !== level.value));
+                          }
+                        }}
+                      />
+                      <label 
+                        htmlFor={level.value} 
+                        className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 cursor-pointer"
+                      >
+                        {level.label}
                       </label>
                     </div>
                   ))}
