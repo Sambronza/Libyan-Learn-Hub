@@ -40,7 +40,7 @@ const TUTORING_SUBJECTS = [
 ];
 
 /** Minimum hourly rates per grade level — must mirror the backend constant. */
-const GRADE_LEVEL_RATES: Record<string, number> = {
+const GRADE_LEVEL_RATES_INTL: Record<string, number> = {
   grade_1_6:   70,
   grade_7:    100,
   grade_8:    100,
@@ -51,8 +51,20 @@ const GRADE_LEVEL_RATES: Record<string, number> = {
   university:  150,
 };
 
-function getGradeRate(level: string): number {
-  return GRADE_LEVEL_RATES[level] ?? 100;
+const GRADE_LEVEL_RATES_LOCAL: Record<string, number> = {
+  grade_1_6:   30,
+  grade_7:     50,
+  grade_8:     50,
+  grade_9:     70,
+  grade_10:    60,
+  grade_11:    60,
+  grade_12:   100,
+  university:  150,
+};
+
+function getGradeRate(level: string, educationType?: string | null): number {
+  const table = educationType === "local" ? GRADE_LEVEL_RATES_LOCAL : GRADE_LEVEL_RATES_INTL;
+  return table[level] ?? 100;
 }
 
 const STATUS_COLORS: Record<string, string> = {
@@ -349,10 +361,11 @@ function RequestSessionModal({ open, onClose }: { open: boolean; onClose: () => 
   const selectedTeacherId = watch('teacherId');
   const selectedDuration = watch('durationMinutes');
   const selectedLevel = watch('lecturerLevel');
+  const selectedEducationType = watch('educationType');
 
   const selectedTeacher = tutors.find((t: any) => String(t.id) === String(selectedTeacherId));
   const estimatedCost = React.useMemo(() => {
-    const gradeMinRate = getGradeRate(selectedLevel);
+    const gradeMinRate = getGradeRate(selectedLevel, selectedEducationType);
     const mins = parseInt(selectedDuration) || 60;
 
     let hourlyRate = gradeMinRate;
@@ -362,7 +375,7 @@ function RequestSessionModal({ open, onClose }: { open: boolean; onClose: () => 
     }
 
     return parseFloat(((hourlyRate * mins) / 60).toFixed(2));
-  }, [isUrgent, selectedTeacherId, selectedTeacher, selectedDuration, selectedLevel]);
+  }, [isUrgent, selectedTeacherId, selectedTeacher, selectedDuration, selectedLevel, selectedEducationType]);
 
   const minDT = new Date();
   minDT.setHours(minDT.getHours() + 1);

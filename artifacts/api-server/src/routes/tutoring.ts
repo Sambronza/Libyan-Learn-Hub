@@ -13,7 +13,7 @@ const router = Router();
 const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 50 * 1024 * 1024 } });
 
 // ─── Grade-level minimum hourly rates (LYD/hour) ─────────────────────────────
-export const GRADE_LEVEL_RATES: Record<string, number> = {
+export const GRADE_LEVEL_RATES_INTL: Record<string, number> = {
   grade_1_6:   70,
   grade_7:    100,
   grade_8:    100,
@@ -24,9 +24,21 @@ export const GRADE_LEVEL_RATES: Record<string, number> = {
   university:  150,
 };
 
-/** Returns the minimum hourly rate for a given lecturer level. */
-export function getGradeRate(lecturerLevel?: string | null): number {
-  return GRADE_LEVEL_RATES[lecturerLevel ?? ""] ?? 100;
+export const GRADE_LEVEL_RATES_LOCAL: Record<string, number> = {
+  grade_1_6:   30,
+  grade_7:     50,
+  grade_8:     50,
+  grade_9:     70,
+  grade_10:    60,
+  grade_11:    60,
+  grade_12:   100,
+  university:  150,
+};
+
+/** Returns the minimum hourly rate for a given lecturer level and education type. */
+export function getGradeRate(lecturerLevel?: string | null, educationType?: string | null): number {
+  const table = educationType === "local" ? GRADE_LEVEL_RATES_LOCAL : GRADE_LEVEL_RATES_INTL;
+  return table[lecturerLevel ?? ""] ?? 100;
 }
 
 // ─── List tutors (teachers with tutoring enabled) ────────────────────────────
@@ -215,7 +227,7 @@ router.post("/requests", requireAuth, async (req, res) => {
       const resolvedTeacherId = isUrgent ? null : (teacherId ? parseInt(teacherId) : null);
 
       // Grade-level minimum rate acts as the floor for all requests
-      const gradeMinRate = getGradeRate(lecturerLevel);
+      const gradeMinRate = getGradeRate(lecturerLevel, educationType);
 
       if (resolvedTeacherId) {
         const [teacher] = await tx.select().from(usersTable).where(eq(usersTable.id, resolvedTeacherId)).limit(1);
