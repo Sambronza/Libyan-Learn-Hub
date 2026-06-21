@@ -1,7 +1,7 @@
 import { Router } from "express";
 import { db } from "@workspace/db";
 import { tutoringRequestsTable, usersTable, paymentsTable, teacherEarningsTable } from "@workspace/db";
-import { eq, and, desc, isNull, or, sql, lt } from "drizzle-orm";
+import { eq, and, desc, isNull, or, sql, lt, inArray } from "drizzle-orm";
 import { requireAuth } from "../lib/auth.js";
 import { parseParam } from "../lib/utils.js";
 import crypto from "crypto";
@@ -148,18 +148,40 @@ router.get("/requests", requireAuth, async (req, res) => {
         .where(eq(tutoringRequestsTable.studentId, userId))
         .orderBy(desc(tutoringRequestsTable.createdAt));
     } else {
+      let teacherSubjects: string[] = [];
+      if (role === "teacher") {
+        const [teacher] = await db.select().from(usersTable).where(eq(usersTable.id, userId)).limit(1);
+        if (teacher && teacher.tutoringSubjects) {
+          teacherSubjects = teacher.tutoringSubjects.split(',').map(s => s.trim()).filter(Boolean);
+        }
+      }
+
+      let unassignedCondition;
+      if (role === "admin") {
+        unassignedCondition = and(
+          isNull(tutoringRequestsTable.teacherId),
+          eq(tutoringRequestsTable.status, "pending")
+        );
+      } else {
+        if (teacherSubjects.length > 0) {
+          unassignedCondition = and(
+            isNull(tutoringRequestsTable.teacherId),
+            eq(tutoringRequestsTable.status, "pending"),
+            inArray(tutoringRequestsTable.subject, teacherSubjects)
+          );
+        } else {
+          unassignedCondition = sql`false`;
+        }
+      }
+
       // Teachers/admins see:
       //  • Requests explicitly assigned to them
-      //  • Urgent requests with no teacher assigned (open pool)
-      //  • Non-urgent requests with no teacher assigned (any-teacher requests)
+      //  • Unassigned requests that match their subjects
       requests = await db.select().from(tutoringRequestsTable)
         .where(
           or(
             eq(tutoringRequestsTable.teacherId, userId),
-            and(
-              isNull(tutoringRequestsTable.teacherId),
-              eq(tutoringRequestsTable.status, "pending")
-            )
+            unassignedCondition
           )
         )
         .orderBy(desc(tutoringRequestsTable.createdAt));

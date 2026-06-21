@@ -10,6 +10,7 @@ import { useApi } from "@/hooks/useApi";
 import { AlertCircle, CheckCircle2 } from "lucide-react";
 import { useLocation } from "wouter";
 import { useQueryClient } from "@tanstack/react-query";
+import { TUTORING_SUBJECTS } from "@/constants/subjects";
 
 export default function TutoringRegistration() {
   const { user } = useAuth();
@@ -19,7 +20,8 @@ export default function TutoringRegistration() {
   const queryClient = useQueryClient();
 
   const userAny = user as any;
-  const [subjects, setSubjects] = useState(userAny?.tutoringSubjects || "");
+  const initialSubjects = userAny?.tutoringSubjects ? userAny.tutoringSubjects.split(',').map((s: string) => s.trim()) : [];
+  const [selectedSubjects, setSelectedSubjects] = useState<string[]>(initialSubjects);
   const [hourlyRate, setHourlyRate] = useState(userAny?.tutoringHourlyRate || "");
   const [commissionAgreed, setCommissionAgreed] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
@@ -45,7 +47,7 @@ export default function TutoringRegistration() {
       return;
     }
 
-    if (!subjects.trim()) {
+    if (selectedSubjects.length === 0) {
       toast({
         title: "Categories Required",
         description: "Please specify at least one category or subject you teach.",
@@ -54,11 +56,13 @@ export default function TutoringRegistration() {
       return;
     }
 
+    const subjectsString = selectedSubjects.join(',');
+
     try {
       setIsLoading(true);
       await api.post("/tutoring/register", {
         tutoringHourlyRate: rate,
-        tutoringSubjects: subjects,
+        tutoringSubjects: subjectsString,
         commissionAgreed: true
       });
       
@@ -121,14 +125,30 @@ export default function TutoringRegistration() {
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="subjects">Categories / Subjects Taught</Label>
-                <Input 
-                  id="subjects" 
-                  placeholder="e.g. Mathematics, Physics, English" 
-                  value={subjects}
-                  onChange={(e) => setSubjects(e.target.value)}
-                  required
-                />
+                <Label>Categories / Subjects Taught <span className="text-destructive">*</span></Label>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 mt-2">
+                  {TUTORING_SUBJECTS.map((subject) => (
+                    <div key={subject} className="flex items-center space-x-2">
+                      <Checkbox 
+                        id={subject} 
+                        checked={selectedSubjects.includes(subject)}
+                        onCheckedChange={(checked) => {
+                          if (checked) {
+                            setSelectedSubjects([...selectedSubjects, subject]);
+                          } else {
+                            setSelectedSubjects(selectedSubjects.filter(s => s !== subject));
+                          }
+                        }}
+                      />
+                      <label 
+                        htmlFor={subject} 
+                        className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 cursor-pointer"
+                      >
+                        {subject}
+                      </label>
+                    </div>
+                  ))}
+                </div>
               </div>
 
               <div className="space-y-2">

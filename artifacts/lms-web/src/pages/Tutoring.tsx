@@ -13,6 +13,7 @@ import {
   Clock, Calendar, MessageSquare, Send, Settings, ExternalLink, Plus
 } from 'lucide-react';
 import { useForm, Controller } from 'react-hook-form';
+import { TUTORING_SUBJECTS } from '@/constants/subjects';
 
 // ─── Constants ─────────────────────────────────────────────────────────────────
 const GRADE_LEVELS = [
@@ -26,18 +27,7 @@ const GRADE_LEVELS = [
   { value: 'university',  label: 'University / الجامعة' },
 ];
 
-const TUTORING_SUBJECTS = [
-  'Mathematics / الرياضيات',
-  'Physics / الفيزياء',
-  'Chemistry / الكيمياء',
-  'Biology / الأحياء',
-  'English / اللغة الإنجليزية',
-  'Arabic / اللغة العربية',
-  'History / التاريخ',
-  'Geography / الجغرافيا',
-  'Computer Science / علوم الحاسوب',
-  'Islamic Studies / التربية الإسلامية',
-];
+
 
 /** Minimum hourly rates per grade level — must mirror the backend constant. */
 const GRADE_LEVEL_RATES_INTL: Record<string, number> = {
@@ -176,10 +166,34 @@ function SettingsModal({ open, onClose }: { open: boolean; onClose: () => void }
           </div>
 
           <div>
-            <label className="text-sm font-medium block mb-1">Subjects Taught</label>
-            <Input
-              {...register('tutoringSubjects')}
-              placeholder="e.g. Math, Physics, Arabic"
+            <label className="text-sm font-medium block mb-2">Subjects Taught <span className="text-destructive">*</span></label>
+            <Controller
+              name="tutoringSubjects"
+              control={control}
+              render={({ field }) => {
+                const selectedSubjects = field.value ? field.value.split(',').filter(Boolean) : [];
+                return (
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 max-h-48 overflow-y-auto p-1">
+                    {TUTORING_SUBJECTS.map((subject) => (
+                      <label key={subject} className="flex items-center gap-2 cursor-pointer text-sm">
+                        <input
+                          type="checkbox"
+                          checked={selectedSubjects.includes(subject)}
+                          onChange={(e) => {
+                            if (e.target.checked) {
+                              field.onChange([...selectedSubjects, subject].join(','));
+                            } else {
+                              field.onChange(selectedSubjects.filter((s: string) => s !== subject).join(','));
+                            }
+                          }}
+                          className="w-4 h-4 accent-primary rounded"
+                        />
+                        {subject}
+                      </label>
+                    ))}
+                  </div>
+                );
+              }}
             />
           </div>
 
