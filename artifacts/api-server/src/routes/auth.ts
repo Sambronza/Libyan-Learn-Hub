@@ -372,6 +372,7 @@ router.get("/me", requireAuth, async (req, res) => {
     isTutoringEnabled: user.isTutoringEnabled,
     tutoringHourlyRate: user.tutoringHourlyRate ?? "0",
     tutoringSubjects: user.tutoringSubjects ?? null,
+    tutoringLevels: user.tutoringLevels ?? null,
     commissionAgreed: user.commissionAgreed,
     tutoringSuspendedUntil: user.tutoringSuspendedUntil ?? null,
     createdAt: user.createdAt,

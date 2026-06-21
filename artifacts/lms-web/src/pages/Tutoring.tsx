@@ -14,11 +14,9 @@ import {
 } from 'lucide-react';
 import { useForm, Controller } from 'react-hook-form';
 import { TUTORING_SUBJECTS } from '@/constants/subjects';
-
-// ─── Constants ─────────────────────────────────────────────────────────────────
 import { GRADE_LEVELS } from '@/constants/levels';
 
-
+// ─── Constants ─────────────────────────────────────────────────────────────────
 
 /** Minimum hourly rates per grade level — must mirror the backend constant. */
 const GRADE_LEVEL_RATES_INTL: Record<string, number> = {
@@ -382,7 +380,7 @@ function RequestSessionModal({ open, onClose }: { open: boolean; onClose: () => 
   });
 
   const {
-    register, handleSubmit, watch, reset, control,
+    register, handleSubmit, watch, reset, control, setValue,
     formState: { isSubmitting, errors }
   } = useForm({
     defaultValues: {
@@ -404,7 +402,25 @@ function RequestSessionModal({ open, onClose }: { open: boolean; onClose: () => 
   const selectedLevel = watch('lecturerLevel');
   const selectedEducationType = watch('educationType');
 
-  const selectedTeacher = tutors.find((t: any) => String(t.id) === String(selectedTeacherId));
+  // When level changes, reset teacher selection to avoid booking incompatible teacher
+  // Also clear educationType when switching to university (it doesn't apply)
+  React.useEffect(() => {
+    setValue('teacherId', '');
+    if (selectedLevel === 'university') {
+      setValue('educationType', '');
+    }
+  }, [selectedLevel, setValue]);
+
+  const filteredTutors = React.useMemo(
+    () => tutors.filter((t: any) => {
+      if (!t.tutoringLevels) return false;
+      const teacherLevels = t.tutoringLevels.split(',').map((s: string) => s.trim());
+      return teacherLevels.includes(selectedLevel);
+    }),
+    [tutors, selectedLevel]
+  );
+
+  const selectedTeacher = filteredTutors.find((t: any) => String(t.id) === String(selectedTeacherId));
   const estimatedCost = React.useMemo(() => {
     const gradeMinRate = getGradeRate(selectedLevel, selectedEducationType);
     const mins = parseInt(selectedDuration) || 60;
@@ -541,16 +557,14 @@ function RequestSessionModal({ open, onClose }: { open: boolean; onClose: () => 
               <label className="text-sm font-medium block mb-1">Select Teacher (Optional)</label>
               <select {...register('teacherId')} className="w-full px-3 py-2 rounded-xl border border-input bg-background text-sm">
                 <option value="">Any Teacher / أي معلم متاح</option>
-                {tutors
-                  .filter((t: any) => t.tutoringLevels?.includes(selectedLevel))
-                  .map((t: any) => (
+                {filteredTutors.map((t: any) => (
                   <option key={t.id} value={t.id}>
                     {t.fullName}{t.tutoringSubjects ? ` — ${t.tutoringSubjects}` : ''}
                   </option>
                 ))}
               </select>
-              {tutors.length === 0 && (
-                <p className="text-xs text-muted-foreground mt-1">No tutors have enabled 1-to-1 sessions yet.</p>
+              {filteredTutors.length === 0 && (
+                <p className="text-xs text-muted-foreground mt-1">No tutors available for this level yet.</p>
               )}
             </div>
           )}

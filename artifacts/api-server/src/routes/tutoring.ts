@@ -170,13 +170,23 @@ router.get("/requests", requireAuth, async (req, res) => {
           eq(tutoringRequestsTable.status, "pending")
         );
       } else {
-        if (teacherSubjects.length > 0 && teacherLevels.length > 0) {
-          unassignedCondition = and(
-            isNull(tutoringRequestsTable.teacherId),
-            eq(tutoringRequestsTable.status, "pending"),
-            inArray(tutoringRequestsTable.subject, teacherSubjects),
-            inArray(tutoringRequestsTable.lecturerLevel, teacherLevels)
-          );
+        if (teacherSubjects.length > 0) {
+          if (teacherLevels.length > 0) {
+            // New behaviour: filter by both subject AND level
+            unassignedCondition = and(
+              isNull(tutoringRequestsTable.teacherId),
+              eq(tutoringRequestsTable.status, "pending"),
+              inArray(tutoringRequestsTable.subject, teacherSubjects),
+              inArray(tutoringRequestsTable.lecturerLevel, teacherLevels)
+            );
+          } else {
+            // Legacy fallback: teacher hasn't set levels yet → filter by subject only
+            unassignedCondition = and(
+              isNull(tutoringRequestsTable.teacherId),
+              eq(tutoringRequestsTable.status, "pending"),
+              inArray(tutoringRequestsTable.subject, teacherSubjects)
+            );
+          }
         } else {
           unassignedCondition = sql`false`;
         }
