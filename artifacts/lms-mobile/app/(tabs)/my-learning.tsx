@@ -334,10 +334,11 @@ function TeacherDashboard() {
             <TextInput style={styles.input} value={listingForm.subject} onChangeText={v => setListingForm(f => ({ ...f, subject: v }))} placeholder="e.g. Mathematics" />
 
             <Text style={styles.inputLabel}>{t("المستوى الدراسي", "Grade Level")}</Text>
-            <TextInput style={styles.input} value={listingForm.gradeLevel} onChangeText={v => setListingForm(f => ({ ...f, gradeLevel: v }))} placeholder="grade_10 / grade_11 / grade_12 / university" />
+            <TextInput style={styles.input} value={listingForm.gradeLevel} onChangeText={v => setListingForm(f => ({ ...f, gradeLevel: v }))} placeholder="grade_1_6 / grade_7 / ... / university" />
 
             <Text style={styles.inputLabel}>{t("السعر بالساعة (دينار) *", "Hourly Rate (LYD) *")}</Text>
             <TextInput style={styles.input} value={listingForm.hourlyRate} onChangeText={v => setListingForm(f => ({ ...f, hourlyRate: v }))} keyboardType="numeric" placeholder="50" />
+            {/* TODO: Implement payment selection and gateway integration for these sessions in the next sprint */}
 
             <View style={{ flexDirection: "row", gap: 10 }}>
               <View style={{ flex: 1 }}>

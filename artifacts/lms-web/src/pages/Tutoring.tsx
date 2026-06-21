@@ -17,8 +17,12 @@ import { useForm, Controller } from 'react-hook-form';
 // ─── Constants ─────────────────────────────────────────────────────────────────
 const GRADE_LEVELS = [
   { value: 'grade_1_6',   label: 'Grade 1–6 / الصف الأول - السادس' },
-  { value: 'grade_7_9',   label: 'Grade 7–9 / الصف السابع - التاسع' },
-  { value: 'grade_10_12', label: 'Grade 10–12 / الصف العاشر - الثاني عشر' },
+  { value: 'grade_7',     label: 'Grade 7 / الصف السابع' },
+  { value: 'grade_8',     label: 'Grade 8 / الصف الثامن' },
+  { value: 'grade_9',     label: 'Grade 9 / الصف التاسع' },
+  { value: 'grade_10',    label: 'Grade 10 / الصف العاشر' },
+  { value: 'grade_11',    label: 'Grade 11 / الصف الحادي عشر' },
+  { value: 'grade_12',    label: 'Grade 12 / الصف الثاني عشر' },
   { value: 'university',  label: 'University / الجامعة' },
 ];
 
@@ -38,8 +42,12 @@ const TUTORING_SUBJECTS = [
 /** Minimum hourly rates per grade level — must mirror the backend constant. */
 const GRADE_LEVEL_RATES: Record<string, number> = {
   grade_1_6:   70,
-  grade_7_9:  100,
-  grade_10_12: 150,
+  grade_7:    100,
+  grade_8:    100,
+  grade_9:    100,
+  grade_10:   150,
+  grade_11:   150,
+  grade_12:   150,
   university:  150,
 };
 
@@ -328,7 +336,7 @@ function RequestSessionModal({ open, onClose }: { open: boolean; onClose: () => 
       isUrgent: false,
       teacherId: '',
       subject: '',
-      lecturerLevel: 'grade_10_12',
+      lecturerLevel: 'grade_10',
       topic: '',
       preferredAt: '',
       durationMinutes: '60',

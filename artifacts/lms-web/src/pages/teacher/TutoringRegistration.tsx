@@ -145,6 +145,7 @@ export default function TutoringRegistration() {
                   required
                 />
                 <p className="text-xs text-muted-foreground">Maximum allowed rate is 100 dinars per hour.</p>
+                {/* TODO: Implement payment selection and gateway integration for these sessions in the next sprint */}
               </div>
             </div>
 

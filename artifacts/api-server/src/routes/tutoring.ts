@@ -15,8 +15,12 @@ const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 50 
 // ─── Grade-level minimum hourly rates (LYD/hour) ─────────────────────────────
 export const GRADE_LEVEL_RATES: Record<string, number> = {
   grade_1_6:   70,
-  grade_7_9:  100,
-  grade_10_12: 150,
+  grade_7:    100,
+  grade_8:    100,
+  grade_9:    100,
+  grade_10:   150,
+  grade_11:   150,
+  grade_12:   150,
   university:  150,
 };
 
