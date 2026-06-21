@@ -185,7 +185,7 @@ router.post("/requests", requireAuth, async (req, res) => {
       return;
     }
 
-    const { teacherId, categoryId, lecturerLevel, isUrgent, subject, topic, preferredAt, durationMinutes, message, attachmentsUrl } = req.body;
+    const { teacherId, categoryId, lecturerLevel, educationType, isUrgent, subject, topic, preferredAt, durationMinutes, message, attachmentsUrl } = req.body;
 
     // Validate required fields
     if (!subject || !subject.trim()) {
@@ -250,6 +250,7 @@ router.post("/requests", requireAuth, async (req, res) => {
         studentId: userId,
         categoryId: categoryId || null,
         lecturerLevel: lecturerLevel || null,
+        educationType: educationType || null,
         teacherId: resolvedTeacherId,
         isUrgent: !!isUrgent,
         subject: subject.trim(),

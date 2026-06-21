@@ -16,6 +16,7 @@ export const tutoringRequestsTable = pgTable("tutoring_requests", {
   subject: varchar("subject", { length: 255 }).notNull(),
   topic: text("topic").notNull(),
   lecturerLevel: varchar("lecturer_level", { length: 100 }),
+  educationType: varchar("education_type", { length: 50 }),
   isUrgent: boolean("is_urgent").notNull().default(false),
   attachmentsUrl: text("attachments_url"),
   preferredAt: timestamp("preferred_at").notNull(),

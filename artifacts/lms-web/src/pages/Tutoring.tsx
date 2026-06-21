@@ -337,6 +337,7 @@ function RequestSessionModal({ open, onClose }: { open: boolean; onClose: () => 
       teacherId: '',
       subject: '',
       lecturerLevel: 'grade_10',
+      educationType: '',
       topic: '',
       preferredAt: '',
       durationMinutes: '60',
@@ -430,6 +431,34 @@ function RequestSessionModal({ open, onClose }: { open: boolean; onClose: () => 
               {errors.subject && <p className="text-xs text-destructive mt-1">{errors.subject.message as string}</p>}
             </div>
           </div>
+
+          {/* Education Type (Hidden for Uni-level) */}
+          {selectedLevel !== 'university' && (
+            <div className="space-y-2">
+              <label className="text-sm font-medium block">Education Type / نوع التعليم <span className="text-destructive">*</span></label>
+              <div className="flex items-center gap-4">
+                <label className="flex items-center gap-2 cursor-pointer text-sm">
+                  <input
+                    type="radio"
+                    value="international"
+                    {...register('educationType', { required: selectedLevel !== 'university' ? 'Education Type is required' : false })}
+                    className="w-4 h-4 accent-primary"
+                  />
+                  International / تعليم دولي
+                </label>
+                <label className="flex items-center gap-2 cursor-pointer text-sm">
+                  <input
+                    type="radio"
+                    value="local"
+                    {...register('educationType', { required: selectedLevel !== 'university' ? 'Education Type is required' : false })}
+                    className="w-4 h-4 accent-primary"
+                  />
+                  Local / تعليم محلي
+                </label>
+              </div>
+              {errors.educationType && <p className="text-xs text-destructive">{errors.educationType.message as string}</p>}
+            </div>
+          )}
 
           {/* Urgent toggle */}
           <Controller
