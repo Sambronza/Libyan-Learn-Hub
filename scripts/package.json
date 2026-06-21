@@ -6,7 +6,7 @@
   "scripts": {
     "hello": "tsx ./src/hello.ts",
     "seed": "tsx ./src/seed.ts",
-    "normalize": "tsx --env-file=../.env ./src/normalize-subjects.ts",
+    "normalize": "tsx --env-file=../lib/db/.env ./src/normalize-subjects.ts",
     "admin:setup": "tsx ./src/reset_admin.ts",
     "typecheck": "tsc -p tsconfig.json --noEmit"
   },
