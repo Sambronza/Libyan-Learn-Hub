@@ -1,7 +1,7 @@
 import { Router } from "express";
 import { db } from "@workspace/db";
 import { tutoringRequestsTable, usersTable, paymentsTable, teacherEarningsTable } from "@workspace/db";
-import { eq, and, desc, isNull, or, sql, lt, inArray } from "drizzle-orm";
+import { eq, and, desc, isNull, or, sql, lt, inArray, like } from "drizzle-orm";
 import { requireAuth } from "../lib/auth.js";
 import { parseParam } from "../lib/utils.js";
 import crypto from "crypto";
@@ -42,14 +42,26 @@ export function getGradeRate(lecturerLevel?: string | null, educationType?: stri
 }
 
 // ─── List tutors (teachers with tutoring enabled) ────────────────────────────
-router.get("/tutors", async (_req, res) => {
+router.get("/tutors", async (req, res) => {
   try {
+    const { subject, level } = req.query;
+
+    const conditions = [
+      or(eq(usersTable.role, "teacher"), eq(usersTable.role, "admin")), 
+      eq(usersTable.isTutoringEnabled, true),
+      or(isNull(usersTable.tutoringSuspendedUntil), lt(usersTable.tutoringSuspendedUntil, new Date()))
+    ];
+
+    if (subject && typeof subject === "string") {
+      conditions.push(like(usersTable.tutoringSubjects, `%${subject}%`));
+    }
+
+    if (level && typeof level === "string") {
+      conditions.push(like(usersTable.tutoringLevels, `%${level}%`));
+    }
+
     const tutors = await db.select().from(usersTable)
-      .where(and(
-        or(eq(usersTable.role, "teacher"), eq(usersTable.role, "admin")), 
-        eq(usersTable.isTutoringEnabled, true),
-        or(isNull(usersTable.tutoringSuspendedUntil), lt(usersTable.tutoringSuspendedUntil, new Date()))
-      ));
+      .where(and(...conditions));
     res.json(tutors.map(t => ({
       id: t.id,
       fullName: t.fullName,

@@ -373,12 +373,6 @@ function RequestSessionModal({ open, onClose }: { open: boolean; onClose: () => 
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
-  const { data: tutors = [] } = useQuery<any[]>({
-    queryKey: ['/api/tutoring/tutors'],
-    queryFn: () => api.get('/tutoring/tutors'),
-    enabled: open,
-  });
-
   const {
     register, handleSubmit, watch, reset, control, setValue,
     formState: { isSubmitting, errors }
@@ -401,23 +395,49 @@ function RequestSessionModal({ open, onClose }: { open: boolean; onClose: () => 
   const selectedDuration = watch('durationMinutes');
   const selectedLevel = watch('lecturerLevel');
   const selectedEducationType = watch('educationType');
+  const selectedSubject = watch('subject');
 
-  // When level changes, reset teacher selection to avoid booking incompatible teacher
+  const { data: tutors = [] } = useQuery<any[]>({
+    queryKey: ['/api/tutoring/tutors', selectedLevel, selectedSubject],
+    queryFn: () => {
+      const params = new URLSearchParams();
+      if (selectedLevel) params.append('level', selectedLevel);
+      if (selectedSubject) params.append('subject', selectedSubject);
+      return api.get(`/tutoring/tutors?${params.toString()}`);
+    },
+    enabled: open,
+  });
+
+  // When level or subject changes, reset teacher selection to avoid booking incompatible teacher
   // Also clear educationType when switching to university (it doesn't apply)
   React.useEffect(() => {
     setValue('teacherId', '');
     if (selectedLevel === 'university') {
       setValue('educationType', '');
     }
-  }, [selectedLevel, setValue]);
+  }, [selectedLevel, selectedSubject, setValue]);
 
   const filteredTutors = React.useMemo(
     () => tutors.filter((t: any) => {
-      if (!t.tutoringLevels) return false;
-      const teacherLevels = t.tutoringLevels.split(',').map((s: string) => s.trim());
-      return teacherLevels.includes(selectedLevel);
+      let levelMatch = false;
+      if (t.tutoringLevels) {
+        const teacherLevels = t.tutoringLevels.split(',').map((s: string) => s.trim());
+        levelMatch = teacherLevels.includes(selectedLevel);
+      }
+      
+      let subjectMatch = true;
+      if (selectedSubject) {
+        if (t.tutoringSubjects) {
+          const teacherSubjects = t.tutoringSubjects.split(',').map((s: string) => s.trim());
+          subjectMatch = teacherSubjects.includes(selectedSubject);
+        } else {
+          subjectMatch = false;
+        }
+      }
+
+      return levelMatch && subjectMatch;
     }),
-    [tutors, selectedLevel]
+    [tutors, selectedLevel, selectedSubject]
   );
 
   const selectedTeacher = filteredTutors.find((t: any) => String(t.id) === String(selectedTeacherId));
