@@ -319,10 +319,10 @@ export default function TutoringRoom() {
   return (
     <div className="h-screen flex flex-col bg-slate-900 text-white overflow-hidden font-sans">
       {/* Top bar */}
-      <div className="flex items-center justify-between px-4 py-3 bg-slate-800 border-b border-white/10 shrink-0 z-10 shadow-sm">
-        <div className="flex items-center gap-4">
+      <div className="flex items-center justify-between px-4 py-3 bg-slate-800 border-b border-white/10 shrink-0 z-10 shadow-sm min-h-[56px]">
+        <div className="flex items-center gap-4 min-w-0">
           {/* INT-011: call /leave before navigating if already joined */}
-          <Button variant="ghost" size="icon" onClick={async () => {
+          <Button variant="ghost" size="icon" className="shrink-0" onClick={async () => {
             if (hasJoined && sessionType === 'request') {
               try { await api.post(`/tutoring/requests/${requestId}/leave`, {}); } catch { /* ignore */ }
             }
@@ -330,14 +330,14 @@ export default function TutoringRoom() {
           }}>
             <ArrowLeft className="w-5 h-5" />
           </Button>
-          <div>
+          <div className="min-w-0">
             <div className="flex items-center gap-2 mb-0.5">
-              <span className={`w-2.5 h-2.5 rounded-full ${hasJoined ? 'bg-red-500 animate-pulse' : 'bg-amber-500'}`} />
+              <span className={`w-2.5 h-2.5 rounded-full shrink-0 ${hasJoined ? 'bg-red-500 animate-pulse' : 'bg-amber-500'}`} />
               <span className={`text-xs font-bold uppercase tracking-widest ${hasJoined ? 'text-red-400' : 'text-amber-400'}`}>
                 {hasJoined ? 'Live' : 'Waiting Room'}
               </span>
             </div>
-            <h1 className="font-bold text-base">Tutoring: {resolvedSession.subject}</h1>
+            <h1 className="font-bold text-base truncate">Tutoring: {resolvedSession.subject}</h1>
           </div>
         </div>
       </div>

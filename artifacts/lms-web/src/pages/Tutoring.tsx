@@ -715,13 +715,13 @@ function RequestCard({
           )}
         </div>
 
-        {/* Right side: amount + actions */}
-        <div className="shrink-0 flex flex-col items-end gap-2 min-w-[140px]">
+        {/* Right side: amount + actions — full-width on mobile, fixed-width column on md+ */}
+        <div className="flex flex-row md:flex-col md:items-end gap-2 md:min-w-[140px] flex-wrap items-center justify-between border-t border-border pt-4 md:border-0 md:pt-0">
           <div className="text-xl font-bold text-primary">{r.totalAmount} LYD</div>
 
           {/* Meeting link (if accepted) */}
           {r.status === 'accepted' && r.meetingUrl && (
-            <Button asChild size="sm" className="w-full bg-green-600 hover:bg-green-700 gap-2">
+            <Button asChild size="sm" className="bg-green-600 hover:bg-green-700 gap-2">
               <Link href={`/tutoring/room/${r.id}`}>
                 <ExternalLink className="w-3.5 h-3.5" /> Join Meeting
               </Link>
@@ -730,14 +730,14 @@ function RequestCard({
 
           {/* Teacher actions */}
           {isTeacher && r.status === 'pending' && (
-            <div className="flex flex-col gap-2 w-full">
-              <Button size="sm" className="w-full bg-green-600 hover:bg-green-700" onClick={() => onTeacherAction(r.id, 'accept')}>
+            <div className="flex flex-col gap-2">
+              <Button size="sm" className="bg-green-600 hover:bg-green-700" onClick={() => onTeacherAction(r.id, 'accept')}>
                 ✓ Accept
               </Button>
-              <Button size="sm" variant="outline" className="w-full" onClick={() => onProposeTime(r)}>
+              <Button size="sm" variant="outline" onClick={() => onProposeTime(r)}>
                 📅 Propose Time
               </Button>
-              <Button size="sm" variant="ghost" className="w-full text-red-600 hover:text-red-700 hover:bg-red-50" onClick={() => onTeacherAction(r.id, 'decline')}>
+              <Button size="sm" variant="ghost" className="text-red-600 hover:text-red-700 hover:bg-red-50" onClick={() => onTeacherAction(r.id, 'decline')}>
                 ✗ Decline
               </Button>
             </div>
@@ -745,11 +745,11 @@ function RequestCard({
 
           {/* Student: accept/decline proposed time */}
           {!isTeacher && r.status === 'rescheduled_by_teacher' && (
-            <div className="flex flex-col gap-2 w-full">
-              <Button size="sm" className="w-full bg-blue-600 hover:bg-blue-700" onClick={() => onStudentAction(r.id, 'accept-proposed-time')}>
+            <div className="flex flex-col gap-2">
+              <Button size="sm" className="bg-blue-600 hover:bg-blue-700" onClick={() => onStudentAction(r.id, 'accept-proposed-time')}>
                 ✓ Accept New Time
               </Button>
-              <Button size="sm" variant="ghost" className="w-full text-red-600 hover:text-red-700 hover:bg-red-50" onClick={() => onStudentAction(r.id, 'cancel')}>
+              <Button size="sm" variant="ghost" className="text-red-600 hover:text-red-700 hover:bg-red-50" onClick={() => onStudentAction(r.id, 'cancel')}>
                 ✗ Decline &amp; Refund
               </Button>
             </div>
@@ -757,7 +757,7 @@ function RequestCard({
 
           {/* Student: cancel pending request */}
           {!isTeacher && r.status === 'pending' && (
-            <Button size="sm" variant="outline" className="w-full text-red-600 border-red-200 hover:bg-red-50" onClick={() => onStudentAction(r.id, 'cancel')}>
+            <Button size="sm" variant="outline" className="text-red-600 border-red-200 hover:bg-red-50" onClick={() => onStudentAction(r.id, 'cancel')}>
               Cancel &amp; Refund
             </Button>
           )}

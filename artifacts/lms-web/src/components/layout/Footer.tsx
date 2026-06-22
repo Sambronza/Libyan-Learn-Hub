@@ -10,7 +10,7 @@ export function Footer() {
   return (
     <footer className="bg-card border-t border-border mt-12 lg:mt-20">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10 lg:py-16">
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-8 lg:gap-12">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-8 lg:gap-12">
           
           <div className="space-y-4">
             <Logo size={56} />

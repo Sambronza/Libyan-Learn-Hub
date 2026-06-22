@@ -131,7 +131,7 @@ export default function Home() {
                         <h3 className="font-display font-bold text-foreground">
                           {isRtl ? '📚 الدورات' : '📚 Courses'}
                         </h3>
-                        <p className="text-sm text-muted-foreground mt-1">
+                        <p className="text-xs sm:text-sm text-muted-foreground mt-1">
                           {isRtl ? 'تعلّم بالوتيرة المناسبة لك' : 'Learn at your own pace'}
                         </p>
                       </div>
@@ -152,7 +152,7 @@ export default function Home() {
                         <h3 className="font-display font-bold text-foreground">
                           {isRtl ? '🎓 الأكاديمية' : '🎓 Academy'}
                         </h3>
-                        <p className="text-sm text-muted-foreground mt-1">
+                        <p className="text-xs sm:text-sm text-muted-foreground mt-1">
                           {isRtl ? 'احصل على شهادتك من المنزل' : 'Earn your diploma from home'}
                         </p>
                       </div>
@@ -460,12 +460,12 @@ export default function Home() {
                         </p>
 
                         {/* Footer */}
-                        <div className="flex items-center justify-between pt-4 border-t border-border/50 mt-auto">
-                          <div className="flex items-center gap-2.5">
+                        <div className="flex items-center justify-between pt-4 border-t border-border/50 mt-auto min-w-0">
+                          <div className="flex items-center gap-2.5 min-w-0">
                             <div className="w-8 h-8 rounded-full bg-gradient-to-br from-primary to-secondary flex items-center justify-center text-white text-xs font-bold flex-shrink-0">
                               {course.teacherName.charAt(0)}
                             </div>
-                            <span className="text-sm font-medium text-foreground truncate max-w-[100px]">{course.teacherName}</span>
+                            <span className="text-sm font-medium text-foreground truncate max-w-[80px] sm:max-w-[100px]">{course.teacherName}</span>
                           </div>
                           <div className="flex items-center gap-1 text-primary font-bold">
                             {course.price === 0 ? (

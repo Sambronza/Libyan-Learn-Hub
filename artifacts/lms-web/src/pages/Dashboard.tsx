@@ -133,41 +133,43 @@ export default function Dashboard() {
 
       {/* Tabs */}
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-8">
-        <div className="flex gap-1 bg-muted/50 p-1 rounded-2xl w-fit">
-          <button
-            onClick={() => setActiveTab('courses')}
-            className={`px-6 py-2.5 rounded-xl text-sm font-bold transition-all flex items-center gap-2 ${
-              activeTab === 'courses'
-                ? 'bg-card text-primary shadow-sm'
-                : 'text-muted-foreground hover:text-foreground'
-            }`}
-          >
-            <BookOpen className="w-4 h-4" />
-            {t('teacher_dashboard.my_courses')}
-          </button>
-          <button
-            onClick={() => setActiveTab('academy')}
-            className={`px-6 py-2.5 rounded-xl text-sm font-bold transition-all flex items-center gap-2 ${
-              activeTab === 'academy'
-                ? 'bg-card text-amber-600 shadow-sm'
-                : 'text-muted-foreground hover:text-foreground'
-            }`}
-          >
-            <GraduationCap className="w-4 h-4" />
-            {t('academy.program')}
-            <span className="px-1.5 py-0.5 text-[9px] font-bold rounded-full bg-gradient-to-r from-amber-500 to-orange-500 text-white leading-none">
-              NEW
-            </span>
-          </button>
-          
-          <Link href="/wallet">
+        <div className="overflow-x-auto pb-1">
+          <div className="flex gap-1 bg-muted/50 p-1 rounded-2xl w-fit min-w-max">
             <button
-              className={`px-6 py-2.5 rounded-xl text-sm font-bold transition-all flex items-center gap-2 text-muted-foreground hover:text-foreground`}
+              onClick={() => setActiveTab('courses')}
+              className={`flex-shrink-0 px-6 py-2.5 rounded-xl text-sm font-bold transition-all flex items-center gap-2 ${
+                activeTab === 'courses'
+                  ? 'bg-card text-primary shadow-sm'
+                  : 'text-muted-foreground hover:text-foreground'
+              }`}
             >
-              <DollarSign className="w-4 h-4" />
-              Wallet & Prepaid Cards
+              <BookOpen className="w-4 h-4" />
+              {t('teacher_dashboard.my_courses')}
             </button>
-          </Link>
+            <button
+              onClick={() => setActiveTab('academy')}
+              className={`flex-shrink-0 px-6 py-2.5 rounded-xl text-sm font-bold transition-all flex items-center gap-2 ${
+                activeTab === 'academy'
+                  ? 'bg-card text-amber-600 shadow-sm'
+                  : 'text-muted-foreground hover:text-foreground'
+              }`}
+            >
+              <GraduationCap className="w-4 h-4" />
+              {t('academy.program')}
+              <span className="px-1.5 py-0.5 text-[9px] font-bold rounded-full bg-gradient-to-r from-amber-500 to-orange-500 text-white leading-none">
+                NEW
+              </span>
+            </button>
+            
+            <Link href="/wallet">
+              <button
+                className="flex-shrink-0 px-6 py-2.5 rounded-xl text-sm font-bold transition-all flex items-center gap-2 text-muted-foreground hover:text-foreground"
+              >
+                <DollarSign className="w-4 h-4" />
+                Wallet &amp; Prepaid Cards
+              </button>
+            </Link>
+          </div>
         </div>
       </div>
 
@@ -413,9 +415,9 @@ export default function Dashboard() {
           </div>
         ) : (
           <div className="bg-card rounded-3xl border border-border p-8 shadow-sm">
-             <div className="flex items-start justify-between mb-8 pb-8 border-b border-border">
+             <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between mb-8 pb-8 border-b border-border">
                <div className="flex items-center gap-4">
-                 <div className="w-16 h-16 rounded-2xl bg-amber-100 flex items-center justify-center">
+                 <div className="w-16 h-16 rounded-2xl bg-amber-100 flex items-center justify-center shrink-0">
                    <GraduationCap className="w-8 h-8 text-amber-600" />
                  </div>
                  <div>
@@ -424,7 +426,7 @@ export default function Dashboard() {
                  </div>
                </div>
                <Link href="/academy/dashboard">
-                 <Button className="bg-amber-500 hover:bg-amber-600 text-white rounded-xl font-bold px-6 shadow-md shadow-amber-500/20">
+                 <Button className="bg-amber-500 hover:bg-amber-600 text-white rounded-xl font-bold px-6 shadow-md shadow-amber-500/20 w-full sm:w-auto">
                    Go to Academy Dashboard
                  </Button>
                </Link>

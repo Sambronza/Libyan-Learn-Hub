@@ -121,7 +121,7 @@ export function Navbar() {
                       animate={{ opacity: 1, y: 0, scale: 1 }}
                       exit={{ opacity: 0, y: 8, scale: 0.96 }}
                       transition={{ duration: 0.15 }}
-                      className="absolute end-0 top-full mt-2 w-56 bg-card border border-border rounded-2xl shadow-xl overflow-hidden z-50"
+                      className="absolute end-0 top-full mt-2 w-56 max-w-[calc(100vw-2rem)] bg-card border border-border rounded-2xl shadow-xl overflow-hidden z-50"
                     >
                       {/* User info */}
                       <div className="px-4 py-3 border-b border-border bg-muted/30">
@@ -243,6 +243,12 @@ export function Navbar() {
               
               <div className="h-px w-full bg-border my-2" />
               
+              {/* ThemeToggle + Notification on mobile */}
+              <div className="flex items-center gap-2 p-1">
+                <ThemeToggle />
+                {isAuthenticated && <NotificationDropdown />}
+              </div>
+
               <button 
                 onClick={toggleLanguage}
                 className="flex items-center gap-3 p-3 rounded-lg hover:bg-muted font-medium text-start"

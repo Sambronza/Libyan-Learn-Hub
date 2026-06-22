@@ -8,6 +8,7 @@ import { Wallet as WalletIcon, ArrowUpRight, ArrowDownRight, CreditCard, Tag } f
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { useApi } from "@/hooks/useApi";
 import { format } from "date-fns";
+import { PageContainer } from "@/components/layout/PageContainer";
 
 export default function Wallet() {
   const { toast } = useToast();
@@ -56,7 +57,8 @@ export default function Wallet() {
   const transactions = walletData?.transactions || [];
 
   return (
-    <div className="container mx-auto px-4 py-8">
+    <PageContainer>
+    <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
@@ -131,19 +133,19 @@ export default function Wallet() {
               ) : (
                 <div className="space-y-4">
                   {transactions.map((tx: any) => (
-                    <div key={tx.id} className="flex items-center justify-between p-4 rounded-lg border bg-card">
-                      <div className="flex items-center gap-4">
-                        <div className={`p-2 rounded-full ${tx.type === 'credit' ? 'bg-green-100 text-green-600 dark:bg-green-900/30 dark:text-green-400' : 'bg-red-100 text-red-600 dark:bg-red-900/30 dark:text-red-400'}`}>
+                    <div key={tx.id} className="flex items-center justify-between p-4 rounded-lg border bg-card gap-3">
+                      <div className="flex items-center gap-4 min-w-0 overflow-hidden">
+                        <div className={`p-2 rounded-full shrink-0 ${tx.type === 'credit' ? 'bg-green-100 text-green-600 dark:bg-green-900/30 dark:text-green-400' : 'bg-red-100 text-red-600 dark:bg-red-900/30 dark:text-red-400'}`}>
                           {tx.type === 'credit' ? <ArrowUpRight className="h-5 w-5" /> : <ArrowDownRight className="h-5 w-5" />}
                         </div>
-                        <div>
-                          <p className="font-medium">{tx.description || (tx.type === 'credit' ? 'Credit' : 'Debit')}</p>
+                        <div className="min-w-0">
+                          <p className="font-medium truncate">{tx.description || (tx.type === 'credit' ? 'Credit' : 'Debit')}</p>
                           <p className="text-xs text-muted-foreground">
                             {format(new Date(tx.createdAt), 'MMM d, yyyy h:mm a')}
                           </p>
                         </div>
                       </div>
-                      <div className={`font-bold ${tx.type === 'credit' ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}`}>
+                      <div className={`font-bold shrink-0 ${tx.type === 'credit' ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}`}>
                         {tx.type === 'credit' ? '+' : '-'}{parseFloat(tx.amount).toFixed(2)} LYD
                       </div>
                     </div>
@@ -155,5 +157,6 @@ export default function Wallet() {
         </div>
       </div>
     </div>
+    </PageContainer>
   );
 }

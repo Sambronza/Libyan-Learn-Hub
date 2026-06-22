@@ -212,7 +212,7 @@ export default function CourseDetail() {
           </div>
 
           {/* Floating Action Card */}
-          <div className="w-full lg:w-[420px] shrink-0 lg:-mb-40 z-20 perspective-1000">
+          <div className="w-full md:w-[420px] lg:w-[420px] shrink-0 lg:-mb-40 z-20 perspective-1000">
             <div className="bg-white/10 dark:bg-black/40 text-white rounded-[2rem] shadow-2xl border border-white/20 overflow-hidden backdrop-blur-xl ring-1 ring-white/10 transform-gpu hover:shadow-primary/20 transition-all duration-500">
               <div className="aspect-video relative group overflow-hidden bg-black/40">
                 <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent z-10 opacity-70 group-hover:opacity-100 transition-opacity duration-300"></div>
