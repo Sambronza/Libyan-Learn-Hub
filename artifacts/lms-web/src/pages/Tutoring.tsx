@@ -583,6 +583,9 @@ function RequestSessionModal({ open, onClose }: { open: boolean; onClose: () => 
                   </option>
                 ))}
               </select>
+              <p className="text-xs font-mono text-red-500 mt-2 bg-red-50 p-2 rounded">
+                Debug Info: Total Tutors Fetched: {tutors?.length || 0} | Tutors after strict filter: {filteredTutors?.length || 0}
+              </p>
               {filteredTutors.length === 0 && (
                 <p className="text-xs text-muted-foreground mt-1">No tutors available for this level yet.</p>
               )}

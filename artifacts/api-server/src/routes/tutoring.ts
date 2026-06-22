@@ -52,14 +52,6 @@ router.get("/tutors", async (req, res) => {
       or(isNull(usersTable.tutoringSuspendedUntil), lt(usersTable.tutoringSuspendedUntil, new Date()))
     ];
 
-    if (subject && typeof subject === "string") {
-      conditions.push(like(usersTable.tutoringSubjects, `%${subject}%`));
-    }
-
-    if (level && typeof level === "string") {
-      conditions.push(like(usersTable.tutoringLevels, `%${level}%`));
-    }
-
     const tutors = await db.select().from(usersTable)
       .where(and(...conditions));
     res.json(tutors.map(t => ({
