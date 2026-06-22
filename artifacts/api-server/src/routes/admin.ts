@@ -395,6 +395,12 @@ router.get("/payments/pending", async (_req, res) => {
       if (p.courseId) {
         const [course] = await db.select().from(coursesTable).where(eq(coursesTable.id, p.courseId)).limit(1);
         itemName = course?.title || `Course #${p.courseId}`;
+      } else if (p.sessionId) {
+        const [session] = await db.select().from(liveSessionsTable).where(eq(liveSessionsTable.id, p.sessionId)).limit(1);
+        itemName = session?.title || `Live Session #${p.sessionId}`;
+      } else if (p.tutoringRequestId) {
+        const [tutoring] = await db.select().from(tutoringRequestsTable).where(eq(tutoringRequestsTable.id, p.tutoringRequestId)).limit(1);
+        itemName = tutoring?.subject ? `1-to-1 Tutoring: ${tutoring.subject}` : `Tutoring Request #${p.tutoringRequestId}`;
       }
       return {
         id: p.id,
@@ -822,13 +828,18 @@ router.post("/tutoring-reviews/:id/approve", async (req, res) => {
 
       // Pay teacher
       if (request.teacherId) {
+        // Resolve the real payment ID for this tutoring request
+        const [tutoringPayment] = await tx.select().from(paymentsTable)
+          .where(eq(paymentsTable.tutoringRequestId, requestId)).limit(1);
+        const resolvedPaymentId = tutoringPayment?.id ?? null;
+
         const platformFeePercent = 10;
         const platformFee = parseFloat(request.totalAmount) * (platformFeePercent / 100);
         const teacherPayout = parseFloat(request.totalAmount) - platformFee;
         
         await tx.insert(teacherEarningsTable).values({
           teacherId: request.teacherId,
-          paymentId: 0,
+          paymentId: resolvedPaymentId as any,
           tutoringRequestId: request.id,
           grossAmount: parseFloat(request.totalAmount).toFixed(2),
           platformFeePercent: platformFeePercent.toFixed(2),
@@ -929,13 +940,18 @@ router.post("/tutoring-reviews/:id/partial-approve", async (req, res) => {
 
       // Pay teacher part
       if (request.teacherId && approvedTeacherAmount > 0) {
+        // Resolve the real payment ID for this tutoring request
+        const [tutoringPayment] = await tx.select().from(paymentsTable)
+          .where(eq(paymentsTable.tutoringRequestId, requestId)).limit(1);
+        const resolvedPaymentId = tutoringPayment?.id ?? null;
+
         const platformFeePercent = 10;
         const platformFee = approvedTeacherAmount * (platformFeePercent / 100);
         const teacherPayout = approvedTeacherAmount - platformFee;
         
         await tx.insert(teacherEarningsTable).values({
           teacherId: request.teacherId,
-          paymentId: 0,
+          paymentId: resolvedPaymentId as any,
           tutoringRequestId: request.id,
           grossAmount: approvedTeacherAmount.toFixed(2),
           platformFeePercent: platformFeePercent.toFixed(2),

@@ -103,7 +103,7 @@ class ErrorBoundary extends React.Component<{ children: React.ReactNode }, { has
 
 function LayoutWrapper({ children }: { children: React.ReactNode }) {
   const [location] = useLocation();
-  const noLayoutRoutes = ['/login', '/register', '/session/', '/tutoring/room/'];
+  const noLayoutRoutes = ['/login', '/register', '/session/', '/tutoring/room/', '/teacher/biometrics-setup'];
   const hideLayout = noLayoutRoutes.some(route => location.startsWith(route));
 
   if (hideLayout) {

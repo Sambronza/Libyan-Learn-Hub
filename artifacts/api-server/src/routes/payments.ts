@@ -296,41 +296,98 @@ router.get("/callback", requireAuth, async (req, res) => {
       res.redirect('/dashboard?error=payment_cancelled'); return;
     }
 
-    // Success flow
-    await db.update(paymentsTable)
-      .set({ status: "completed", updatedAt: new Date() })
-      .where(eq(paymentsTable.id, paymentId));
-
-    const amount = parseFloat(payment.amount);
-
-    if (payment.courseId) {
-      const [course] = await db.select().from(coursesTable).where(eq(coursesTable.id, payment.courseId)).limit(1);
-      const alreadyEnrolled = await db.select().from(enrollmentsTable)
-        .where(and(eq(enrollmentsTable.courseId, payment.courseId), eq(enrollmentsTable.userId, payment.userId)))
-        .limit(1);
-      
-      if (alreadyEnrolled.length === 0) {
-        await db.insert(enrollmentsTable).values({ courseId: payment.courseId, userId: payment.userId, progress: "0" });
+    // Success flow — wrap everything in a transaction so a crash between
+    // the status update and creditTeacher cannot cause a double-credit.
+    let alreadyProcessed = false;
+    await db.transaction(async (tx) => {
+      // Idempotency guard: only process if still pending inside the transaction
+      const [fresh] = await tx.select().from(paymentsTable).where(eq(paymentsTable.id, paymentId)).limit(1);
+      if (!fresh || fresh.status !== "pending") {
+        alreadyProcessed = true;
+        return;
       }
-      if (course) {
-        await creditTeacher(paymentId, course.teacherId, amount, course.id, undefined, course.currency);
-      }
-    }
 
-    if (payment.sessionId) {
-      const [session] = await db.select().from(liveSessionsTable).where(eq(liveSessionsTable.id, payment.sessionId)).limit(1);
-      if (session) {
-        await creditTeacher(paymentId, session.teacherId, amount, undefined, session.id, "LYD");
-      }
-    }
+      await tx.update(paymentsTable)
+        .set({ status: "completed", updatedAt: new Date() })
+        .where(and(eq(paymentsTable.id, paymentId), eq(paymentsTable.status, "pending")));
 
-    // Handle Subscription Upgrades
-    if (payment.reference && payment.reference.startsWith("UPGRADE-")) {
-      const newTier = payment.reference.replace("UPGRADE-", "") as TeacherTier;
-      await db.update(usersTable)
-        .set({ tier: newTier, updatedAt: new Date() })
-        .where(eq(usersTable.id, payment.userId));
-    }
+      const amount = parseFloat(payment.amount);
+
+      if (payment.courseId) {
+        const [course] = await tx.select().from(coursesTable).where(eq(coursesTable.id, payment.courseId)).limit(1);
+        const alreadyEnrolled = await tx.select().from(enrollmentsTable)
+          .where(and(eq(enrollmentsTable.courseId, payment.courseId), eq(enrollmentsTable.userId, payment.userId)))
+          .limit(1);
+        if (alreadyEnrolled.length === 0) {
+          await tx.insert(enrollmentsTable).values({ courseId: payment.courseId, userId: payment.userId, progress: "0" });
+        }
+        if (course) {
+          let platformFeePercent = 20;
+          try {
+            const [setting] = await tx.select().from(platformSettingsTable).where(eq(platformSettingsTable.key, "teacher_commission_percent")).limit(1);
+            if (setting && setting.value) {
+              const parsed = parseFloat(setting.value);
+              if (!isNaN(parsed) && parsed >= 0 && parsed <= 100) platformFeePercent = parsed;
+            }
+          } catch (err) {}
+          const platformFee = parseFloat((amount * platformFeePercent / 100).toFixed(2));
+          const netAmount = parseFloat((amount - platformFee).toFixed(2));
+          await tx.insert(teacherEarningsTable).values({
+            teacherId: course.teacherId, paymentId,
+            courseId: course.id,
+            grossAmount: amount.toFixed(2),
+            platformFeePercent: platformFeePercent.toFixed(2),
+            platformFee: platformFee.toFixed(2),
+            netAmount: netAmount.toFixed(2),
+            currency: course.currency || "LYD",
+            status: "available",
+          });
+          const [teacher] = await tx.select().from(usersTable).where(eq(usersTable.id, course.teacherId)).limit(1);
+          if (teacher) {
+            const newBalance = (parseFloat(teacher.balance as string) || 0) + netAmount;
+            await tx.update(usersTable).set({ balance: newBalance.toFixed(2), updatedAt: new Date() }).where(eq(usersTable.id, course.teacherId));
+          }
+        }
+      }
+
+      if (payment.sessionId) {
+        const [session] = await tx.select().from(liveSessionsTable).where(eq(liveSessionsTable.id, payment.sessionId)).limit(1);
+        if (session) {
+          let platformFeePercent = 20;
+          try {
+            const [setting] = await tx.select().from(platformSettingsTable).where(eq(platformSettingsTable.key, "teacher_commission_percent")).limit(1);
+            if (setting && setting.value) {
+              const parsed = parseFloat(setting.value);
+              if (!isNaN(parsed) && parsed >= 0 && parsed <= 100) platformFeePercent = parsed;
+            }
+          } catch (err) {}
+          const platformFee = parseFloat((amount * platformFeePercent / 100).toFixed(2));
+          const netAmount = parseFloat((amount - platformFee).toFixed(2));
+          await tx.insert(teacherEarningsTable).values({
+            teacherId: session.teacherId, paymentId, sessionId: session.id,
+            grossAmount: amount.toFixed(2),
+            platformFeePercent: platformFeePercent.toFixed(2),
+            platformFee: platformFee.toFixed(2),
+            netAmount: netAmount.toFixed(2),
+            currency: "LYD",
+            status: "available",
+          });
+          const [teacher] = await tx.select().from(usersTable).where(eq(usersTable.id, session.teacherId)).limit(1);
+          if (teacher) {
+            const newBalance = (parseFloat(teacher.balance as string) || 0) + netAmount;
+            await tx.update(usersTable).set({ balance: newBalance.toFixed(2), updatedAt: new Date() }).where(eq(usersTable.id, session.teacherId));
+          }
+        }
+      }
+
+      // Handle Subscription Upgrades
+      if (payment.reference && payment.reference.startsWith("UPGRADE-")) {
+        const newTier = payment.reference.replace("UPGRADE-", "") as TeacherTier;
+        await tx.update(usersTable)
+          .set({ tier: newTier, updatedAt: new Date() })
+          .where(eq(usersTable.id, payment.userId));
+      }
+    });
 
     // Redirect to frontend success page
     res.redirect('/dashboard?success=true');

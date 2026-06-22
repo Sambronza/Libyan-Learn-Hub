@@ -101,8 +101,8 @@ router.post("/register", requireAuth, async (req, res) => {
     }
     
     const rate = parseFloat(tutoringHourlyRate);
-    if (isNaN(rate) || rate < 0 || rate > 100) {
-      res.status(400).json({ error: "Hourly rate must be between 0 and 100 dinars" });
+    if (isNaN(rate) || rate < 0) {
+      res.status(400).json({ error: "Hourly rate must be 0 or greater" });
       return;
     }
 
@@ -136,8 +136,8 @@ router.put("/settings", requireAuth, async (req, res) => {
     // Validate hourly rate
     if (tutoringHourlyRate != null) {
       const rate = parseFloat(tutoringHourlyRate);
-      if (isNaN(rate) || rate < 0 || rate > 100) {
-        res.status(400).json({ error: "Hourly rate must be between 0 and 100 dinars" });
+      if (isNaN(rate) || rate < 0) {
+        res.status(400).json({ error: "Hourly rate must be 0 or greater" });
         return;
       }
     }
@@ -873,14 +873,18 @@ router.post("/requests/:id/timer/sync", requireAuth, async (req, res) => {
       let elapsed = request.elapsedSeconds ?? 0;
       const isPaused = !!request.timerPausedAt;
 
+      const totalSecs = (request.durationMinutes || 60) * 60;
+
       if (request.sessionStartedAt && !isPaused) {
         // Timer is running: add live seconds since start
         const liveSecs = Math.floor((now.getTime() - new Date(request.sessionStartedAt).getTime()) / 1000);
         elapsed += liveSecs;
       }
 
+      // Cap elapsed at the total session duration to prevent overshoot
+      elapsed = Math.min(elapsed, totalSecs);
+
       // ── Auto-complete if time has fully elapsed or wall-clock grace period expired ──
-      const totalSecs = (request.durationMinutes || 60) * 60;
       const realScheduledEndMs = new Date(request.preferredAt).getTime() + totalSecs * 1000 + (15 * 60 * 1000); // 15 min grace period
       
       if ((elapsed >= totalSecs || now.getTime() > realScheduledEndMs) && request.status === "accepted") {
@@ -898,7 +902,7 @@ router.post("/requests/:id/timer/sync", requireAuth, async (req, res) => {
       }
 
       res.json({
-        elapsedSeconds: Math.min(elapsed, totalSecs ?? 3600),
+        elapsedSeconds: elapsed,
         isPaused,
         totalDurationSeconds: totalSecs,
         sessionStartedAt: request.sessionStartedAt?.toISOString() ?? null,
@@ -931,11 +935,13 @@ router.post("/requests/:id/leave", requireAuth, async (req, res) => {
     const isTeacher = request.teacherId === userId;
     const now = new Date();
 
+    const totalSecsLeave = (request.durationMinutes || 60) * 60;
+
     // ── Compute current accumulated elapsed before we do anything ─────────────
     let elapsed = request.elapsedSeconds ?? 0;
     if (request.sessionStartedAt && !request.timerPausedAt) {
       const liveSecs = Math.floor((now.getTime() - new Date(request.sessionStartedAt).getTime()) / 1000);
-      elapsed = Math.min(elapsed + liveSecs, (request.durationMinutes || 60) * 60);
+      elapsed = Math.min(elapsed + liveSecs, totalSecsLeave);
     }
 
     const updateFields: any = { updatedAt: now };
@@ -958,15 +964,14 @@ router.post("/requests/:id/leave", requireAuth, async (req, res) => {
     const [fresh] = await db.select().from(tutoringRequestsTable)
       .where(eq(tutoringRequestsTable.id, requestId)).limit(1);
 
-    const totalSecs = (fresh.durationMinutes || 60) * 60;
+    const totalSecsLeave2 = (fresh.durationMinutes || 60) * 60;
     const teacherGone = !!fresh.teacherLeftAt;
     const studentGone = !!fresh.studentLeftAt;
-    const sessionNotComplete = (fresh.elapsedSeconds ?? 0) < totalSecs;
+    const sessionNotComplete = (fresh.elapsedSeconds ?? 0) < totalSecsLeave2;
+    const neverJoined = (fresh.elapsedSeconds ?? 0) === 0 && fresh.sessionStartedAt === null;
+    const isPastStartTime = now.getTime() >= new Date(fresh.preferredAt).getTime();
 
     if (studentGone && sessionNotComplete && fresh.status === "accepted") {
-      const neverJoined = (fresh.elapsedSeconds ?? 0) === 0 && fresh.sessionStartedAt === null;
-      const isPastStartTime = now.getTime() >= new Date(fresh.preferredAt).getTime();
-
       if (neverJoined && isPastStartTime) {
         // Teacher never joined, and student gave up after start time
         await db.update(tutoringRequestsTable)
@@ -986,6 +991,15 @@ router.post("/requests/:id/leave", requireAuth, async (req, res) => {
           })
           .where(eq(tutoringRequestsTable.id, requestId));
       }
+    } else if (teacherGone && !studentGone && neverJoined && isPastStartTime && sessionNotComplete && fresh.status === "accepted") {
+      // BUG-007 FIX: Teacher never joined — auto-cancel even while student is still waiting
+      await db.update(tutoringRequestsTable)
+        .set({
+          status: "cancelled_no_show",
+          earlyTerminationFlagged: false,
+          updatedAt: now,
+        })
+        .where(eq(tutoringRequestsTable.id, requestId));
     }
 
     res.json({ success: true, elapsedSeconds: elapsed });

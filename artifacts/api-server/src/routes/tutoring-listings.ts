@@ -18,7 +18,7 @@ async function formatListing(listing: any) {
     teacherAvatar: teacher?.avatarUrl || null,
     teacherBio: teacher?.bio || "",
     teacherExpertise: teacher?.expertise || "",
-    teacherRating: parseFloat(teacher?.tutoringHourlyRate || "0"),
+    teacherHourlyRate: parseFloat(teacher?.tutoringHourlyRate || "0"),
   };
 }
 
