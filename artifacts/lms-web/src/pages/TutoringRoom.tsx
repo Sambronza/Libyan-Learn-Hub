@@ -172,21 +172,20 @@ function RoomContent({
   onStart: () => void;
 }) {
   const room = useRoomContext();
+  const api = useApi(); // INT-010: need api in this scope for timer/resume
 
   // Resume timer when teacher reconnects
   useEffect(() => {
     if (!isTeacher || sessionType !== 'request') return;
     const handleConnected = async () => {
       try {
-        await fetch(`/api/tutoring/requests/${requestId}/timer/resume`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${localStorage.getItem('token')}` },
-        });
+        // INT-010: use api.post() instead of raw fetch() for correct base URL + auth
+        await api.post(`/tutoring/requests/${requestId}/timer/resume`, {});
       } catch { /* best-effort */ }
     };
     room.on('connected', handleConnected);
     return () => { room.off('connected', handleConnected); };
-  }, [room, isTeacher, requestId, sessionType]);
+  }, [room, isTeacher, requestId, sessionType, api]);
 
   return (
     <>
@@ -226,23 +225,28 @@ export default function TutoringRoom() {
     if (!authLoading && !isAuthenticated) setLocation('/login');
   }, [isAuthenticated, authLoading, setLocation]);
 
-  const { data: requestList, isLoading } = useQuery({
+  const { data: session, isLoading } = useQuery({
     queryKey: ['/api/tutoring', sessionType, requestId],
     queryFn: () => sessionType === 'listing'
       ? api.get(`/tutoring-listings/applications/${requestId}`)
-      : api.get(`/tutoring/requests`),
+      : api.get(`/tutoring/requests/${requestId}`), // INT-002: fetch single request by ID
     enabled: !!requestId && !!user,
   });
 
-  const session = sessionType === 'listing'
-    ? (requestList && !Array.isArray(requestList) ? requestList : null)
-    : (Array.isArray(requestList) ? requestList.find((r: any) => r.id === requestId) : null);
+  // Extract session object — for listing type it's the direct response object;
+  // for request type it's the single request object returned directly.
+  const resolvedSession = sessionType === 'listing'
+    ? (session && !Array.isArray(session) ? session : null)
+    : (session && !Array.isArray(session) ? session : null);
 
   useEffect(() => {
     if (hasJoined) setMediaActive(true);
     else setMediaActive(false);
     return () => setMediaActive(false);
   }, [hasJoined, setMediaActive]);
+
+  // INT-003: track when session ends via timer so handleDisconnected doesn't override redirect
+  const sessionEndedRef = useRef(false);
 
   const joinSession = async () => {
     try {
@@ -261,9 +265,11 @@ export default function TutoringRoom() {
 
   // Called when participant intentionally or unintentionally disconnects from LiveKit
   const handleDisconnected = useCallback(async () => {
+    // INT-003: if the session ended normally (timer expired), handleSessionEnd already
+    // redirected the user — skip the /leave call and navigation override.
+    if (sessionEndedRef.current) return;
     if (sessionType === 'request') {
       try {
-        // best-effort: tell server this participant left so timer can be paused / early-termination flagged
         await api.post(`/tutoring/requests/${requestId}/leave`, {});
       } catch { /* ignore */ }
     }
@@ -272,6 +278,7 @@ export default function TutoringRoom() {
 
   const handleSessionEnd = useCallback(async () => {
     stopRecording();
+    sessionEndedRef.current = true; // INT-003: prevent handleDisconnected override
     try {
       if (sessionType === 'request') {
         await api.post(`/tutoring/requests/${requestId}/complete`, {});
@@ -300,7 +307,7 @@ export default function TutoringRoom() {
     );
   }
 
-  if (!session) {
+  if (!resolvedSession) {
     return (
       <div className="h-screen flex items-center justify-center bg-slate-900 text-white flex-col gap-4">
         <p className="text-xl font-bold">Session not found or not authorized</p>
@@ -314,7 +321,13 @@ export default function TutoringRoom() {
       {/* Top bar */}
       <div className="flex items-center justify-between px-4 py-3 bg-slate-800 border-b border-white/10 shrink-0 z-10 shadow-sm">
         <div className="flex items-center gap-4">
-          <Button variant="ghost" size="icon" onClick={() => setLocation('/tutoring')}>
+          {/* INT-011: call /leave before navigating if already joined */}
+          <Button variant="ghost" size="icon" onClick={async () => {
+            if (hasJoined && sessionType === 'request') {
+              try { await api.post(`/tutoring/requests/${requestId}/leave`, {}); } catch { /* ignore */ }
+            }
+            setLocation('/tutoring');
+          }}>
             <ArrowLeft className="w-5 h-5" />
           </Button>
           <div>
@@ -324,7 +337,7 @@ export default function TutoringRoom() {
                 {hasJoined ? 'Live' : 'Waiting Room'}
               </span>
             </div>
-            <h1 className="font-bold text-base">Tutoring: {session.subject}</h1>
+            <h1 className="font-bold text-base">Tutoring: {resolvedSession.subject}</h1>
           </div>
         </div>
       </div>

@@ -569,7 +569,7 @@ router.post("/requests/:id/cancel", requireAuth, async (req, res) => {
 
     if (!request) { res.status(404).json({ error: "Request not found" }); return; }
 
-    if (["completed", "cancelled", "declined", "completed_pending_review", "approved", "rejected", "partially_approved"].includes(request.status)) {
+    if (["completed", "cancelled", "cancelled_no_show", "declined", "completed_pending_review", "approved", "rejected", "partially_approved"].includes(request.status)) {
       res.status(400).json({ error: "Cannot cancel a request that is already completed, under review, or in a terminal state" });
       return;
     }
@@ -973,33 +973,45 @@ router.post("/requests/:id/leave", requireAuth, async (req, res) => {
 
     if (studentGone && sessionNotComplete && fresh.status === "accepted") {
       if (neverJoined && isPastStartTime) {
-        // Teacher never joined, and student gave up after start time
-        await db.update(tutoringRequestsTable)
-          .set({
-            status: "cancelled_no_show",
-            earlyTerminationFlagged: false,
-            updatedAt: now,
-          })
-          .where(eq(tutoringRequestsTable.id, requestId));
+        // Teacher never joined, and student gave up after start time — auto-cancel + refund
+        await db.transaction(async (tx) => {
+          await tx.update(tutoringRequestsTable)
+            .set({ status: "cancelled_no_show", earlyTerminationFlagged: false, updatedAt: now })
+            .where(eq(tutoringRequestsTable.id, requestId));
+          await tx.update(usersTable)
+            .set({ balance: sql`${usersTable.balance} + ${parseFloat(fresh.totalAmount)}` })
+            .where(eq(usersTable.id, fresh.studentId));
+          await tx.update(paymentsTable)
+            .set({ status: "refunded", updatedAt: now })
+            .where(eq(paymentsTable.tutoringRequestId, requestId));
+        });
       } else if (teacherGone) {
-        // Teacher joined but left early, and student eventually left
-        await db.update(tutoringRequestsTable)
-          .set({
-            status: "cancelled_no_show",
-            earlyTerminationFlagged: true,
-            updatedAt: now,
-          })
-          .where(eq(tutoringRequestsTable.id, requestId));
+        // Teacher joined but left early, and student eventually left — auto-cancel + refund
+        await db.transaction(async (tx) => {
+          await tx.update(tutoringRequestsTable)
+            .set({ status: "cancelled_no_show", earlyTerminationFlagged: true, updatedAt: now })
+            .where(eq(tutoringRequestsTable.id, requestId));
+          await tx.update(usersTable)
+            .set({ balance: sql`${usersTable.balance} + ${parseFloat(fresh.totalAmount)}` })
+            .where(eq(usersTable.id, fresh.studentId));
+          await tx.update(paymentsTable)
+            .set({ status: "refunded", updatedAt: now })
+            .where(eq(paymentsTable.tutoringRequestId, requestId));
+        });
       }
     } else if (teacherGone && !studentGone && neverJoined && isPastStartTime && sessionNotComplete && fresh.status === "accepted") {
-      // BUG-007 FIX: Teacher never joined — auto-cancel even while student is still waiting
-      await db.update(tutoringRequestsTable)
-        .set({
-          status: "cancelled_no_show",
-          earlyTerminationFlagged: false,
-          updatedAt: now,
-        })
-        .where(eq(tutoringRequestsTable.id, requestId));
+      // Teacher never joined — auto-cancel even while student is still waiting + refund
+      await db.transaction(async (tx) => {
+        await tx.update(tutoringRequestsTable)
+          .set({ status: "cancelled_no_show", earlyTerminationFlagged: false, updatedAt: now })
+          .where(eq(tutoringRequestsTable.id, requestId));
+        await tx.update(usersTable)
+          .set({ balance: sql`${usersTable.balance} + ${parseFloat(fresh.totalAmount)}` })
+          .where(eq(usersTable.id, fresh.studentId));
+        await tx.update(paymentsTable)
+          .set({ status: "refunded", updatedAt: now })
+          .where(eq(paymentsTable.tutoringRequestId, requestId));
+      });
     }
 
     res.json({ success: true, elapsedSeconds: elapsed });

@@ -30,7 +30,7 @@ async function creditTeacher(paymentId: number, teacherId: number, amount: numbe
       }
     } else {
       // Auto-seed if missing
-      await db.insert(platformSettingsTable).values({ key: "teacher_commission_percent", value: "20", description: "Default platform commission fee percentage" });
+      await db.insert(platformSettingsTable).values({ key: "teacher_commission_percent", value: "20", description: "Default platform commission fee percentage" }).onConflictDoNothing();
     }
   } catch (err) {
     console.error("Failed to read platform settings", err);

@@ -147,12 +147,11 @@ function SettingsModal({ open, onClose }: { open: boolean; onClose: () => void }
           />
 
           <div>
-            <label className="text-sm font-medium block mb-1">Hourly Rate (LYD) <span className="text-muted-foreground text-xs">(max 100)</span></label>
+            <label className="text-sm font-medium block mb-1">Hourly Rate (LYD)</label>
             <Input
               {...register('tutoringHourlyRate')}
               type="number"
               min="0"
-              max="100"
               step="0.01"
               placeholder="e.g. 80"
             />
