@@ -47,9 +47,7 @@ router.get("/tutors", async (req, res) => {
     const { subject, level } = req.query;
 
     const conditions = [
-      or(eq(usersTable.role, "teacher"), eq(usersTable.role, "admin")), 
-      eq(usersTable.isTutoringEnabled, true),
-      or(isNull(usersTable.tutoringSuspendedUntil), lt(usersTable.tutoringSuspendedUntil, new Date()))
+      eq(usersTable.isTutoringEnabled, true)
     ];
 
     const tutors = await db.select().from(usersTable)
@@ -67,6 +65,23 @@ router.get("/tutors", async (req, res) => {
     })));
   } catch (err: any) {
     res.status(500).json({ error: "Server error", message: err.message });
+  }
+});
+
+router.get("/debug-tutors-raw", async (req, res) => {
+  try {
+    const allUsers = await db.select({
+      id: usersTable.id,
+      role: usersTable.role,
+      isTutoringEnabled: usersTable.isTutoringEnabled,
+      tutoringSuspendedUntil: usersTable.tutoringSuspendedUntil,
+      tutoringSubjects: usersTable.tutoringSubjects,
+      tutoringLevels: usersTable.tutoringLevels,
+      fullName: usersTable.fullName
+    }).from(usersTable);
+    res.json(allUsers);
+  } catch (error) {
+    res.status(500).json({ error: String(error) });
   }
 });
 
