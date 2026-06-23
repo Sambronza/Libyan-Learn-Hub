@@ -10,7 +10,7 @@ import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import {
-  Clock, Calendar, MessageSquare, Send, Settings, ExternalLink, Plus
+  Clock, Calendar, Send, Settings, ExternalLink, Plus
 } from 'lucide-react';
 import { useForm, Controller } from 'react-hook-form';
 import { TUTORING_SUBJECTS } from '@/constants/subjects';
@@ -385,7 +385,6 @@ function RequestSessionModal({ open, onClose }: { open: boolean; onClose: () => 
       topic: '',
       preferredAt: '',
       durationMinutes: '60',
-      message: '',
     }
   });
 
@@ -617,16 +616,6 @@ function RequestSessionModal({ open, onClose }: { open: boolean; onClose: () => 
             <Input {...register('topic')} placeholder="e.g. Quadratic equations, Photosynthesis..." />
           </div>
 
-          {/* Message */}
-          <div>
-            <label className="text-sm font-medium block mb-1">Message to Teacher</label>
-            <textarea
-              {...register('message')}
-              rows={3}
-              className="w-full px-3 py-2 rounded-xl border border-input bg-background text-sm resize-none"
-              placeholder="Any extra context, your current level, resources needed..."
-            />
-          </div>
 
           <div className="flex gap-3 pt-1">
             <Button type="submit" className="flex-1 gap-2 h-11" disabled={isSubmitting}>
@@ -706,13 +695,7 @@ function RequestCard({
             </div>
           </div>
 
-          {/* Message */}
-          {r.message && (
-            <div className="mt-3 p-3 bg-muted/50 rounded-xl text-sm border border-border/50">
-              <MessageSquare className="w-4 h-4 inline mr-2 text-muted-foreground" />
-              {r.message}
-            </div>
-          )}
+
         </div>
 
         {/* Right side: amount + actions — full-width on mobile, fixed-width column on md+ */}
