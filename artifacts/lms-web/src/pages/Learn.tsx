@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useRoute, Link, useLocation } from 'wouter';
 import { useGetCourse, useGetLesson, useUpdateProgress } from '@workspace/api-client-react';
 import { useLanguage } from '@/contexts/LanguageContext';
@@ -12,6 +12,7 @@ import { useToast } from '@/hooks/use-toast';
 import { useApi } from '@/hooks/useApi';
 import { Textarea } from '@/components/ui/textarea';
 import DOMPurify from 'dompurify';
+import { FeedbackModal } from '@/components/FeedbackModal';
 
 // Determine if a Cloudinary URL is a PDF by checking the public_id / URL path.
 // Cloudinary raw resource URLs don't carry Content-Disposition headers suitable for iframes,
@@ -47,6 +48,10 @@ export default function Learn() {
   const [activeLessonId, setActiveLessonId] = useState<number | null>(null);
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [reportLesson, setReportLesson] = useState(false);
+  const [showFeedback, setShowFeedback] = useState(false);
+  // Track whether we already triggered the early-pulse so it only fires once per session
+  const earlyPulseFired = useRef(false);
+  const completionFired = useRef(false);
 
   // Local set of completed lesson IDs for optimistic UI updates (sidebar checkmarks)
   const [completedIds, setCompletedIds] = useState<Set<number>>(new Set());
@@ -89,9 +94,22 @@ export default function Learn() {
 
   // Optimistically mark a lesson as completed locally and call the API
   const markCompleted = useCallback((lessonId: number, watchedSeconds = 0) => {
-    setCompletedIds(prev => new Set([...prev, lessonId]));
+    setCompletedIds(prev => {
+      const next = new Set([...prev, lessonId]);
+
+      // ── Early-Pulse: fire after 2nd completed lesson ───────────────────
+      if (next.size === 2 && !earlyPulseFired.current) {
+        earlyPulseFired.current = true;
+        // Check if student has already reviewed — if not, open modal
+        api.get(`/feedback/course/${courseId}/mine`).then((data: any) => {
+          if (!data?.submitted) setShowFeedback(true);
+        }).catch(() => {/* ignore */});
+      }
+
+      return next;
+    });
     updateProgress({ courseId, lessonId, data: { isCompleted: true, watchedSeconds } });
-  }, [courseId, updateProgress]);
+  }, [courseId, updateProgress, api]);
 
   const handleVideoProgress = (progress: { playedSeconds: number }) => {
     if (!lesson || lesson.isCompleted) return;
@@ -139,6 +157,20 @@ export default function Learn() {
     const m = Math.floor(secs / 60);
     const s = secs % 60;
     return s > 0 ? `${m}m ${s}s` : `${m}m`;
+  };
+
+  // ── Completion trigger: show review modal when course finishes ─────────
+  useEffect(() => {
+    if (course && (course.userProgress || 0) >= 100 && !completionFired.current) {
+      completionFired.current = true;
+      api.get(`/feedback/course/${courseId}/mine`).then((data: any) => {
+        if (!data?.submitted) setShowFeedback(true);
+      }).catch(() => {/* ignore */});
+    }
+  }, [course?.userProgress]);
+
+  const handleFeedbackSubmit = async (rating: number, comment: string) => {
+    await api.post(`/feedback/course/${courseId}`, { rating, comment });
   };
 
   const submitReport = async (data: any) => {
@@ -415,6 +447,19 @@ export default function Learn() {
           </form>
         </DialogContent>
       </Dialog>
+
+      {/* Feedback Modal */}
+      <FeedbackModal
+        open={showFeedback}
+        onClose={() => setShowFeedback(false)}
+        onSubmit={handleFeedbackSubmit}
+        title={completionFired.current ? '🎓 Course Complete!' : '⭐ How is the course?'}
+        subtitle={
+          completionFired.current
+            ? 'Congratulations! Leave a review to help other students.'
+            : 'You\'ve watched a few lessons — what do you think so far?'
+        }
+      />
     </div>
   );
 }

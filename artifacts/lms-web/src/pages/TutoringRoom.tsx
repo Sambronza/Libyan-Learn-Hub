@@ -12,6 +12,7 @@ import {
 import { ScreenProtection } from '@/components/ScreenProtection';
 import { WatermarkOverlay } from '@/components/WatermarkOverlay';
 import { useAudioRecording } from '@/hooks/useAudioRecording';
+import { FeedbackModal } from '@/components/FeedbackModal';
 
 import {
   LiveKitRoom,
@@ -219,6 +220,7 @@ export default function TutoringRoom() {
   const [liveKitToken, setLiveKitToken] = useState<string | null>(null);
   const [liveKitUrl, setLiveKitUrl] = useState<string | null>(null);
   const [isTeacher, setIsTeacher] = useState(false);
+  const [showFeedback, setShowFeedback] = useState(false);
   const { startRecording, stopRecording } = useAudioRecording(requestId);
 
   useEffect(() => {
@@ -287,11 +289,17 @@ export default function TutoringRoom() {
       console.error('Error completing session', e);
     }
     if (!isTeacher && sessionType === 'request') {
-      setLocation(`/tutoring?feedbackFor=${requestId}`);
+      // Show feedback modal in-page instead of redirecting with query param
+      setShowFeedback(true);
     } else {
       setLocation('/tutoring');
     }
   }, [api, requestId, sessionType, isTeacher, setLocation, stopRecording]);
+
+  const handleFeedbackSubmit = async (rating: number, comment: string) => {
+    await api.post(`/feedback/tutoring/${requestId}`, { rating, comment });
+    setLocation('/tutoring');
+  };
 
   const handleSessionStart = useCallback(() => {
     if (isTeacher && sessionType === 'request') {
@@ -389,6 +397,15 @@ export default function TutoringRoom() {
           </ScreenProtection>
         )}
       </div>
+
+      {/* Tutoring Session Feedback Modal — shown to students on session completion */}
+      <FeedbackModal
+        open={showFeedback}
+        onClose={() => { setShowFeedback(false); setLocation('/tutoring'); }}
+        onSubmit={handleFeedbackSubmit}
+        title="How was your tutoring session?"
+        subtitle="Your feedback helps your teacher and the platform improve."
+      />
     </div>
   );
 }

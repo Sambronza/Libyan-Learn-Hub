@@ -32,6 +32,7 @@ import notificationsRouter from "./notifications.js";
 import biometricsRouter from "./biometrics.js";
 import walletRouter from "./wallet.js";
 import prepaidCardsRouter from "./prepaid-cards.js";
+import feedbackRouter from "./feedback.js";
 
 const router: IRouter = Router();
 
@@ -71,5 +72,7 @@ router.use("/academy", academyRouter);
 // Wallet & Prepaid Cards
 router.use("/wallet", walletRouter);
 router.use("/prepaid-cards", prepaidCardsRouter);
+// Unified Feedback System
+router.use("/feedback", feedbackRouter);
 
 export default router;

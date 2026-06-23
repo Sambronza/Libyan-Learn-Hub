@@ -17,6 +17,7 @@ import {
 import { useLocalRecording } from '@/hooks/useLocalRecording';
 import { ScreenProtection } from '@/components/ScreenProtection';
 import { WatermarkOverlay } from '@/components/WatermarkOverlay';
+import { FeedbackModal } from '@/components/FeedbackModal';
 
 import {
   LiveKitRoom,
@@ -46,6 +47,8 @@ export default function SessionRoom() {
 
 
   const [reportSession, setReportSession] = useState(false);
+  const [showFeedback, setShowFeedback] = useState(false);
+  const feedbackShown = React.useRef(false);
   const { register: registerReport, handleSubmit: handleReportSubmit, reset: resetReport } = useForm();
 
   useEffect(() => {
@@ -154,12 +157,33 @@ export default function SessionRoom() {
     try {
       await api.post(`/live-sessions/${sessionId}/end`, {});
       toast({ title: 'Session ended' });
-      // Tell everyone else to leave (this is basic, usually WebSockets handle this, but marking it ended stops new joins)
       setLocation('/dashboard');
     } catch (err: any) {
       toast({ title: 'Error ending session', description: err.message, variant: 'destructive' });
       setIsEnding(false);
     }
+  };
+
+  // ── Feedback trigger: show modal to students when session ends ───────
+  useEffect(() => {
+    if (
+      session &&
+      session.status === 'ended' &&
+      !session.isTeacher &&
+      !feedbackShown.current
+    ) {
+      feedbackShown.current = true;
+      api.get(`/feedback/live-session/${sessionId}/mine`).then((data: any) => {
+        if (!data?.submitted) setShowFeedback(true);
+      }).catch(() => {/* ignore */});
+    }
+  }, [session?.status]);
+
+  const handleFeedbackSubmit = async (rating: number, comment: string) => {
+    await api.post(`/feedback/live-session/${sessionId}`, {
+      contentRating: rating,
+      comment,
+    });
   };
 
   if (authLoading || isLoading) {
@@ -541,6 +565,15 @@ export default function SessionRoom() {
           background-color: rgba(255, 255, 255, 0.2);
         }
       `}</style>
+
+      {/* Live Session Feedback Modal — shown to students after session ends */}
+      <FeedbackModal
+        open={showFeedback}
+        onClose={() => setShowFeedback(false)}
+        onSubmit={handleFeedbackSubmit}
+        title="How was the session?"
+        subtitle={`Rate your experience in "${session?.title}"`}
+      />
     </div>
   );
 }
