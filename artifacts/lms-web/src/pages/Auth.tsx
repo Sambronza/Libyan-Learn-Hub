@@ -26,7 +26,6 @@ const registerSchema = z.object({
   email: z.string().email('Invalid email address'),
   phoneNumber: z.string().min(9, 'Enter a valid phone number').regex(/^[0-9+\s\-()]+$/, 'Invalid phone number'),
   password: z.string().min(6, 'Password must be at least 6 characters'),
-  passkey: z.string().length(4, 'Passkey must be exactly 4 digits').regex(/^\d+$/, 'Passkey must contain only numbers'),
   role: z.enum(['student', 'teacher']),
   agreedToCommission: z.boolean().optional(),
   agreedToTerms: z.boolean().refine(val => val === true, {
@@ -118,7 +117,7 @@ export default function Auth() {
 
   const registerForm = useForm({
     resolver: zodResolver(registerSchema),
-    defaultValues: { fullName: '', email: '', phoneNumber: '', password: '', passkey: '', role: 'student' as 'student' | 'teacher', agreedToCommission: false, agreedToTerms: false }
+    defaultValues: { fullName: '', email: '', phoneNumber: '', password: '', role: 'student' as 'student' | 'teacher', agreedToCommission: false, agreedToTerms: false }
   });
 
   const { mutate: loginMutate, isPending: isLoggingIn } = useLogin({
@@ -654,11 +653,6 @@ Any disputes shall be resolved in the courts of Tripoli, Libya, unless arbitrati
                     )}
                   </div>
                 )}
-                <div>
-                  <label className="text-sm font-medium mb-1.5 block">Session Passkey (4 Digits)</label>
-                  <Input {...registerForm.register('passkey')} type="password" placeholder="e.g., 1234 (used to quickly unlock your session)" maxLength={4} className="h-12 bg-muted/50 border-transparent focus:bg-background" />
-                  {registerForm.formState.errors.passkey && <p className="mt-1 text-sm text-destructive">{registerForm.formState.errors.passkey.message}</p>}
-                </div>
 
                 <div className="flex flex-col gap-1 mt-4">
                   <div className="flex items-start gap-3">
