@@ -246,6 +246,44 @@ router.get("/requests", requireAuth, async (req, res) => {
   }
 });
 
+// ─── Fetch a single tutoring request by ID ────────────────────────────────────
+// Called by TutoringRoom.tsx before the PreJoin screen renders.
+// Both the student AND the assigned teacher are authorised to fetch it.
+router.get("/requests/:id", requireAuth, async (req, res) => {
+  try {
+    const { userId, role } = (req as any).user;
+    const requestId = parseParam(req.params.id);
+
+    const [request] = await db.select().from(tutoringRequestsTable)
+      .where(eq(tutoringRequestsTable.id, requestId)).limit(1);
+
+    if (!request) { res.status(404).json({ error: "Request not found" }); return; }
+
+    // Must be the student, the assigned teacher, or an admin
+    const isParticipant = request.studentId === userId || request.teacherId === userId;
+    if (!isParticipant && role !== "admin") {
+      res.status(403).json({ error: "Not authorized to view this session" }); return;
+    }
+
+    const [student] = await db.select().from(usersTable).where(eq(usersTable.id, request.studentId)).limit(1);
+    const [teacher] = request.teacherId
+      ? await db.select().from(usersTable).where(eq(usersTable.id, request.teacherId)).limit(1)
+      : [null];
+
+    res.json({
+      ...request,
+      hourlyRate: parseFloat(request.hourlyRate),
+      totalAmount: parseFloat(request.totalAmount),
+      studentName: student?.fullName,
+      studentEmail: student?.email,
+      teacherName: teacher?.fullName,
+      teacherEmail: teacher?.email,
+    });
+  } catch (err: any) {
+    res.status(500).json({ error: "Server error", message: err.message });
+  }
+});
+
 // ─── Student creates a tutoring request ──────────────────────────────────────
 router.post("/requests", requireAuth, async (req, res) => {
   try {
