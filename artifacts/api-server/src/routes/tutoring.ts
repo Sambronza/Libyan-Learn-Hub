@@ -682,6 +682,14 @@ router.post("/requests/:id/complete", requireAuth, async (req, res) => {
     }
 
     if (request.status !== "accepted") {
+      // If already terminated (e.g. by a Misbehave report) or already completed,
+      // treat as a no-op success — the client may call /complete in parallel with
+      // /misbehave and we never want to surface a 400 to the user in that race.
+      if (["terminated_due_to_report", "completed_pending_review", "completed",
+           "approved", "rejected", "partially_approved", "cancelled",
+           "cancelled_no_show", "declined"].includes(request.status)) {
+        res.json({ success: true, status: request.status, skipped: true }); return;
+      }
       res.status(400).json({ error: "Only accepted sessions can be marked as complete" }); return;
     }
 
