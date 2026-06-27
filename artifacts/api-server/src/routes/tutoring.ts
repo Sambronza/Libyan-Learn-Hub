@@ -1114,6 +1114,12 @@ router.post("/requests/:id/misbehave", requireAuth, upload.single("recording"), 
       res.status(403).json({ error: "Not authorized" }); return;
     }
 
+    // If a previous misbehave report already terminated this session,
+    // return a graceful 409 instead of letting the DB insert fail with a 500.
+    if (request.status === "terminated_due_to_report") {
+      res.status(409).json({ error: "This session has already been terminated due to a previous report." }); return;
+    }
+
     if (!["accepted", "completed_pending_review"].includes(request.status)) {
       res.status(400).json({ error: "Session is not currently active" }); return;
     }

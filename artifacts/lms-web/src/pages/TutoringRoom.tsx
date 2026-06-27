@@ -411,6 +411,7 @@ export default function TutoringRoom() {
                 serverUrl={liveKitUrl}
                 className="absolute inset-0 w-full h-full"
                 data-lk-theme="default"
+                data-recording-container="true"
                 style={{ height: '100%', '--lk-bg': '#020817' } as React.CSSProperties}
                 onDisconnected={handleDisconnected}
               >
