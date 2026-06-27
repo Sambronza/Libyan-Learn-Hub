@@ -1231,6 +1231,7 @@ function ReportsTab({ api, queryClient, toast }: any) {
             <option value="session">Session</option>
             <option value="teacher">Teacher</option>
             <option value="course">Course</option>
+            <option value="tutoring_misbehave">🚨 Misbehave Report</option>
           </select>
           <select value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)} className="h-9 px-3 rounded-md border border-input bg-background text-sm">
             <option value="all">All Status</option>
@@ -1313,6 +1314,18 @@ function ReportsTab({ api, queryClient, toast }: any) {
                 <div><span className="font-medium">Reason:</span> {reasonLabels[activeReport.reason] || activeReport.reason}</div>
                 {activeReport.reportedName && <div><span className="font-medium">Reported:</span> {activeReport.reportedName}</div>}
                 {activeReport.description && <div><span className="font-medium">Description:</span> {activeReport.description}</div>}
+                {activeReport.recordingUrl && (
+                  <div className="pt-2 border-t border-border">
+                    <a
+                      href={activeReport.recordingUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="inline-flex items-center gap-2 text-xs font-bold text-white bg-red-600 hover:bg-red-700 px-3 py-1.5 rounded-lg transition-colors"
+                    >
+                      <Video className="w-3.5 h-3.5" /> View Incident Recording
+                    </a>
+                  </div>
+                )}
               </div>
               <div>
                 <label className="text-sm font-medium mb-1 block">Admin Note (optional)</label>
@@ -2351,6 +2364,7 @@ function TutoringReviewsTab({ api, queryClient, toast }: any) {
   const statusColors: Record<string, string> = {
     completed_pending_review: 'bg-indigo-100 text-indigo-800 border-indigo-200',
     cancelled_no_show: 'bg-orange-100 text-orange-800 border-orange-200',
+    terminated_due_to_report: 'bg-red-100 text-red-800 border-red-300',
     approved: 'bg-emerald-100 text-emerald-800 border-emerald-200',
     rejected: 'bg-red-100 text-red-800 border-red-200',
     partially_approved: 'bg-teal-100 text-teal-800 border-teal-200',
@@ -2359,6 +2373,7 @@ function TutoringReviewsTab({ api, queryClient, toast }: any) {
   const statusLabels: Record<string, string> = {
     completed_pending_review: 'Pending Review',
     cancelled_no_show: 'No-Show (Needs Review)',
+    terminated_due_to_report: '🚨 Misbehave Report — On Hold',
     approved: 'Approved (Teacher Paid)',
     rejected: 'Rejected (Student Refunded)',
     partially_approved: 'Partially Approved',
@@ -2376,6 +2391,7 @@ function TutoringReviewsTab({ api, queryClient, toast }: any) {
             <option value="all">All Reviews</option>
             <option value="completed_pending_review">Pending Review</option>
             <option value="cancelled_no_show">No-Shows</option>
+            <option value="terminated_due_to_report">🚨 Misbehave Reports</option>
             <option value="approved">Approved</option>
             <option value="rejected">Rejected</option>
             <option value="partially_approved">Partially Approved</option>
@@ -2465,8 +2481,25 @@ function TutoringReviewsTab({ api, queryClient, toast }: any) {
                 </div>
               )}
 
+              {/* Incident Recording for Misbehave cases */}
+              {r.status === 'terminated_due_to_report' && r.recordingUrl && (
+                <div className="mb-4 bg-red-50 dark:bg-red-950/20 p-3 rounded-lg border border-red-300/60">
+                  <div className="text-xs font-bold mb-2 flex items-center gap-1.5 text-red-700">
+                    <Video className="w-3.5 h-3.5" /> Incident Recording (2-min buffer)
+                  </div>
+                  <a
+                    href={r.recordingUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex items-center gap-2 text-xs font-bold text-white bg-red-600 hover:bg-red-700 px-3 py-1.5 rounded-lg transition-colors"
+                  >
+                    <PlayCircle className="w-3.5 h-3.5" /> Watch Recording
+                  </a>
+                </div>
+              )}
+
               {/* Admin Actions */}
-              {r.status === 'completed_pending_review' || r.status === 'cancelled_no_show' ? (
+              {(r.status === 'completed_pending_review' || r.status === 'cancelled_no_show' || r.status === 'terminated_due_to_report') ? (
                 <div className="mt-auto space-y-3 pt-4 border-t border-border">
                   <div>
                     <label className="text-xs font-medium block mb-1">Admin Note / Reason (Optional)</label>

@@ -1,7 +1,7 @@
 import { pgTable, serial, integer, text, varchar, timestamp, pgEnum } from "drizzle-orm/pg-core";
 import { usersTable } from "./users";
 
-export const reportTypeEnum = pgEnum("report_type", ["lesson", "session", "teacher", "course"]);
+export const reportTypeEnum = pgEnum("report_type", ["lesson", "session", "teacher", "course", "tutoring_misbehave"]);
 export const reportStatusEnum = pgEnum("report_status", ["open", "under_review", "resolved", "dismissed"]);
 export const reportReasonEnum = pgEnum("report_reason", [
   "wrong_content", "offensive", "technical_issue", "no_show",
@@ -19,6 +19,7 @@ export const reportsTable = pgTable("reports", {
   targetId: integer("target_id"),
   status: reportStatusEnum("status").notNull().default("open"),
   adminNote: text("admin_note"),
+  recordingUrl: text("recording_url"),
   resolvedById: integer("resolved_by_id").references(() => usersTable.id),
   createdAt: timestamp("created_at").notNull().defaultNow(),
   updatedAt: timestamp("updated_at").notNull().defaultNow(),

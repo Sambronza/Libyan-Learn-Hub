@@ -4,10 +4,11 @@ import {
   usersTable, coursesTable, paymentsTable, enrollmentsTable,
   teacherEarningsTable, liveSessionsTable, categoriesTable, lessonsTable,
   platformSettingsTable, redeemCardsTable, withdrawalRequestsTable, notificationsTable,
-  tutoringRequestsTable
+  tutoringRequestsTable, auditLogsTable
 } from "@workspace/db";
 import { eq, count, sql, sum, desc, and, ne, or } from "drizzle-orm";
 import { requireAuth, requireRole } from "../lib/auth.js";
+import { logAudit } from "../lib/auditLog.js";
 import bcrypt from "bcryptjs";
 import crypto from "crypto";
 import { deleteFromCloudinaryByUrl } from "../lib/cloudinary.js";
@@ -100,6 +101,38 @@ router.put("/settings", async (req, res) => {
   }
 });
 
+// ─── AUDIT LOGS ───────────────────────────────────────────────────────────────
+
+router.get("/audit-logs", async (req, res) => {
+  try {
+    const limit = Math.min(parseInt((req.query.limit as string) || "50"), 200);
+    const offset = parseInt((req.query.offset as string) || "0");
+    const logs = await db
+      .select()
+      .from(auditLogsTable)
+      .orderBy(desc(auditLogsTable.createdAt))
+      .limit(limit)
+      .offset(offset);
+
+    const result = await Promise.all(logs.map(async (log) => {
+      const [admin] = log.adminId
+        ? await db.select({ id: usersTable.id, fullName: usersTable.fullName, email: usersTable.email })
+            .from(usersTable).where(eq(usersTable.id, log.adminId)).limit(1)
+        : [null];
+      return {
+        ...log,
+        adminName: admin?.fullName || "Unknown",
+        adminEmail: admin?.email || "",
+      };
+    }));
+
+    const [{ total }] = await db.select({ total: count() }).from(auditLogsTable);
+    res.json({ logs: result, total: Number(total), limit, offset });
+  } catch (err: any) {
+    res.status(500).json({ error: "Server error", message: err.message });
+  }
+});
+
 // ─── USERS ────────────────────────────────────────────────────────────────────
 
 router.get("/users", async (_req, res) => {
@@ -138,11 +171,13 @@ router.post("/users/:userId/verify", async (req, res) => {
   try {
     const userId = parseInt(req.params.userId);
     const { isVerified } = req.body;
+    const adminId = (req as any).user.userId;
     const [updated] = await db.update(usersTable)
       .set({ isVerified: !!isVerified, updatedAt: new Date() })
       .where(eq(usersTable.id, userId))
       .returning();
     if (!updated) { res.status(404).json({ error: "User not found" }); return; }
+    await logAudit({ adminId, action: "user.verified", targetType: "user", targetId: userId, details: { isVerified: !!isVerified }, ip: req.ip });
     res.json({ success: true, isVerified: updated.isVerified });
   } catch (err: any) {
     res.status(500).json({ error: "Server error", message: err.message });
@@ -168,6 +203,7 @@ router.put("/users/:userId/role", async (req, res) => {
       .where(eq(usersTable.id, userId))
       .returning();
     if (!updated) { res.status(404).json({ error: "User not found" }); return; }
+    await logAudit({ adminId, action: "user.role_changed", targetType: "user", targetId: userId, details: { newRole: role }, ip: req.ip });
     res.json({ success: true, user: { id: updated.id, role: updated.role } });
   } catch (err: any) {
     res.status(500).json({ error: "Server error", message: err.message });
@@ -179,7 +215,9 @@ router.delete("/users/:userId", async (req, res) => {
     const userId = parseInt(req.params.userId);
     const { userId: adminId } = (req as any).user;
     if (userId === adminId) { res.status(400).json({ error: "Cannot delete yourself" }); return; }
+    const [target] = await db.select({ fullName: usersTable.fullName, email: usersTable.email }).from(usersTable).where(eq(usersTable.id, userId)).limit(1);
     await db.delete(usersTable).where(eq(usersTable.id, userId));
+    await logAudit({ adminId, action: "user.deleted", targetType: "user", targetId: userId, details: { email: target?.email, fullName: target?.fullName }, ip: req.ip });
     res.json({ success: true });
   } catch (err: any) {
     res.status(500).json({ error: "Server error", message: err.message });
@@ -192,9 +230,11 @@ router.post("/users/create", async (req, res) => {
     const existing = await db.select().from(usersTable).where(eq(usersTable.email, email)).limit(1);
     if (existing.length > 0) { res.status(400).json({ error: "Email already registered" }); return; }
     const passwordHash = await bcrypt.hash(password, 10);
+    const adminId = (req as any).user.userId;
     const [user] = await db.insert(usersTable).values({
       email, passwordHash, fullName, role: role as any, language: "ar",
     }).returning();
+    await logAudit({ adminId, action: "user.created", targetType: "user", targetId: user.id, details: { email: user.email, fullName: user.fullName, role: user.role }, ip: req.ip });
     res.status(201).json({ id: user.id, email: user.email, fullName: user.fullName, role: user.role, createdAt: user.createdAt });
   } catch (err: any) {
     res.status(400).json({ error: "Failed to create user", message: err.message });
@@ -272,6 +312,7 @@ router.put("/courses/:courseId/publish", async (req, res) => {
       referenceId: updated.id,
     });
 
+    await logAudit({ adminId, action: "course.approved", targetType: "course", targetId: courseId, details: { title: updated.title }, ip: req.ip });
     res.json({ success: true, isPublished: updated.isPublished, status: updated.status });
   } catch (err: any) {
     res.status(500).json({ error: "Server error", message: err.message });
@@ -314,6 +355,7 @@ router.put("/courses/:courseId/reject", async (req, res) => {
       referenceId: updated.id,
     });
 
+    await logAudit({ adminId, action: "course.rejected", targetType: "course", targetId: courseId, details: { title: updated.title, rejectionReason }, ip: req.ip });
     res.json({ success: true, status: updated.status, rejectionReason: updated.rejectionReason });
   } catch (err: any) {
     res.status(500).json({ error: "Server error", message: err.message });
@@ -323,6 +365,7 @@ router.put("/courses/:courseId/reject", async (req, res) => {
 router.delete("/courses/:courseId", async (req, res) => {
   try {
     const courseId = parseInt(req.params.courseId);
+    const adminId = (req as any).user.userId;
     
     // Fetch course and lessons to delete from Cloudinary
     const [course] = await db.select().from(coursesTable).where(eq(coursesTable.id, courseId)).limit(1);
@@ -338,6 +381,7 @@ router.delete("/courses/:courseId", async (req, res) => {
     }
 
     await db.delete(coursesTable).where(eq(coursesTable.id, courseId));
+    await logAudit({ adminId, action: "course.deleted", targetType: "course", targetId: courseId, details: { title: course?.title }, ip: req.ip });
     res.json({ success: true });
   } catch (err: any) {
     res.status(500).json({ error: "Server error", message: err.message });
@@ -424,6 +468,7 @@ router.get("/payments/pending", async (_req, res) => {
 router.post("/payments/:paymentId/approve", async (req, res) => {
   try {
     const paymentId = parseInt(req.params.paymentId);
+    const adminId = (req as any).user.userId;
     const [payment] = await db.select().from(paymentsTable).where(eq(paymentsTable.id, paymentId)).limit(1);
     if (!payment) { res.status(404).json({ error: "Payment not found" }); return; }
     if (payment.status !== "pending") { res.status(400).json({ error: `Payment is already ${payment.status}` }); return; }
@@ -473,6 +518,7 @@ router.post("/payments/:paymentId/approve", async (req, res) => {
       }
     }
 
+    await logAudit({ adminId, action: "payment.approved", targetType: "payment", targetId: paymentId, details: { amount: payment.amount, currency: payment.currency }, ip: req.ip });
     res.json({ success: true });
   } catch (err: any) {
     res.status(500).json({ error: "Server error", message: err.message });
@@ -482,10 +528,12 @@ router.post("/payments/:paymentId/approve", async (req, res) => {
 router.post("/payments/:paymentId/reject", async (req, res) => {
   try {
     const paymentId = parseInt(req.params.paymentId);
+    const adminId = (req as any).user.userId;
     const [payment] = await db.select().from(paymentsTable).where(eq(paymentsTable.id, paymentId)).limit(1);
     if (!payment) { res.status(404).json({ error: "Payment not found" }); return; }
     if (payment.status !== "pending") { res.status(400).json({ error: `Payment is already ${payment.status}` }); return; }
     await db.update(paymentsTable).set({ status: "failed", updatedAt: new Date() }).where(eq(paymentsTable.id, paymentId));
+    await logAudit({ adminId, action: "payment.rejected", targetType: "payment", targetId: paymentId, details: { amount: payment.amount, currency: payment.currency }, ip: req.ip });
     res.json({ success: true });
   } catch (err: any) {
     res.status(500).json({ error: "Server error", message: err.message });
@@ -531,10 +579,13 @@ router.get("/earnings", async (_req, res) => {
 router.post("/earnings/:earningId/pay", async (req, res) => {
   try {
     const earningId = parseInt(req.params.earningId);
+    const adminId = (req as any).user.userId;
+    let paidEarning: any;
     await db.transaction(async (tx) => {
       const [earning] = await tx.select().from(teacherEarningsTable).where(eq(teacherEarningsTable.id, earningId)).limit(1);
       if (!earning) { throw new Error("Earning not found"); }
       if (earning.status !== "available") { throw new Error("Earning not available for payout"); }
+      paidEarning = earning;
       await tx.update(teacherEarningsTable).set({ status: "paid" }).where(eq(teacherEarningsTable.id, earningId));
       
       const [teacher] = await tx.select().from(usersTable).where(eq(usersTable.id, earning.teacherId)).limit(1);
@@ -546,6 +597,7 @@ router.post("/earnings/:earningId/pay", async (req, res) => {
           .where(eq(usersTable.id, earning.teacherId));
       }
     });
+    await logAudit({ adminId, action: "earning.paid", targetType: "earning", targetId: earningId, details: { netAmount: paidEarning?.netAmount, teacherId: paidEarning?.teacherId }, ip: req.ip });
     res.json({ success: true });
   } catch (err: any) {
     if (err.message === "Earning not found") { res.status(404).json({ error: err.message }); return; }
@@ -557,12 +609,14 @@ router.post("/earnings/:earningId/pay", async (req, res) => {
 router.post("/earnings/pay-all/:teacherId", async (req, res) => {
   try {
     const teacherId = parseInt(req.params.teacherId);
+    const adminId = (req as any).user.userId;
+    let totalPaid = 0;
     await db.transaction(async (tx) => {
       const earnings = await tx.select().from(teacherEarningsTable)
         .where(and(eq(teacherEarningsTable.teacherId, teacherId), eq(teacherEarningsTable.status, "available")));
       if (earnings.length === 0) return;
       
-      const totalAmount = earnings.reduce((sum, e) => sum + parseFloat(e.netAmount as string), 0);
+      totalPaid = earnings.reduce((sum, e) => sum + parseFloat(e.netAmount as string), 0);
       await tx.update(teacherEarningsTable)
         .set({ status: "paid" })
         .where(and(eq(teacherEarningsTable.teacherId, teacherId), eq(teacherEarningsTable.status, "available")));
@@ -571,10 +625,11 @@ router.post("/earnings/pay-all/:teacherId", async (req, res) => {
       if (teacher) {
         const currentBalance = parseFloat(teacher.balance as string || "0");
         await tx.update(usersTable)
-          .set({ balance: (currentBalance - totalAmount).toFixed(2), updatedAt: new Date() })
+          .set({ balance: (currentBalance - totalPaid).toFixed(2), updatedAt: new Date() })
           .where(eq(usersTable.id, teacherId));
       }
     });
+    await logAudit({ adminId, action: "earning.paid_all", targetType: "teacher", targetId: teacherId, details: { totalPaid: totalPaid.toFixed(2) }, ip: req.ip });
     res.json({ success: true });
   } catch (err: any) {
     res.status(500).json({ error: "Server error", message: err.message });
@@ -606,7 +661,9 @@ router.post("/redeem-cards/generate", async (req, res) => {
       });
     }
 
+    const adminId = (req as any).user.userId;
     const inserted = await db.insert(redeemCardsTable).values(cardsToInsert).returning();
+    await logAudit({ adminId, action: "card.generated", targetType: "redeem_card", details: { count: inserted.length, value, prefix }, ip: req.ip });
     res.json({ success: true, count: inserted.length, cards: inserted });
   } catch (err: any) {
     res.status(500).json({ error: "Server error", message: err.message });
@@ -637,6 +694,7 @@ router.get("/redeem-cards", async (_req, res) => {
 router.put("/redeem-cards/:id/deactivate", async (req, res) => {
   try {
     const id = parseInt(req.params.id);
+    const adminId = (req as any).user.userId;
     const [updated] = await db.update(redeemCardsTable)
       .set({ status: "deactivated", deactivatedAt: new Date() })
       .where(and(eq(redeemCardsTable.id, id), eq(redeemCardsTable.status, "active")))
@@ -646,6 +704,7 @@ router.put("/redeem-cards/:id/deactivate", async (req, res) => {
       res.status(400).json({ error: "Card not found or not active" });
       return;
     }
+    await logAudit({ adminId, action: "card.deactivated", targetType: "redeem_card", targetId: id, details: { code: updated.code }, ip: req.ip });
     res.json({ success: true, card: updated });
   } catch (err: any) {
     res.status(500).json({ error: "Server error", message: err.message });
@@ -675,6 +734,7 @@ router.get("/withdrawals", async (req, res) => {
 router.put("/withdrawals/:id/status", async (req, res) => {
   try {
     const id = parseInt(req.params.id);
+    const adminId = (req as any).user.userId;
     const { status, adminNotes } = req.body;
 
     if (!["approved", "rejected", "paid"].includes(status)) {
@@ -758,6 +818,7 @@ router.put("/withdrawals/:id/status", async (req, res) => {
       }
     });
 
+    await logAudit({ adminId, action: "withdrawal.status_changed", targetType: "withdrawal", targetId: id, details: { status, adminNotes: adminNotes || null }, ip: req.ip });
     res.json({ success: true, withdrawal: updated });
   } catch (err: any) {
     res.status(500).json({ error: "Server error", message: err.message });
@@ -769,7 +830,7 @@ router.get("/tutoring-reviews", async (req, res) => {
   try {
     const { status } = req.query as { status?: string };
 
-    const reviewStatuses = ["completed_pending_review", "cancelled_no_show", "approved", "rejected", "partially_approved"] as const;
+    const reviewStatuses = ["completed_pending_review", "cancelled_no_show", "terminated_due_to_report", "approved", "rejected", "partially_approved"] as const;
 
     let whereClause;
     if (!status || status === "all") {
@@ -813,8 +874,8 @@ router.post("/tutoring-reviews/:id/approve", async (req, res) => {
       .where(eq(tutoringRequestsTable.id, requestId)).limit(1);
 
     if (!request) { res.status(404).json({ error: "Request not found" }); return; }
-    if (request.status !== "completed_pending_review" && request.status !== "cancelled_no_show") {
-      res.status(400).json({ error: "Only pending or no-show sessions can be approved" }); return;
+    if (request.status !== "completed_pending_review" && request.status !== "cancelled_no_show" && request.status !== "terminated_due_to_report") {
+      res.status(400).json({ error: "Only pending, no-show, or misbehave sessions can be approved" }); return;
     }
 
     await db.transaction(async (tx) => {
@@ -859,6 +920,8 @@ router.post("/tutoring-reviews/:id/approve", async (req, res) => {
       await deleteFromCloudinaryByUrl(request.recordingUrl).catch(console.error);
     }
 
+    const adminId = (req as any).user.userId;
+    await logAudit({ adminId, action: "tutoring.approved", targetType: "tutoring_request", targetId: requestId, details: { totalAmount: request.totalAmount, teacherId: request.teacherId }, ip: req.ip });
     res.json({ success: true, status: "approved" });
   } catch (err: any) {
     res.status(500).json({ error: "Server error", message: err.message });
@@ -874,8 +937,8 @@ router.post("/tutoring-reviews/:id/reject", async (req, res) => {
       .where(eq(tutoringRequestsTable.id, requestId)).limit(1);
 
     if (!request) { res.status(404).json({ error: "Request not found" }); return; }
-    if (request.status !== "completed_pending_review" && request.status !== "cancelled_no_show") {
-      res.status(400).json({ error: "Only pending or no-show sessions can be rejected" }); return;
+    if (request.status !== "completed_pending_review" && request.status !== "cancelled_no_show" && request.status !== "terminated_due_to_report") {
+      res.status(400).json({ error: "Only pending, no-show, or misbehave sessions can be rejected" }); return;
     }
 
     await db.transaction(async (tx) => {
@@ -897,6 +960,8 @@ router.post("/tutoring-reviews/:id/reject", async (req, res) => {
       await deleteFromCloudinaryByUrl(request.recordingUrl).catch(console.error);
     }
 
+    const adminId = (req as any).user.userId;
+    await logAudit({ adminId, action: "tutoring.rejected", targetType: "tutoring_request", targetId: requestId, details: { totalAmount: request.totalAmount, studentId: request.studentId }, ip: req.ip });
     res.json({ success: true, status: "rejected" });
   } catch (err: any) {
     res.status(500).json({ error: "Server error", message: err.message });
@@ -916,8 +981,8 @@ router.post("/tutoring-reviews/:id/partial-approve", async (req, res) => {
       .where(eq(tutoringRequestsTable.id, requestId)).limit(1);
 
     if (!request) { res.status(404).json({ error: "Request not found" }); return; }
-    if (request.status !== "completed_pending_review" && request.status !== "cancelled_no_show") {
-      res.status(400).json({ error: "Only pending or no-show sessions can be partially approved" }); return;
+    if (request.status !== "completed_pending_review" && request.status !== "cancelled_no_show" && request.status !== "terminated_due_to_report") {
+      res.status(400).json({ error: "Only pending, no-show, or misbehave sessions can be partially approved" }); return;
     }
 
     const total = parseFloat(request.totalAmount);
@@ -978,6 +1043,8 @@ router.post("/tutoring-reviews/:id/partial-approve", async (req, res) => {
       await deleteFromCloudinaryByUrl(request.recordingUrl).catch(console.error);
     }
 
+    const adminId = (req as any).user.userId;
+    await logAudit({ adminId, action: "tutoring.partial_approved", targetType: "tutoring_request", targetId: requestId, details: { teacherAmount: approvedTeacherAmount, refundAmount, totalAmount: total }, ip: req.ip });
     res.json({ success: true, status: "partially_approved" });
   } catch (err: any) {
     res.status(500).json({ error: "Server error", message: err.message });

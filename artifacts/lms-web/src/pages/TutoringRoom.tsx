@@ -7,11 +7,12 @@ import { useQuery } from '@tanstack/react-query';
 import { useToast } from '@/hooks/use-toast';
 import { Button } from '@/components/ui/button';
 import {
-  ArrowLeft, Radio, Clock, PauseCircle
+  ArrowLeft, Radio, Clock, PauseCircle, AlertTriangle
 } from 'lucide-react';
 import { ScreenProtection } from '@/components/ScreenProtection';
 import { WatermarkOverlay } from '@/components/WatermarkOverlay';
 import { useAudioRecording } from '@/hooks/useAudioRecording';
+import { useMisbehaveRecording } from '@/hooks/useMisbehaveRecording';
 import { FeedbackModal } from '@/components/FeedbackModal';
 
 import {
@@ -221,7 +222,10 @@ export default function TutoringRoom() {
   const [liveKitUrl, setLiveKitUrl] = useState<string | null>(null);
   const [isTeacher, setIsTeacher] = useState(false);
   const [showFeedback, setShowFeedback] = useState(false);
+  const [showMisbehaveConfirm, setShowMisbehaveConfirm] = useState(false);
+  const [misbehaveReason, setMisbehaveReason] = useState('inappropriate_behavior');
   const { startRecording, stopRecording } = useAudioRecording(requestId);
+  const { isSubmitting: isMisbehaveSubmitting, startBuffer, stopBuffer, triggerMisbehave } = useMisbehaveRecording(requestId);
 
   useEffect(() => {
     if (!authLoading && !isAuthenticated) setLocation('/login');
@@ -305,7 +309,25 @@ export default function TutoringRoom() {
     if (isTeacher && sessionType === 'request') {
       startRecording();
     }
-  }, [isTeacher, sessionType, startRecording]);
+    // Start 2-min rolling buffer for ALL participants once session is live
+    startBuffer();
+  }, [isTeacher, sessionType, startRecording, startBuffer]);
+
+  // ── Misbehave handler ──────────────────────────────────────────────────────
+  const handleMisbehave = useCallback(async () => {
+    setShowMisbehaveConfirm(false);
+    try {
+      stopRecording();
+      sessionEndedRef.current = true; // prevent handleDisconnected from firing redundantly
+      await triggerMisbehave(misbehaveReason, 'Session forcefully terminated via Misbehave button.');
+      toast({ title: '🚨 Report submitted', description: 'The session has been terminated and an admin will review the recording.', variant: 'destructive' });
+    } catch (err: any) {
+      toast({ title: 'Error', description: err.message, variant: 'destructive' });
+    } finally {
+      stopBuffer();
+      setLocation('/tutoring');
+    }
+  }, [triggerMisbehave, misbehaveReason, stopRecording, stopBuffer, toast, setLocation]);
 
   if (authLoading || isLoading) {
     return (
@@ -348,6 +370,21 @@ export default function TutoringRoom() {
             <h1 className="font-bold text-base truncate">Tutoring: {resolvedSession.subject}</h1>
           </div>
         </div>
+
+        {/* Misbehave Panic Button — only visible once session is live */}
+        {hasJoined && (
+          <Button
+            id="misbehave-btn"
+            variant="destructive"
+            size="sm"
+            className="gap-2 bg-red-600 hover:bg-red-700 text-white font-bold border border-red-400 shadow-lg animate-pulse shrink-0"
+            onClick={() => setShowMisbehaveConfirm(true)}
+            disabled={isMisbehaveSubmitting}
+          >
+            <AlertTriangle className="w-4 h-4" />
+            {isMisbehaveSubmitting ? 'Reporting...' : 'Misbehave'}
+          </Button>
+        )}
       </div>
 
       <div className="flex-1 overflow-hidden relative flex flex-col bg-black">
@@ -406,6 +443,63 @@ export default function TutoringRoom() {
         title="How was your tutoring session?"
         subtitle="Your feedback helps your teacher and the platform improve."
       />
+
+      {/* ── Misbehave Confirmation Dialog ────────────────────────────────────── */}
+      {showMisbehaveConfirm && (
+        <div className="fixed inset-0 z-[300] flex items-center justify-center bg-black/80 backdrop-blur-sm p-4">
+          <div className="bg-slate-900 border border-red-500/60 rounded-2xl shadow-2xl p-6 w-full max-w-md">
+            <div className="flex items-center gap-3 mb-4">
+              <div className="w-12 h-12 rounded-full bg-red-600/20 flex items-center justify-center shrink-0">
+                <AlertTriangle className="w-6 h-6 text-red-500" />
+              </div>
+              <div>
+                <h2 className="font-bold text-white text-lg">Report Misbehaviour</h2>
+                <p className="text-red-300 text-sm">This will immediately close the session for everyone.</p>
+              </div>
+            </div>
+
+            <p className="text-white/70 text-sm mb-4">
+              The last 2 minutes of this session will be recorded and submitted to an admin for review.
+              The student's payment will be held pending admin decision.
+            </p>
+
+            <div className="mb-4">
+              <label className="text-xs text-white/50 font-semibold uppercase tracking-wider mb-1.5 block">Reason</label>
+              <select
+                id="misbehave-reason-select"
+                value={misbehaveReason}
+                onChange={(e) => setMisbehaveReason(e.target.value)}
+                className="w-full px-3 py-2 rounded-lg bg-slate-800 border border-white/20 text-white text-sm"
+              >
+                <option value="inappropriate_behavior">Inappropriate behaviour</option>
+                <option value="offensive">Offensive / abusive language</option>
+                <option value="no_show">No-show / abandonment</option>
+                <option value="technical_issue">Technical issue caused by other party</option>
+                <option value="other">Other</option>
+              </select>
+            </div>
+
+            <div className="flex gap-3">
+              <Button
+                id="misbehave-confirm-btn"
+                className="flex-1 bg-red-600 hover:bg-red-700 text-white font-bold gap-2"
+                disabled={isMisbehaveSubmitting}
+                onClick={handleMisbehave}
+              >
+                <AlertTriangle className="w-4 h-4" />
+                {isMisbehaveSubmitting ? 'Submitting...' : 'Confirm & End Session'}
+              </Button>
+              <Button
+                variant="outline"
+                className="flex-1 border-white/20 text-white hover:bg-white/10"
+                onClick={() => setShowMisbehaveConfirm(false)}
+              >
+                Cancel
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

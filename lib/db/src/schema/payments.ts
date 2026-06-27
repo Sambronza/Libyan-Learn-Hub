@@ -6,7 +6,7 @@ import { coursesTable } from "./courses";
 import { tutoringRequestsTable } from "./tutoring-requests";
 
 export const paymentMethodEnum = pgEnum("payment_method", ["bank_transfer", "cash", "mobile_wallet", "wallet", "redeem_card"]);
-export const paymentStatusEnum = pgEnum("payment_status", ["pending", "completed", "failed", "refunded"]);
+export const paymentStatusEnum = pgEnum("payment_status", ["pending", "completed", "failed", "refunded", "on_hold"]);
 
 export const paymentsTable = pgTable("payments", {
   id: serial("id").primaryKey(),

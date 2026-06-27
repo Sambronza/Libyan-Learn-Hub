@@ -86,6 +86,12 @@ app.use((req, res, next) => {
   next();
 });
 
+// Root-level health probe — deployment liveness checks hit /api (the base path)
+// before the router routes are matched. Return 200 immediately without touching the DB.
+app.get(["/api", "/api/"], (_req, res) => {
+  res.json({ status: "ok" });
+});
+
 app.use("/api", router);
 
 export default app;

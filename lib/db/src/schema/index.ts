@@ -40,5 +40,8 @@ export * from "./user-push-tokens.ts";
 export * from "./wallet.ts";
 export * from "./prepaid-cards.ts";
 
+// Audit Log
+export * from "./audit-logs.ts";
+
 // Feedback System
 export * from "./live-session-feedback.ts";

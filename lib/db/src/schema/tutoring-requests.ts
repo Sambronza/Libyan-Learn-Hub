@@ -5,7 +5,8 @@ import { categoriesTable } from "./categories";
 export const tutoringStatusEnum = pgEnum("tutoring_status", [
   "pending", "accepted", "declined", "completed", "cancelled",
   "cancelled_no_show", "rescheduled_by_teacher", "rescheduled_by_student",
-  "completed_pending_review", "approved", "rejected", "partially_approved"
+  "completed_pending_review", "approved", "rejected", "partially_approved",
+  "terminated_due_to_report"
 ]);
 
 export const tutoringRequestsTable = pgTable("tutoring_requests", {
