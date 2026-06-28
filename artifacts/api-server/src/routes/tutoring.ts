@@ -1247,7 +1247,7 @@ router.post("/requests/:id/misbehave", requireAuth, upload.single("recording"), 
         .set({ status: "on_hold", updatedAt: new Date() })
         .where(and(
           eq(paymentsTable.tutoringRequestId, requestId),
-          sql`${paymentsTable.status} NOT IN ('on_hold', 'refunded', 'released')`
+          sql`${paymentsTable.status} NOT IN ('on_hold', 'refunded', 'completed')`
         ));
     });
 
