@@ -1102,10 +1102,10 @@ router.post("/requests/:id/timer/resume", requireAuth, async (req, res) => {
 
 // ─── Misbehave / Panic Report ─────────────────────────────────────────────────
 // Either the student or teacher can hit this endpoint to immediately:
-//  1. Upload the client-side 2-min rolling video buffer as evidence
-//  2. Force-terminate the LiveKit room for ALL participants
-//  3. Flag the tutoring request as terminated_due_to_report
-//  4. Create a report record in the reportsTable for admin review
+//  1. Force-terminate the LiveKit room for ALL participants
+//  2. Flag the tutoring request as terminated_due_to_report
+//  3. Create a report record in the reportsTable for admin review
+//  4. Upload the rolling-buffer recording to Cloudinary (background, non-blocking)
 router.post("/requests/:id/misbehave", requireAuth, upload.single("recording"), async (req, res) => {
   try {
     const { userId } = (req as any).user;
@@ -1135,44 +1135,24 @@ router.post("/requests/:id/misbehave", requireAuth, upload.single("recording"), 
     // Determine who is being reported
     const reportedUserId = userId === request.studentId ? request.teacherId : request.studentId;
 
-    // ── 1. Upload the rolling-buffer recording to Cloudinary if provided ──────
-    let recordingUrl: string | null = null;
-    if (req.file) {
-      try {
-        const randomSuffix = Math.random().toString(36).substring(2, 8);
-        const safePublicId = `misbehave_${requestId}_${randomSuffix}`;
-        const uploadResult = await uploadToCloudinary(req.file.buffer, {
-          resource_type: "video",
-          folder: "libyan-learn-hub/misbehave-recordings",
-          public_id: safePublicId,
-        });
-        recordingUrl = uploadResult.secure_url;
-      } catch (uploadErr) {
-        // Recording upload failure should NOT block the safety action — log and continue
-        console.error("[Misbehave] Recording upload failed:", uploadErr);
-      }
-    }
+    // ── 1. Force-terminate the LiveKit room (fire-and-forget) ─────────────────
+    // Use same roomId derivation as the /join endpoint
+    const roomId = request.meetingUrl || `edulibya-tutoring-${requestId}`;
+    import("livekit-server-sdk").then(({ RoomServiceClient }) => {
+      const livekitApiKey = process.env.LIVEKIT_API_KEY || "devkey";
+      const livekitApiSecret = process.env.LIVEKIT_API_SECRET || "secret";
+      const livekitHost = (process.env.LIVEKIT_URL || "ws://localhost:7880")
+        .replace(/^wss?:\/\//, "https://")
+        .replace(/^https?:\/\//, "https://");
+      const svc = new RoomServiceClient(livekitHost, livekitApiKey, livekitApiSecret);
+      svc.deleteRoom(roomId).catch((err: any) =>
+        console.error("[Misbehave] LiveKit room termination error:", err)
+      );
+    }).catch((err: any) =>
+      console.error("[Misbehave] Could not import livekit-server-sdk:", err)
+    );
 
-    // ── 2. Force-terminate the LiveKit room ───────────────────────────────────
-    if (request.meetingUrl) {
-      try {
-        const { RoomServiceClient } = await import("livekit-server-sdk");
-        const livekitApiKey = process.env.LIVEKIT_API_KEY || "devkey";
-        const livekitApiSecret = process.env.LIVEKIT_API_SECRET || "secret";
-        const livekitHost = (process.env.LIVEKIT_URL || "ws://localhost:7880")
-          .replace(/^wss?:\/\//, "https://")
-          .replace(/^https?:\/\//, "https://");
-
-        const svc = new RoomServiceClient(livekitHost, livekitApiKey, livekitApiSecret);
-        // deleteRoom removes all participants and closes the room atomically
-        await svc.deleteRoom(request.meetingUrl);
-      } catch (livekitErr) {
-        // LiveKit may already be closed; don't block the report
-        console.error("[Misbehave] LiveKit room termination error:", livekitErr);
-      }
-    }
-
-    // ── 3. Mark session as terminated_due_to_report & put payment on hold ──────
+    // ── 2. Mark session as terminated_due_to_report & put payment on hold ──────
     // No automatic refund — the Admin will review the incident recording
     // and decide the outcome. The funds stay locked (on_hold) until then.
     await db.transaction(async (tx) => {
@@ -1180,25 +1160,56 @@ router.post("/requests/:id/misbehave", requireAuth, upload.single("recording"), 
         .set({ status: "terminated_due_to_report", updatedAt: new Date() })
         .where(eq(tutoringRequestsTable.id, requestId));
 
-      // Payment is frozen — Admin must release to teacher OR refund student
+      // Payment is frozen — Admin must release to teacher OR refund student.
+      // Conditional so we don't error if no payment row exists or it's already on hold.
       await tx.update(paymentsTable)
         .set({ status: "on_hold", updatedAt: new Date() })
-        .where(eq(paymentsTable.tutoringRequestId, requestId));
+        .where(and(
+          eq(paymentsTable.tutoringRequestId, requestId),
+          sql`${paymentsTable.status} NOT IN ('on_hold', 'refunded', 'released')`
+        ));
     });
 
-    // ── 4. Create the report record ───────────────────────────────────────────
-    const [report] = await db.insert(reportsTable).values({
-      reporterId: userId,
-      reportedUserId: reportedUserId ?? null,
-      type: "tutoring_misbehave",
-      reason: (reason as any) || "inappropriate_behavior",
-      description: description || "Session forcefully terminated via Misbehave button.",
-      targetId: requestId,
-      recordingUrl,
-      status: "open",
-    }).returning();
+    // ── 3. Respond immediately — client can navigate away now ─────────────────
+    res.json({ success: true });
 
-    res.json({ success: true, reportId: report.id, recordingUrl });
+    // ── 4. Background: upload recording to Cloudinary, then create report ──────
+    // Fire-and-forget: never block the HTTP response on the upload.
+    const fileBuffer: Buffer | null = req.file?.buffer ?? null;
+    const safeReason = (reason as any) || "inappropriate_behavior";
+    const safeDescription = description || "Session forcefully terminated via Misbehave button.";
+    (async () => {
+      let recordingUrl: string | null = null;
+      if (fileBuffer) {
+        try {
+          const randomSuffix = Math.random().toString(36).substring(2, 8);
+          const safePublicId = `misbehave_${requestId}_${randomSuffix}`;
+          const uploadResult = await uploadToCloudinary(fileBuffer, {
+            resource_type: "video",
+            folder: "libyan-learn-hub/misbehave-recordings",
+            public_id: safePublicId,
+          });
+          recordingUrl = uploadResult.secure_url;
+        } catch (uploadErr) {
+          console.error("[Misbehave] Recording upload failed:", uploadErr);
+        }
+      }
+
+      try {
+        await db.insert(reportsTable).values({
+          reporterId: userId,
+          reportedUserId: reportedUserId ?? null,
+          type: "tutoring_misbehave",
+          reason: safeReason,
+          description: safeDescription,
+          targetId: requestId,
+          recordingUrl,
+          status: "open",
+        });
+      } catch (reportErr: any) {
+        console.error("[Misbehave] Report insert failed:", reportErr);
+      }
+    })();
   } catch (err: any) {
     console.error("[Misbehave] Error:", err);
     res.status(500).json({ error: "Server error", message: err.message });
@@ -1206,4 +1217,3 @@ router.post("/requests/:id/misbehave", requireAuth, upload.single("recording"), 
 });
 
 export default router;
-
