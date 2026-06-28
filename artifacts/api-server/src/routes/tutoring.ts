@@ -1287,6 +1287,12 @@ router.post("/requests/:id/misbehave", requireAuth, upload.single("recording"), 
           recordingUrl,
           status: "open",
         });
+
+        if (recordingUrl) {
+          await db.update(tutoringRequestsTable)
+            .set({ recordingUrl })
+            .where(eq(tutoringRequestsTable.id, requestId));
+        }
       } catch (reportErr: any) {
         console.error("[Misbehave] Report insert failed:", reportErr);
       }
