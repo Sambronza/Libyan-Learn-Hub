@@ -29,9 +29,9 @@ export default function AcademyApply() {
     notes: '',
   });
 
-  const { data: programs, isLoading: loadingPrograms } = useQuery({
+  const { data: programs = [], isLoading: loadingPrograms, isError: programsError } = useQuery({
     queryKey: ['academy-programs'],
-    queryFn: () => api.get('/academy/programs')
+    queryFn: () => api.get('/academy/programs').catch(() => [])
   });
 
   const { data: existingApp, isLoading: loadingApp } = useQuery({
@@ -75,6 +75,9 @@ export default function AcademyApply() {
 
   const handleNext = () => setStep(s => Math.min(s + 1, 4));
   const handlePrev = () => setStep(s => Math.max(s - 1, 1));
+  // Step 1 is valid if a program is selected OR if there are no programs to select from
+  const noPrograms = !loadingPrograms && (programs as any[]).length === 0;
+  const step1Valid = noPrograms || (!!formData.programId && !!formData.gradeLevel);
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!formData.programId || !formData.gradeLevel || !formData.parentName || !formData.parentPhone) {
@@ -138,7 +141,25 @@ export default function AcademyApply() {
                   <div>
                     <label className="block text-sm font-medium mb-2">{isRtl ? 'البرنامج الدراسي' : 'Academic Program'} *</label>
                     <div className="grid grid-cols-1 gap-4">
-                      {programs?.map((prog: any) => (
+                      {loadingPrograms && (
+                        <div className="flex items-center gap-2 text-sm text-muted-foreground py-4">
+                          <Loader2 className="w-4 h-4 animate-spin" />
+                          {isRtl ? 'جاري تحميل البرامج...' : 'Loading programs...'}
+                        </div>
+                      )}
+                      {!loadingPrograms && (programs as any[]).length === 0 && (
+                        <div className="p-4 rounded-xl border border-amber-200 bg-amber-50/50 dark:bg-amber-500/10 text-sm">
+                          <p className="font-medium text-amber-700">
+                            {isRtl ? 'لا توجد برامج متاحة حاليًا' : 'No programs available at this time'}
+                          </p>
+                          <p className="text-muted-foreground mt-1">
+                            {isRtl
+                              ? 'يرجى التواصل مع الإدارة للاستفسار عن البرامج المتاحة.'
+                              : 'Please contact the administration to inquire about available programs.'}
+                          </p>
+                        </div>
+                      )}
+                      {(programs as any[]).map((prog: any) => (
                         <label 
                           key={prog.id} 
                           className={`flex items-center p-4 border rounded-xl cursor-pointer transition-colors ${formData.programId === prog.id.toString() ? 'border-amber-500 bg-amber-50/50 dark:bg-amber-500/10' : 'border-border hover:border-amber-500/50'}`}
@@ -335,7 +356,7 @@ export default function AcademyApply() {
                   type="button" 
                   onClick={handleNext}
                   className="rounded-xl px-8 bg-amber-500 hover:bg-amber-600 text-white gap-2"
-                  disabled={step === 1 && (!formData.programId || !formData.gradeLevel)}
+                  disabled={step === 1 && !step1Valid}
                 >
                   {isRtl ? 'التالي' : 'Next'}
                   <ArrowNext className="w-4 h-4" />

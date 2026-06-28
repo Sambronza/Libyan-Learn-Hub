@@ -131,7 +131,9 @@ export default function TeacherDashboard() {
   if (!user || user.role !== 'teacher') return null;
 
   const totalStudents = courses?.reduce((sum: number, c: any) => sum + (c.enrollmentCount || 0), 0) || 0;
-  const publishedCount = courses?.filter((c: any) => c.isPublished).length || 0;
+  // Use the status enum (not legacy isPublished bool) for accuracy
+  const publishedCount = courses?.filter((c: any) => c.status === 'published').length || 0;
+  const pendingReviewCount = courses?.filter((c: any) => c.status === 'pending_review').length || 0;
   
   // Use earningsData if available, otherwise fallback to course revenue
   const totalCourseRevenue = courses?.reduce((sum: number, c: any) => sum + (c.totalRevenue || 0), 0) || 0;
@@ -205,7 +207,7 @@ export default function TeacherDashboard() {
               {[
                 { icon: BookOpen, label: t('teacher_dashboard.total_courses'), value: courses?.length || 0, color: 'text-primary', bg: 'bg-primary/10' },
                 { icon: Globe, label: t('teacher_dashboard.published'), value: publishedCount, color: 'text-green-600', bg: 'bg-green-100' },
-                { icon: Users, label: t('teacher_dashboard.total_students'), value: totalStudents, color: 'text-blue-600', bg: 'bg-blue-100' },
+                { icon: pendingReviewCount > 0 ? Clock : Users, label: pendingReviewCount > 0 ? `${pendingReviewCount} Under Review` : t('teacher_dashboard.total_students'), value: pendingReviewCount > 0 ? '' : totalStudents, color: pendingReviewCount > 0 ? 'text-blue-600' : 'text-blue-600', bg: 'bg-blue-100' },
                 { icon: DollarSign, label: t('teacher_dashboard.revenue'), value: totalRevenue.toFixed(0), color: 'text-amber-600', bg: 'bg-amber-100' },
               ].map(({ icon: Icon, label, value, color, bg }) => (
                 <div key={label} className="bg-card rounded-2xl border border-border p-4 flex items-center gap-3 shadow-sm">

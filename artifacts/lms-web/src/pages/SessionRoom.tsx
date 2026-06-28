@@ -48,6 +48,7 @@ export default function SessionRoom() {
 
   const [reportSession, setReportSession] = useState(false);
   const [showFeedback, setShowFeedback] = useState(false);
+  const [tooEarlyUntil, setTooEarlyUntil] = useState<Date | null>(null);
   const feedbackShown = React.useRef(false);
   const { register: registerReport, handleSubmit: handleReportSubmit, reset: resetReport } = useForm();
 
@@ -104,9 +105,21 @@ export default function SessionRoom() {
       setLiveKitToken(data.token);
       setLiveKitUrl(data.livekitUrl);
       setHasJoined(true);
+      setTooEarlyUntil(null);
       queryClient.invalidateQueries({ queryKey: ['/api/room/sessions', sessionId] });
     } catch (err: any) {
-      toast({ title: 'Error joining', description: err.message, variant: 'destructive' });
+      // Server sends scheduledAt when the student tries to join too early
+      if (err.scheduledAt || (err.message && err.message.toLowerCase().includes('not started'))) {
+        const startsAt = err.scheduledAt ? new Date(err.scheduledAt) : (session?.scheduledAt ? new Date(session.scheduledAt) : null);
+        setTooEarlyUntil(startsAt);
+        const mins = startsAt ? Math.max(0, Math.ceil((startsAt.getTime() - Date.now()) / 60000)) : null;
+        toast({
+          title: 'Session not started yet',
+          description: mins ? `The session starts in ${mins} minute${mins !== 1 ? 's' : ''}. You can join 10 minutes before it begins.` : 'Please wait for the session to start.',
+        });
+      } else {
+        toast({ title: 'Error joining', description: err.message, variant: 'destructive' });
+      }
     }
   };
 
@@ -297,6 +310,22 @@ export default function SessionRoom() {
             >
               {session.isTeacher ? 'Start Session' : 'Enter Classroom'}
             </Button>
+          ) : tooEarlyUntil ? (
+            <div className="space-y-3">
+              <div className="bg-amber-500/10 border border-amber-500/30 rounded-xl p-4 text-left">
+                <p className="text-amber-400 font-bold text-sm mb-1">⏰ Session not started yet</p>
+                <p className="text-white/70 text-sm">
+                  Scheduled for{' '}
+                  <span className="text-white font-medium">
+                    {tooEarlyUntil.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                  </span>
+                  . You can join up to 10 minutes before it begins.
+                </p>
+              </div>
+              <Button variant="outline" className="w-full border-white/20 text-white/70 hover:text-white" onClick={joinSession}>
+                Try Again
+              </Button>
+            </div>
           ) : (
             <div className="bg-slate-800 border border-white/10 rounded-xl p-4 flex items-center justify-center gap-3">
               <span className="w-3 h-3 rounded-full bg-amber-500 animate-pulse" />

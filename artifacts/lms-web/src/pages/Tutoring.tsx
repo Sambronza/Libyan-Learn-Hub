@@ -470,6 +470,8 @@ function RequestSessionModal({ open, onClose }: { open: boolean; onClose: () => 
       reset();
       onClose();
     } catch (err: any) {
+      // Close dialog FIRST so the destructive toast is not hidden behind the modal overlay
+      onClose();
       toast({
         title: 'Failed to submit request',
         description: err.message || 'Please check your balance and try again.',

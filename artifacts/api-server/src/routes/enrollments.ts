@@ -61,11 +61,30 @@ router.get("/", requireAuth, async (req, res) => {
 // ── POST /enrollments — Enroll student in a course ───────────────────────────
 router.post("/", requireAuth, async (req, res) => {
   try {
-    const { userId } = (req as any).user;
+    const { userId, role } = (req as any).user;
     const { courseId } = req.body;
 
     if (!courseId) {
       res.status(400).json({ error: "courseId is required" });
+      return;
+    }
+
+    // Teachers cannot enroll in courses — they create them
+    if (role === "teacher") {
+      res.status(403).json({ error: "Teachers cannot enroll in courses" });
+      return;
+    }
+
+    // Fetch course to check ownership
+    const [course] = await db.select().from(coursesTable).where(eq(coursesTable.id, courseId)).limit(1);
+    if (!course) {
+      res.status(404).json({ error: "Course not found" });
+      return;
+    }
+
+    // Prevent the course's own teacher from enrolling (belt-and-suspenders)
+    if (course.teacherId === userId) {
+      res.status(403).json({ error: "You cannot enroll in your own course" });
       return;
     }
 
@@ -91,7 +110,6 @@ router.post("/", requireAuth, async (req, res) => {
     }).returning();
 
     // ── 100GB Bonus: Check if teacher has reached 100 unique students ───
-    const [course] = await db.select().from(coursesTable).where(eq(coursesTable.id, courseId)).limit(1);
     if (course?.teacherId) {
       const teacherCourses = await db.select({ id: coursesTable.id })
         .from(coursesTable)

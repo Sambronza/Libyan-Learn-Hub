@@ -75,8 +75,20 @@ export default function LiveSessions() {
     cancelled: { label: 'Cancelled', color: 'bg-red-50 text-red-400' },
   };
 
-  const liveSessions = (sessions || []).filter((s: any) => s.status !== 'ended' || !s.recordingUrl);
-  const recordedSessions = (sessions || []).filter((s: any) => s.status === 'ended' && s.recordingUrl);
+  const now = new Date();
+  const oneDayAgo = new Date(now.getTime() - 24 * 60 * 60 * 1000);
+
+  // Live tab: only scheduled or currently live sessions
+  const liveSessions = (sessions || []).filter((s: any) =>
+    s.status === 'live' || s.status === 'scheduled'
+  );
+
+  // Recordings tab: ended sessions that have a recording URL, within the last 30 days
+  const thirtyDaysAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
+  const recordedSessions = (sessions || []).filter((s: any) =>
+    s.status === 'ended' && s.recordingUrl && new Date(s.scheduledAt) >= thirtyDaysAgo
+  );
+
   const displayedSessions = activeTab === 'live' ? liveSessions : recordedSessions;
 
   return (
@@ -218,16 +230,33 @@ export default function LiveSessions() {
                             <Video className="w-4 h-4" />
                             Watch Recording
                           </Button>
-                        ) : (
-                          <Button
-                            disabled={isEnded || isFull}
-                            className={`gap-2 ${session.status === 'live' ? 'bg-red-600 hover:bg-red-700 text-white' : isEnded ? 'opacity-50' : 'bg-primary hover:bg-primary/90'}`}
-                            onClick={() => handleEnterRoom(session)}
-                          >
-                            <Video className="w-4 h-4" />
-                            {session.status === 'live' ? 'Join Live' : isEnded ? 'Ended' : isFull ? 'Session Full' : 'Enter Room'}
-                          </Button>
-                        )}
+                        ) : (() => {
+                          const isTooEarly = session.status === 'scheduled' &&
+                            Date.now() < new Date(session.scheduledAt).getTime() - 10 * 60 * 1000;
+                          const minsUntilOpen = isTooEarly
+                            ? Math.ceil((new Date(session.scheduledAt).getTime() - 10 * 60 * 1000 - Date.now()) / 60000)
+                            : 0;
+                          return (
+                            <Button
+                              disabled={isEnded || isFull || isTooEarly}
+                              title={isTooEarly ? `Opens ${minsUntilOpen}m before start` : undefined}
+                              className={`gap-2 ${session.status === 'live' ? 'bg-red-600 hover:bg-red-700 text-white' : isEnded ? 'opacity-50' : isTooEarly ? 'opacity-60' : 'bg-primary hover:bg-primary/90'}`}
+                              onClick={() => handleEnterRoom(session)}
+                            >
+                              <Video className="w-4 h-4" />
+                              {session.status === 'live'
+                                ? 'Join Live'
+                                : isEnded
+                                ? 'Ended'
+                                : isFull
+                                ? 'Session Full'
+                                : isTooEarly
+                                ? `Opens in ${minsUntilOpen}m`
+                                : 'Enter Room'}
+                            </Button>
+                          );
+                        })()}
+                      </div>
                       </div>
                     </div>
                   </div>

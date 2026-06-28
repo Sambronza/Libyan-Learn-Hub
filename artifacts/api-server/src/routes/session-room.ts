@@ -1,7 +1,7 @@
 import { Router } from "express";
 import { db } from "@workspace/db";
 import {
-  liveSessionsTable, sessionRegistrationsTable, sessionQuestionsTable, usersTable
+  liveSessionsTable, sessionRegistrationsTable, sessionQuestionsTable, usersTable, paymentsTable
 } from "@workspace/db";
 import { eq, and, count, desc, sql } from "drizzle-orm";
 import { requireAuth } from "../lib/auth.js";
@@ -43,7 +43,7 @@ router.get("/sessions/:id", requireAuth, async (req, res) => {
   }
 });
 
-// Register for a session (claim a seat)
+// Register for a session (claim a seat) — handles both free and paid sessions
 router.post("/sessions/:id/register", requireAuth, async (req, res) => {
   try {
     const { userId } = (req as any).user;
@@ -51,18 +51,70 @@ router.post("/sessions/:id/register", requireAuth, async (req, res) => {
     const [session] = await db.select().from(liveSessionsTable).where(eq(liveSessionsTable.id, sessionId)).limit(1);
     if (!session) { res.status(404).json({ error: "Session not found" }); return; }
 
+    // Block registering for cancelled sessions
+    if (session.status === "cancelled") {
+      res.status(403).json({ error: "This session has been cancelled" }); return;
+    }
+
+    // Teachers don't register for their own sessions
+    if (session.teacherId === userId) {
+      res.json({ success: true, alreadyRegistered: true }); return;
+    }
+
+    // Check seat availability
     const [registeredCount] = await db.select({ total: count() }).from(sessionRegistrationsTable)
       .where(eq(sessionRegistrationsTable.sessionId, sessionId));
     if (Number(registeredCount.total) >= session.maxParticipants) {
       res.status(400).json({ error: "Session is full" }); return;
     }
 
+    // Idempotency: already registered → return early
     const existing = await db.select().from(sessionRegistrationsTable)
       .where(and(eq(sessionRegistrationsTable.sessionId, sessionId), eq(sessionRegistrationsTable.userId, userId)))
       .limit(1);
     if (existing.length > 0) { res.json({ success: true, alreadyRegistered: true }); return; }
 
-    await db.insert(sessionRegistrationsTable).values({ sessionId, userId });
+    const price = parseFloat(session.price || "0");
+
+    if (price > 0) {
+      // ── Paid session: check balance and deduct inside a transaction ──────
+      const [user] = await db.select().from(usersTable).where(eq(usersTable.id, userId)).limit(1);
+      const balance = parseFloat((user as any).balance ?? "0");
+
+      if (balance < price) {
+        res.status(402).json({
+          error: "Insufficient wallet balance",
+          required: price,
+          available: balance,
+        });
+        return;
+      }
+
+      await db.transaction(async (tx) => {
+        // Deduct from user's wallet balance
+        await tx.update(usersTable)
+          .set({ balance: sql`${usersTable.balance} - ${price}`, updatedAt: new Date() })
+          .where(eq(usersTable.id, userId));
+
+        // Record the payment
+        await tx.insert(paymentsTable).values({
+          userId,
+          sessionId,
+          amount: price.toFixed(2),
+          currency: "LYD",
+          method: "wallet",
+          status: "completed",
+          notes: `Live session registration: ${session.title}`,
+        });
+
+        // Claim the seat
+        await tx.insert(sessionRegistrationsTable).values({ sessionId, userId });
+      });
+    } else {
+      // ── Free session: just claim the seat ────────────────────────────────
+      await db.insert(sessionRegistrationsTable).values({ sessionId, userId });
+    }
+
     res.json({ success: true });
   } catch (err: any) {
     res.status(500).json({ error: "Server error", message: err.message });
@@ -83,7 +135,29 @@ router.post("/sessions/:id/join", requireAuth, async (req, res) => {
       return;
     }
 
+    // Block joining ended sessions
+    if (session.status === "ended") {
+      res.status(403).json({ error: "This session has already ended" });
+      return;
+    }
+
     const isTeacher = session.teacherId === userId;
+
+    // ── Time-window guard: students cannot join more than 10 min early ───────
+    if (!isTeacher && session.status === "scheduled") {
+      const now = Date.now();
+      const startMs = new Date(session.scheduledAt).getTime();
+      const EARLY_ENTRY_MS = 10 * 60 * 1000; // 10 minutes
+      if (now < startMs - EARLY_ENTRY_MS) {
+        res.status(403).json({
+          error: "Session has not started yet",
+          scheduledAt: session.scheduledAt,
+          startsInMs: startMs - now,
+        });
+        return;
+      }
+    }
+
     const existing = await db.select().from(sessionRegistrationsTable)
       .where(and(eq(sessionRegistrationsTable.sessionId, sessionId), eq(sessionRegistrationsTable.userId, userId)))
       .limit(1);
