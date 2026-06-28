@@ -58,6 +58,7 @@ const STATUS_COLORS: Record<string, string> = {
   rejected:                'bg-red-100 text-red-800 border-red-200',
   partially_approved:      'bg-teal-100 text-teal-800 border-teal-200',
   cancelled_no_show:       'bg-orange-100 text-orange-800 border-orange-200',
+  terminated_due_to_report:'bg-red-100 text-red-800 border-red-300',
 };
 
 const STATUS_LABELS: Record<string, string> = {
@@ -72,6 +73,7 @@ const STATUS_LABELS: Record<string, string> = {
   rejected:               'Rejected / مرفوض',
   partially_approved:     'Partially Approved / موافقة جزئية',
   cancelled_no_show:      'No-Show / لم يحضر المعلم',
+  terminated_due_to_report: '🚨 Misbehave / الإبلاغ عن إساءة سلوك',
 };
 
 // ─── Settings Modal (Teacher) ─────────────────────────────────────────────────

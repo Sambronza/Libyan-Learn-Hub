@@ -358,6 +358,25 @@ export default function TutoringRoom() {
     );
   }
 
+  const isEndedStatus = ["completed", "completed_pending_review", "cancelled", "cancelled_no_show", "terminated_due_to_report"].includes(resolvedSession.status);
+  
+  if (isEndedStatus) {
+    return (
+      <div className="h-screen flex items-center justify-center bg-slate-900 text-white flex-col gap-4">
+        <div className="w-16 h-16 rounded-full bg-red-500/20 flex items-center justify-center mb-2">
+          <AlertTriangle className="w-8 h-8 text-red-500" />
+        </div>
+        <h1 className="text-2xl font-bold">Session Ended</h1>
+        <p className="text-white/70 max-w-md text-center">
+          {resolvedSession.status === 'terminated_due_to_report' 
+            ? 'This session has been terminated due to a report.' 
+            : 'This session has concluded and is no longer active.'}
+        </p>
+        <Button onClick={() => setLocation('/tutoring')} className="mt-4">Back to Dashboard</Button>
+      </div>
+    );
+  }
+
   return (
     <div className="h-screen flex flex-col bg-slate-900 text-white overflow-hidden font-sans">
       {/* Top bar */}
