@@ -203,7 +203,7 @@ export default function AcademyDashboardScreen() {
       ) : (
         <View style={styles.pendingContainer}>
           <View style={[styles.pendingIcon, { backgroundColor: "#fef3c7" }]}>
-            <Feather name="graduation-cap" size={40} color="#d97706" />
+            <Feather name="award" size={40} color="#d97706" />
           </View>
           <Text style={styles.pendingTitle}>{t("انضم إلى الأكاديمية", "Join the Academy")}</Text>
           <Text style={styles.pendingSubtitle}>

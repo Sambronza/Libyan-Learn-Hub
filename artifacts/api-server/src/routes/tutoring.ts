@@ -415,17 +415,19 @@ async function notifyAcceptance(requestId: number, studentId: number, teacherId:
         referenceId: requestId,
       });
 
+      const emailContent = buildAcceptedEmail({
+        studentName: student.fullName,
+        teacherName: teacher.fullName,
+        subject: req.subject,
+        preferredAt: req.preferredAt,
+        durationMinutes: req.durationMinutes,
+        requestId: req.id,
+      });
       await sendEmail({
         to: student.email,
-        subject: `✅ تم قبول طلبك | ${teacher.fullName} accepted your session`,
-        html: buildAcceptedEmail({
-          studentName: student.fullName,
-          teacherName: teacher.fullName,
-          subject: req.subject,
-          preferredAt: req.preferredAt,
-          durationMinutes: req.durationMinutes,
-          requestId: req.id,
-        })
+        subject: emailContent.subject,
+        text: emailContent.text,
+        html: emailContent.html,
       });
     }
   } catch (err) {
@@ -841,15 +843,17 @@ router.post("/requests/:id/join", requireAuth, async (req, res) => {
               referenceId: requestId,
             });
 
+            const emailContent = buildTeacherJoinedEmail({
+              studentName: student.fullName,
+              teacherName: teacher.fullName,
+              subject: request.subject,
+              requestId: request.id,
+            });
             await sendEmail({
               to: student.email,
-              subject: `⏰ معلمك في انتظارك! | Your teacher has joined — enter now`,
-              html: buildTeacherJoinedEmail({
-                studentName: student.fullName,
-                teacherName: teacher.fullName,
-                subject: request.subject,
-                requestId: request.id,
-              })
+              subject: emailContent.subject,
+              text: emailContent.text,
+              html: emailContent.html,
             });
           }
         } catch (err) {

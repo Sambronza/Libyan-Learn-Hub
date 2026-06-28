@@ -257,7 +257,6 @@ export default function LiveSessions() {
                           );
                         })()}
                       </div>
-                      </div>
                     </div>
                   </div>
                 </div>

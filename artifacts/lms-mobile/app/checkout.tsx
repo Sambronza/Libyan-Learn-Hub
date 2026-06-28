@@ -211,7 +211,7 @@ export default function CheckoutScreen() {
                 t("رصيد غير كافٍ", "Insufficient Balance"),
                 t("يرجى شحن محفظتك أولاً أو اختيار طريقة دفع أخرى", "Please top up your wallet first or choose another payment method"),
                 [
-                  { text: t("شحن المحفظة", "Top Up Wallet"), onPress: () => router.push("/wallet") },
+                  { text: t("شحن المحفظة", "Top Up Wallet"), onPress: () => router.push("/wallet" as any) },
                   { text: t("إلغاء", "Cancel"), style: "cancel" },
                 ]
               );
