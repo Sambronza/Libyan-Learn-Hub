@@ -222,6 +222,8 @@ export default function TutoringRoom() {
   const [liveKitUrl, setLiveKitUrl] = useState<string | null>(null);
   const [isTeacher, setIsTeacher] = useState(false);
   const [showFeedback, setShowFeedback] = useState(false);
+  const [showTeacherWaiting, setShowTeacherWaiting] = useState(false);
+  const waitingPopupShownRef = useRef(false);
   const [showMisbehaveConfirm, setShowMisbehaveConfirm] = useState(false);
   const [misbehaveReason, setMisbehaveReason] = useState('inappropriate_behavior');
   const { startRecording, stopRecording } = useAudioRecording(requestId);
@@ -237,6 +239,7 @@ export default function TutoringRoom() {
       ? api.get(`/tutoring-listings/applications/${requestId}`)
       : api.get(`/tutoring/requests/${requestId}`), // INT-002: fetch single request by ID
     enabled: !!requestId && !!user,
+    refetchInterval: (!hasJoined && sessionType === 'request') ? 3000 : false,
   });
 
   // Extract session object — for listing type it's the direct response object;
@@ -250,6 +253,15 @@ export default function TutoringRoom() {
     else setMediaActive(false);
     return () => setMediaActive(false);
   }, [hasJoined, setMediaActive]);
+
+  useEffect(() => {
+    if (!hasJoined && sessionType === 'request' && resolvedSession && user && resolvedSession.teacherId !== user.id) {
+      if (resolvedSession.teacherJoinedAt && !waitingPopupShownRef.current) {
+        waitingPopupShownRef.current = true;
+        setShowTeacherWaiting(true);
+      }
+    }
+  }, [hasJoined, sessionType, resolvedSession, user]);
 
   // INT-003: track when session ends via timer so handleDisconnected doesn't override redirect
   const sessionEndedRef = useRef(false);
@@ -496,6 +508,41 @@ export default function TutoringRoom() {
                 onClick={() => setShowMisbehaveConfirm(false)}
               >
                 Cancel
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── Teacher Waiting Popup ───────────────────────────────────────────── */}
+      {showTeacherWaiting && !hasJoined && (
+        <div className="fixed inset-0 z-[400] flex items-center justify-center bg-black/60 backdrop-blur-md p-4 animate-in fade-in duration-300">
+          <div className="bg-slate-900 border border-primary/50 rounded-2xl shadow-[0_0_40px_-10px_rgba(124,58,237,0.5)] p-8 w-full max-w-sm text-center relative overflow-hidden">
+            <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-primary to-indigo-500 animate-pulse" />
+            
+            <div className="w-20 h-20 rounded-full bg-primary/10 flex items-center justify-center mx-auto mb-6 relative">
+              <div className="absolute inset-0 rounded-full bg-primary/20 animate-ping" />
+              <Clock className="w-10 h-10 text-primary relative z-10" />
+            </div>
+            
+            <h2 className="font-bold text-white text-2xl mb-2">Teacher is waiting!</h2>
+            <p className="text-white/70 mb-8">
+              Your teacher has joined the session. The session timer has started.
+            </p>
+            
+            <div className="flex gap-3">
+              <Button
+                className="flex-1 bg-primary hover:bg-primary/90 text-white font-bold text-lg py-6"
+                onClick={() => {
+                  setShowTeacherWaiting(false);
+                  // The user can now click "Join" on the LiveKit PreJoin screen, 
+                  // or if we have their choices, we could auto-join.
+                  // Since PreJoin requires explicit click, we just dismiss the popup so they can click it.
+                  const joinBtn = document.querySelector('.lk-prejoin .lk-button');
+                  if (joinBtn) (joinBtn as HTMLElement).click();
+                }}
+              >
+                Enter Room
               </Button>
             </div>
           </div>

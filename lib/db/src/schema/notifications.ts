@@ -7,7 +7,10 @@ export const notificationTypeEnum = pgEnum("notification_type", [
   "new_course",
   "live_session_starting",
   "live_session_cancelled",
-  "system_alert"
+  "system_alert",
+  "tutoring_request_accepted",
+  "tutoring_teacher_joined",
+  "course_submitted",
 ]);
 
 export const notificationsTable = pgTable("notifications", {

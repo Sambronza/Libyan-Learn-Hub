@@ -1,6 +1,6 @@
 import { Router } from "express";
 import { db } from "@workspace/db";
-import { tutoringRequestsTable, usersTable, paymentsTable, teacherEarningsTable, reportsTable } from "@workspace/db";
+import { tutoringRequestsTable, usersTable, paymentsTable, teacherEarningsTable, reportsTable, notificationsTable } from "@workspace/db";
 import { eq, and, desc, isNull, or, sql, lt, inArray, like } from "drizzle-orm";
 import { requireAuth } from "../lib/auth.js";
 import { parseParam } from "../lib/utils.js";
@@ -8,6 +8,7 @@ import crypto from "crypto";
 import { AccessToken } from "livekit-server-sdk";
 import multer from "multer";
 import { uploadToCloudinary } from "../lib/cloudinary.js";
+import { sendEmail, buildAcceptedEmail, buildTeacherJoinedEmail } from "../lib/email.js";
 
 const router = Router();
 const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 50 * 1024 * 1024 } });
@@ -397,6 +398,41 @@ router.post("/requests", requireAuth, async (req, res) => {
   }
 });
 
+async function notifyAcceptance(requestId: number, studentId: number, teacherId: number) {
+  try {
+    const [student] = await db.select().from(usersTable).where(eq(usersTable.id, studentId)).limit(1);
+    const [teacher] = await db.select().from(usersTable).where(eq(usersTable.id, teacherId)).limit(1);
+    const [req] = await db.select().from(tutoringRequestsTable).where(eq(tutoringRequestsTable.id, requestId)).limit(1);
+    
+    if (student && teacher && req) {
+      await db.insert(notificationsTable).values({
+        userId: student.id,
+        type: "tutoring_request_accepted",
+        title: "Session Request Accepted",
+        titleAr: "تم قبول طلب الجلسة",
+        message: `${teacher.fullName} has accepted your tutoring session for ${req.subject}.`,
+        messageAr: `وافق ${teacher.fullName} على جلسة التدريس الخاصة بك لمادة ${req.subject}.`,
+        referenceId: requestId,
+      });
+
+      await sendEmail({
+        to: student.email,
+        subject: `✅ تم قبول طلبك | ${teacher.fullName} accepted your session`,
+        html: buildAcceptedEmail({
+          studentName: student.fullName,
+          teacherName: teacher.fullName,
+          subject: req.subject,
+          preferredAt: req.preferredAt,
+          durationMinutes: req.durationMinutes,
+          requestId: req.id,
+        })
+      });
+    }
+  } catch (err) {
+    console.error("Error notifying acceptance:", err);
+  }
+}
+
 // ─── Teacher accepts a request ────────────────────────────────────────────────
 // This handles:
 //   1. Urgent requests (race — first teacher wins)
@@ -437,6 +473,7 @@ router.post("/requests/:id/accept", requireAuth, async (req, res) => {
         res.status(409).json({ error: "Request was already taken by another teacher" });
         return;
       }
+      notifyAcceptance(requestId, request.studentId, userId);
       res.json({ success: true, meetingUrl, updated });
       return;
     }
@@ -447,6 +484,7 @@ router.post("/requests/:id/accept", requireAuth, async (req, res) => {
         .set({ status: "accepted", meetingUrl, updatedAt: new Date() })
         .where(eq(tutoringRequestsTable.id, requestId))
         .returning();
+      notifyAcceptance(requestId, request.studentId, userId);
       res.json({ success: true, meetingUrl, updated });
       return;
     }
@@ -780,6 +818,45 @@ router.post("/requests/:id/join", requireAuth, async (req, res) => {
 
     const isTeacher = request.teacherId === userId;
     const roomId = request.meetingUrl || `edulibya-tutoring-${requestId}`;
+
+    // If teacher is joining for the first time, record it and notify student
+    if (isTeacher && !request.teacherJoinedAt) {
+      await db.update(tutoringRequestsTable)
+        .set({ teacherJoinedAt: new Date() })
+        .where(eq(tutoringRequestsTable.id, requestId));
+      
+      // Fire and forget notifications
+      (async () => {
+        try {
+          const [student] = await db.select().from(usersTable).where(eq(usersTable.id, request.studentId)).limit(1);
+          const [teacher] = await db.select().from(usersTable).where(eq(usersTable.id, userId)).limit(1);
+          if (student && teacher) {
+            await db.insert(notificationsTable).values({
+              userId: student.id,
+              type: "tutoring_teacher_joined",
+              title: "Teacher Joined Session",
+              titleAr: "المعلم انضم للجلسة",
+              message: `${teacher.fullName} has joined the session and is waiting for you.`,
+              messageAr: `انضم ${teacher.fullName} للجلسة وهو في انتظارك الآن.`,
+              referenceId: requestId,
+            });
+
+            await sendEmail({
+              to: student.email,
+              subject: `⏰ معلمك في انتظارك! | Your teacher has joined — enter now`,
+              html: buildTeacherJoinedEmail({
+                studentName: student.fullName,
+                teacherName: teacher.fullName,
+                subject: request.subject,
+                requestId: request.id,
+              })
+            });
+          }
+        } catch (err) {
+          console.error("Error sending teacher joined notifications:", err);
+        }
+      })();
+    }
 
     const livekitApiKey = process.env.LIVEKIT_API_KEY || "devkey";
     const livekitApiSecret = process.env.LIVEKIT_API_SECRET || "secret";

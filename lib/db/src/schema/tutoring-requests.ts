@@ -40,6 +40,7 @@ export const tutoringRequestsTable = pgTable("tutoring_requests", {
   elapsedSeconds: integer("elapsed_seconds").notNull().default(0), // accumulated seconds before current pause
   teacherLeftAt: timestamp("teacher_left_at"),                  // last time teacher disconnected
   studentLeftAt: timestamp("student_left_at"),                  // last time student disconnected
+  teacherJoinedAt: timestamp("teacher_joined_at"),                // set on first teacher join — triggers student notification
   earlyTerminationFlagged: boolean("early_termination_flagged").notNull().default(false),
   // ─────────────────────────────────────────────────────────────────────────────
   createdAt: timestamp("created_at").notNull().defaultNow(),
