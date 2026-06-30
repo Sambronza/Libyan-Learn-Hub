@@ -166,18 +166,7 @@ export default function TeacherDashboard() {
                 </div>
               </div>
             )}
-            <div className="flex flex-wrap w-full sm:w-auto gap-3 mt-4 md:mt-0">
-              <Link href={user?.biometricsVerified ? "/teacher/sessions/new" : "/teacher/biometrics-setup"} className="flex-1 sm:flex-none">
-                <Button variant="outline" className={`w-full gap-2 border-primary/30 text-primary hover:bg-primary/5 ${!user?.biometricsVerified ? "opacity-50" : ""}`}>
-                  <Radio className="w-4 h-4" /> {t('teacher_dashboard.schedule_session')}
-                </Button>
-              </Link>
-              <Link href={user?.biometricsVerified ? "/teacher/courses/new" : "/teacher/biometrics-setup"} className="flex-1 sm:flex-none">
-                <Button className={`w-full gap-2 bg-primary hover:bg-primary/90 shadow-md shadow-primary/20 ${!user?.biometricsVerified ? "opacity-50" : ""}`}>
-                  <Plus className="w-4 h-4" /> {t('teacher_dashboard.new_course')}
-                </Button>
-              </Link>
-            </div>
+
           </div>
 
           {!user?.biometricsVerified && (
@@ -297,6 +286,14 @@ export default function TeacherDashboard() {
 
           {/* COURSES TAB */}
           <TabsContent value="courses">
+            <div className="flex justify-between items-center mb-6">
+              <h2 className="text-xl font-display font-bold">{t('teacher_dashboard.my_courses')}</h2>
+              <Link href={user?.biometricsVerified ? "/teacher/courses/new" : "/teacher/biometrics-setup"}>
+                <Button className={`gap-2 bg-primary hover:bg-primary/90 shadow-md shadow-primary/20 ${!user?.biometricsVerified ? "opacity-50" : ""}`}>
+                  <Plus className="w-4 h-4" /> {t('teacher_dashboard.new_course')}
+                </Button>
+              </Link>
+            </div>
             {isLoading ? (
                <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
                  {[1, 2, 3].map(i => <CourseCardSkeleton key={i} />)}
