@@ -41,6 +41,10 @@ export default function CreateSession() {
     try {
       await api.post('/live-sessions', {
         ...data,
+        // Convert the browser-local datetime-local string to a UTC ISO string.
+        // Without this, a naive "2026-06-30T21:30" is interpreted as UTC on the
+        // server (which runs in UTC), causing a +2 h shift for Libya (UTC+2) users.
+        scheduledAt: new Date(data.scheduledAt).toISOString(),
         durationMinutes: parseInt(data.durationMinutes),
         maxParticipants: parseInt(data.maxParticipants),
         price: parseFloat(data.price) || 0,
