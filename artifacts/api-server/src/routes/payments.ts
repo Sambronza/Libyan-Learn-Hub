@@ -11,6 +11,7 @@ import {
   redeemCardsTable,
   withdrawalRequestsTable,
   tutoringRequestsTable,
+  walletTransactionsTable,
 } from "@workspace/db";
 import { eq, and, or, sum, count, desc } from "drizzle-orm";
 import { requireAuth } from "../lib/auth.js";
@@ -430,7 +431,7 @@ router.post("/redeem-code", requireAuth, async (req, res) => {
         .set({ balance: newBalance.toFixed(2), updatedAt: new Date() })
         .where(eq(usersTable.id, userId));
 
-      // 3. Optional: Add a payment record for history
+      // 3. Payment record for audit trail
       await tx.insert(paymentsTable).values({
         userId,
         amount: card.value,
@@ -438,6 +439,16 @@ router.post("/redeem-code", requireAuth, async (req, res) => {
         method: "redeem_card",
         status: "completed",
         reference: `REDEEM-${card.code}`,
+      });
+
+      // 4. Wallet transaction record — this drives the recharge history UI
+      await tx.insert(walletTransactionsTable).values({
+        userId,
+        amount: card.value,
+        type: "credit",
+        referenceType: "redeem_card",
+        referenceId: card.id,
+        description: `Prepaid Card Redeemed – ${card.code}`,
       });
     });
 
