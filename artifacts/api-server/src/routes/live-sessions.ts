@@ -93,15 +93,27 @@ router.get("/", async (req, res) => {
 
     // Filter visibility
     sessions = sessions.filter(s => {
-      // Visible to everyone if not ended/cancelled
-      if (s.status !== "ended" && s.status !== "cancelled") return true;
-      // If ended, check access for recordings
-      if (s.status === "ended") {
-        if (userRole === "admin") return true;
-        if (userRole === "teacher" && s.teacherId === userId) return true;
-        if (s.courseId && enrolledCourseIds.has(s.courseId)) return true;
-        if (parseFloat(s.price || "0") === 0) return true; // Free sessions
+      // Admins see every session
+      if (userRole === "admin") return true;
+      // Teachers always see their own sessions (all statuses)
+      if (s.teacherId === userId) return true;
+      // Cancelled sessions are hidden from all other users
+      if (s.status === "cancelled") return false;
+
+      // ── Course-linked sessions ──────────────────────────────────────
+      // Only enrolled students may see them (scheduled, live, or ended)
+      if (s.courseId) {
+        return enrolledCourseIds.has(s.courseId);
       }
+
+      // ── Standalone sessions (no courseId) ──────────────────────────
+      // Scheduled / live: visible to all (open public sessions)
+      if (s.status === "scheduled" || s.status === "live") return true;
+      // Ended standalone: show only if it was free
+      if (s.status === "ended") {
+        return parseFloat(s.price || "0") === 0;
+      }
+
       return false;
     });
 
