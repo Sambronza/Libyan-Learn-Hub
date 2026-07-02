@@ -3,12 +3,15 @@ import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod/v4";
 import { usersTable } from "./users";
 import { coursesTable } from "./courses";
+import { liveSessionCoursesTable } from "./live-session-courses";
 
 export const sessionStatusEnum = pgEnum("session_status", ["scheduled", "live", "ended", "cancelled"]);
 
 export const liveSessionsTable = pgTable("live_sessions", {
   id: serial("id").primaryKey(),
   courseId: integer("course_id").references(() => coursesTable.id, { onDelete: "set null" }),
+  /** FK to live_session_courses — groups sessions into a structured live course */
+  liveSessionCourseId: integer("live_session_course_id").references(() => liveSessionCoursesTable.id, { onDelete: "set null" }),
   teacherId: integer("teacher_id").notNull().references(() => usersTable.id),
   title: varchar("title", { length: 255 }).notNull(),
   titleAr: varchar("title_ar", { length: 255 }).notNull(),

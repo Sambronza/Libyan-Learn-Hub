@@ -1,0 +1,118 @@
+<html xmlns:o="urn:schemas-microsoft-com:office:office"
+      xmlns:w="urn:schemas-microsoft-com:office:word"
+      xmlns="http://www.w3.org/TR/REC-html40">
+<head>
+<meta charset="utf-8">
+<title>Tutoring & Live Sessions Workflow Report</title>
+<style>
+  body { font-family: "Calibri", "Arial", sans-serif; line-height: 1.6; }
+  h1 { color: #2C3E50; font-size: 24pt; border-bottom: 2px solid #2C3E50; padding-bottom: 5px; }
+  h2 { color: #34495E; font-size: 18pt; margin-top: 20px; }
+  h3 { color: #7F8C8D; font-size: 14pt; margin-top: 15px; }
+  p, li { font-size: 11pt; margin-bottom: 10px; }
+  ul { margin-bottom: 15px; }
+  b, strong { font-weight: bold; }
+</style>
+</head>
+<body>
+
+<h1>Tutoring & Live Sessions Workflow Report</h1>
+<p>This report outlines the complete architecture, features, and lifecycle scenarios for both <strong>1-to-1 Tutoring Sessions</strong> and <strong>Live Sessions</strong> within the Libyan Learn Hub platform.</p>
+
+<hr>
+
+<h2>1. 1-to-1 Tutoring Sessions</h2>
+<p>The 1-to-1 tutoring system allows students to request personalized sessions with teachers, featuring comprehensive state management, wallet-based escrow, and integrated video conferencing (via LiveKit).</p>
+
+<h3>1.1. Teacher Setup & Configuration</h3>
+<ul>
+  <li><strong>Registration:</strong> Teachers must explicitly enable tutoring on their profile, agreeing to a 10% platform commission.</li>
+  <li><strong>Settings:</strong> They configure their specific subjects, teaching levels, and their custom hourly rate.</li>
+  <li><strong>Rate Floors:</strong> The system enforces a minimum hourly rate based on the requested grade level and education type (Local vs. International). For example, University level requires a minimum of 150 LYD/hr, while Grade 1-6 Local is 30 LYD/hr.</li>
+</ul>
+
+<h3>1.2. Student Request Scenarios</h3>
+<p>When a student initiates a request, the following variations exist:</p>
+<ol>
+  <li><strong>Specific Teacher Request:</strong> The student requests a specific teacher. The system uses that specific teacher's hourly rate.</li>
+  <li><strong>Urgent / "Any Teacher" Request:</strong> The student requests the first available teacher. The system applies the predefined minimum rate for the selected grade level.</li>
+</ol>
+<p><strong>Financial Escrow (Wallet):</strong> At the exact moment of request creation, the total cost of the session (Hourly Rate × Duration) is deducted from the student's wallet balance. A <code>pending</code> payment record is created. If the student lacks sufficient funds, the request is rejected immediately.</p>
+
+<h3>1.3. Teacher Response Scenarios</h3>
+<p>Once a request is pending, it becomes visible to the targeted teacher (or all matching teachers if unassigned):</p>
+<ul>
+  <li><strong>Acceptance:</strong> The teacher accepts the request. A unique LiveKit meeting room URL is generated. The student receives an email and in-app notification confirming the session. <em>For "Any Teacher" requests, it's a race—the first teacher to accept claims the session.</em></li>
+  <li><strong>Declination:</strong> The teacher declines. The request is marked <code>declined</code>, the <code>pending</code> payment is marked <code>refunded</code>, and the full amount is credited back to the student's wallet.</li>
+  <li><strong>Propose New Time:</strong> The teacher proposes a different date/time. The request state changes to <code>rescheduled_by_teacher</code>.
+    <ul>
+      <li>If the student accepts the new time, the session is officially <code>accepted</code> and a meeting room is generated.</li>
+      <li>If the student cancels instead, a full refund is issued.</li>
+    </ul>
+  </li>
+</ul>
+
+<h3>1.4. Student Cancellation</h3>
+<p>A student can cancel an active request at any point <em>before</em> it enters a terminal state (completed, reviewed, etc.). Canceling automatically issues a full refund to their wallet.</p>
+
+<h3>1.5. Live Session Execution (LiveKit)</h3>
+<ul>
+  <li><strong>Room Join:</strong> Both participants connect via LiveKit. The server acts as the authoritative source for the session timer.</li>
+  <li><strong>Timer Management:</strong> The database tracks <code>sessionStartedAt</code>, <code>teacherJoinedAt</code>, <code>teacherLeftAt</code>, and <code>studentLeftAt</code>. If a teacher temporarily disconnects, a <code>timerPausedAt</code> timestamp is recorded to ensure students aren't billed for inactive time (<code>elapsedSeconds</code>).</li>
+</ul>
+
+<h3>1.6. Completion & Post-Session Scenarios</h3>
+<ul>
+  <li><strong>Marking Complete:</strong> Either party can mark the session as complete. The state shifts to <code>completed_pending_review</code>. The funds remain in escrow.</li>
+  <li><strong>Admin Review:</strong> An admin must approve the completed session to release the funds (minus commission) to the teacher's earnings.</li>
+  <li><strong>Ratings:</strong> Students can leave a 1-5 star rating and a written review for completed sessions.</li>
+  <li><strong>No-Show (Admin Action):</strong> If a teacher fails to attend, an admin can manually trigger a "no-show". This immediately refunds the student in full and automatically suspends the teacher from the tutoring system for 7 days.</li>
+</ul>
+
+<hr>
+
+<h2>2. Live Sessions</h2>
+<p>Live Sessions are scheduled, multi-participant video broadcasts. They can be standalone events or linked to specific courses.</p>
+
+<h3>2.1. Session Creation</h3>
+<ul>
+  <li><strong>Configuration:</strong> Teachers (or Admins) create sessions defining the title, description, scheduled time, duration, maximum participants, and an optional entry price (can be free).</li>
+  <li><strong>Plan Limits:</strong> The requested session duration is validated against the teacher's subscription tier (e.g., Free, Pro, Premium tiers have different maximum duration limits).</li>
+</ul>
+
+<h3>2.2. Visibility Rules</h3>
+<ul>
+  <li><strong>Course-Linked:</strong> Visible only to students currently enrolled in the associated course.</li>
+  <li><strong>Standalone Public:</strong> Visible to everyone while scheduled or live. Once ended, standalone sessions are hidden unless they were explicitly free.</li>
+  <li><strong>Teachers & Admins:</strong> Always have full visibility of their own sessions/all sessions respectively.</li>
+</ul>
+
+<h3>2.3. Student Registration Scenarios</h3>
+<p>Students must claim a seat before joining:</p>
+<ul>
+  <li><strong>Free Sessions:</strong> The student clicks register, and as long as <code>registeredCount</code> &lt; <code>maxParticipants</code>, a seat is claimed immediately.</li>
+  <li><strong>Paid Sessions:</strong> The system checks the student's wallet. If sufficient, the price is deducted, a <code>completed</code> payment record is created, and the seat is claimed.</li>
+  <li><strong>Idempotency:</strong> If a student tries to register twice, the system safely ignores the second attempt. Teachers cannot (and do not need to) register for their own sessions.</li>
+</ul>
+
+<h3>2.4. Joining the Session (LiveKit)</h3>
+<ul>
+  <li><strong>Early Entry Guard:</strong> Students are physically blocked from joining the room more than 10 minutes prior to the <code>scheduledAt</code> time.</li>
+  <li><strong>Token Generation:</strong> Upon joining, the server generates a signed JWT LiveKit token. It grants the user permission to join the room and publish their video/audio.</li>
+  <li><strong>Going Live:</strong> When the teacher joins the room for the first time, the session status is automatically upgraded from <code>scheduled</code> to <code>live</code>.</li>
+</ul>
+
+<h3>2.5. In-Session Features</h3>
+<ul>
+  <li><strong>Q&A System:</strong> Students can submit textual questions during the session. These questions can be upvoted by other participants. The teacher has special privileges to mark specific questions as "answered."</li>
+</ul>
+
+<h3>2.6. Session Termination & Administration</h3>
+<ul>
+  <li><strong>Ending the Session:</strong> The teacher (or admin) can end the session, transitioning the status to <code>ended</code>. At this point, the teacher can attach a link to a recorded video of the broadcast (<code>recordingUrl</code>).</li>
+  <li><strong>Cancellation:</strong> If a session is canceled before it begins, the teacher can provide a reason, and a simulated notification is broadcasted to registered students.</li>
+  <li><strong>Deletion:</strong> Sessions can be permanently deleted from the system by the teacher or an administrator.</li>
+</ul>
+
+</body>
+</html>

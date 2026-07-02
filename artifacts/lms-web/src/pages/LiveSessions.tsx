@@ -6,12 +6,13 @@ import { useLanguage } from '@/contexts/LanguageContext';
 import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
-import { Calendar, Users, Video, Clock, DollarSign, Flag, Radio } from 'lucide-react';
+import { Calendar, Users, Video, Clock, DollarSign, Flag, Radio, Plus } from 'lucide-react';
 import { format } from 'date-fns';
 import { useLocation } from 'wouter';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { useForm } from 'react-hook-form';
 import ReactPlayer from 'react-player';
+import ScheduleLiveCourseModal from '@/components/ScheduleLiveCourseModal';
 
 const Player = ReactPlayer as any;
 
@@ -25,6 +26,7 @@ export default function LiveSessions() {
   const [reportSession, setReportSession] = useState<any>(null);
   const [activeTab, setActiveTab] = useState<'live' | 'recordings'>('live');
   const [playbackUrl, setPlaybackUrl] = useState<string | null>(null);
+  const [showScheduleModal, setShowScheduleModal] = useState(false);
   const { register: registerReport, handleSubmit: handleReportSubmit, reset: resetReport } = useForm();
 
   const { data: sessions, isLoading } = useQuery({
@@ -95,14 +97,28 @@ export default function LiveSessions() {
     <PageContainer>
       <div className="bg-gradient-to-r from-primary/10 via-primary/5 to-transparent py-12 border-b border-primary/10">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex items-center gap-4 mb-3">
-            <div className="w-12 h-12 rounded-2xl bg-red-100 flex items-center justify-center">
-              <Radio className="w-6 h-6 text-red-600" />
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+            <div className="flex items-center gap-4 mb-3 sm:mb-0">
+              <div className="w-12 h-12 rounded-2xl bg-red-100 flex items-center justify-center">
+                <Radio className="w-6 h-6 text-red-600" />
+              </div>
+              <div>
+                <h1 className="text-4xl font-display font-bold">Live Sessions</h1>
+                <p className="text-muted-foreground text-lg">Interactive classes and recordings</p>
+              </div>
             </div>
-            <div>
-              <h1 className="text-4xl font-display font-bold">Live Sessions</h1>
-              <p className="text-muted-foreground text-lg">Interactive classes and recordings</p>
-            </div>
+
+            {/* Teacher-only: Schedule a new live session course */}
+            {user?.role === 'teacher' && (
+              <Button
+                id="schedule-live-course-btn"
+                onClick={() => setShowScheduleModal(true)}
+                className="gap-2 bg-primary hover:bg-primary/90 text-white shadow-md hover:shadow-lg transition-all duration-200 h-11 px-5 font-semibold rounded-xl"
+              >
+                <Plus className="w-4 h-4" />
+                Schedule Live Session Course
+              </Button>
+            )}
           </div>
         </div>
       </div>
@@ -312,6 +328,14 @@ export default function LiveSessions() {
           )}
         </DialogContent>
       </Dialog>
+
+      {/* Teacher-only: Schedule Live Session Course Wizard */}
+      {user?.role === 'teacher' && (
+        <ScheduleLiveCourseModal
+          open={showScheduleModal}
+          onClose={() => setShowScheduleModal(false)}
+        />
+      )}
     </PageContainer>
   );
 }

@@ -9,6 +9,7 @@ export * from "./enrollments.ts";
 export * from "./progress.ts";
 export * from "./reviews.ts";
 export * from "./live-sessions.ts";
+export * from "./live-session-courses.ts";
 export * from "./payments.ts";
 export * from "./teacher-earnings.ts";
 export * from "./withdrawal-requests.ts";
