@@ -64,7 +64,7 @@ router.post(
         title,
         titleAr,
         description,
-        pricePerSession = 0,
+        totalPrice = 0,
         durationMinutes = 60,
         maxParticipants = 100,
         meetingUrl,
@@ -108,7 +108,7 @@ router.post(
           title,
           titleAr,
           description: description || null,
-          pricePerSession: parseFloat(pricePerSession).toFixed(2),
+          totalPrice: parseFloat(totalPrice).toFixed(2),
           sessionCount: sessions.length,
         })
         .returning();
@@ -117,7 +117,6 @@ router.post(
       const sessionRows = sessions.map((s: any, idx: number) => ({
         liveSessionCourseId: liveSessionCourse.id,
         teacherId: userId,
-        // Allow per-session title override; fall back to the course title + index
         title: s.title || `${title} — Session ${idx + 1}`,
         titleAr: s.titleAr || `${titleAr} — الجلسة ${idx + 1}`,
         description: description || null,
@@ -125,7 +124,8 @@ router.post(
         durationMinutes,
         maxParticipants,
         meetingUrl: meetingUrl || null,
-        price: parseFloat(pricePerSession).toFixed(2),
+        // Individual sessions carry price=0; the course totalPrice is what students pay once
+        price: "0.00",
         status: "scheduled" as const,
       }));
 
@@ -140,9 +140,7 @@ router.post(
           title: liveSessionCourse.title,
           titleAr: liveSessionCourse.titleAr,
           description: liveSessionCourse.description,
-          pricePerSession: parseFloat(
-            liveSessionCourse.pricePerSession || "0"
-          ),
+          totalPrice: parseFloat(liveSessionCourse.totalPrice || "0"),
           sessionCount: liveSessionCourse.sessionCount,
           createdAt: liveSessionCourse.createdAt,
         },
@@ -200,7 +198,7 @@ router.get(
             title: c.title,
             titleAr: c.titleAr,
             description: c.description,
-            pricePerSession: parseFloat(c.pricePerSession || "0"),
+            totalPrice: parseFloat(c.totalPrice || "0"),
             sessionCount: c.sessionCount,
             createdAt: c.createdAt,
             sessions,
@@ -251,7 +249,7 @@ router.get("/:id", async (req, res) => {
       title: course.title,
       titleAr: course.titleAr,
       description: course.description,
-      pricePerSession: parseFloat(course.pricePerSession || "0"),
+      totalPrice: parseFloat(course.totalPrice || "0"),
       sessionCount: course.sessionCount,
       teacherName: teacher?.fullName || "",
       teacherAvatar: teacher?.avatarUrl || null,

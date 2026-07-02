@@ -14,8 +14,8 @@ export const liveSessionCoursesTable = pgTable("live_session_courses", {
   title: varchar("title", { length: 255 }).notNull(),
   titleAr: varchar("title_ar", { length: 255 }).notNull(),
   description: text("description"),
-  /** Price per individual session in the course (LYD) */
-  pricePerSession: numeric("price_per_session", { precision: 10, scale: 2 }).notNull().default("0"),
+  /** Total price a student pays once to access the entire course (LYD) */
+  totalPrice: numeric("total_price", { precision: 10, scale: 2 }).notNull().default("0"),
   /** Total number of sessions planned */
   sessionCount: integer("session_count").notNull().default(1),
   createdAt: timestamp("created_at").notNull().defaultNow(),

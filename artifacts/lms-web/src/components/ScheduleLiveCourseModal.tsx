@@ -25,7 +25,8 @@ interface WizardState {
   titleAr: string;
   description: string;
   lessonCount: number;
-  pricePerSession: number;
+  /** Total price for the whole course (not per session) */
+  totalPrice: number;
   durationMinutes: number;
   maxParticipants: number;
   meetingUrl: string;
@@ -138,7 +139,7 @@ export default function ScheduleLiveCourseModal({ open, onClose }: Props) {
     titleAr: '',
     description: '',
     lessonCount: 4,
-    pricePerSession: 0,
+    totalPrice: 0,
     durationMinutes: Math.min(60, maxDuration),
     maxParticipants: 30,
     meetingUrl: '',
@@ -216,7 +217,7 @@ export default function ScheduleLiveCourseModal({ open, onClose }: Props) {
         title: form.title,
         titleAr: form.titleAr,
         description: form.description || undefined,
-        pricePerSession: form.pricePerSession,
+        totalPrice: form.totalPrice,
         durationMinutes: form.durationMinutes,
         maxParticipants: form.maxParticipants,
         meetingUrl: form.meetingUrl || undefined,
@@ -356,19 +357,23 @@ export default function ScheduleLiveCourseModal({ open, onClose }: Props) {
 
               <div>
                 <label className="text-sm font-medium mb-1.5 flex items-center gap-1.5">
-                  <DollarSign className="w-3.5 h-3.5" /> Price/session
+                  <DollarSign className="w-3.5 h-3.5" /> Total Course Price (LYD)
                 </label>
                 <Input
                   id="lsc-price"
                   type="number"
                   min={0}
                   step={0.5}
-                  value={form.pricePerSession}
+                  value={form.totalPrice}
                   onChange={(e) =>
-                    setForm((p) => ({ ...p, pricePerSession: parseFloat(e.target.value) || 0 }))
+                    setForm((p) => ({ ...p, totalPrice: parseFloat(e.target.value) || 0 }))
                   }
                   className="h-11"
                 />
+                <p className="text-[11px] text-muted-foreground mt-1">
+                  Students pay this once to access all {form.lessonCount} session{form.lessonCount !== 1 ? 's' : ''}.
+                  {form.totalPrice === 0 && <span className="ml-1 font-semibold text-green-600">Free course</span>}
+                </p>
               </div>
             </div>
 
@@ -534,7 +539,7 @@ export default function ScheduleLiveCourseModal({ open, onClose }: Props) {
                   { label: 'Sessions', value: form.lessonCount, icon: BookOpen },
                   { label: 'Duration', value: `${form.durationMinutes} min`, icon: Clock },
                   { label: 'Max seats', value: form.maxParticipants, icon: Users },
-                  { label: 'Price/session', value: form.pricePerSession === 0 ? 'Free' : `${form.pricePerSession} LYD`, icon: DollarSign },
+                  { label: 'Course Price', value: form.totalPrice === 0 ? 'Free' : `${form.totalPrice} LYD`, icon: DollarSign },
                 ].map(({ label, value, icon: Icon }) => (
                   <div key={label} className="bg-background/60 rounded-xl p-3 border border-border">
                     <Icon className="w-4 h-4 text-primary mx-auto mb-1" />
@@ -574,10 +579,14 @@ export default function ScheduleLiveCourseModal({ open, onClose }: Props) {
               </div>
             </div>
 
-            {form.pricePerSession > 0 && (
+            {form.totalPrice > 0 && (
               <div className="bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-700/40 rounded-xl px-4 py-3 text-sm text-amber-800 dark:text-amber-300">
-                <strong>Total course value:</strong> {(form.pricePerSession * form.lessonCount).toFixed(2)} LYD
-                &nbsp;({form.lessonCount} × {form.pricePerSession} LYD)
+                <strong>Students pay once:</strong> {form.totalPrice.toFixed(2)} LYD — unlocks all {form.lessonCount} session{form.lessonCount !== 1 ? 's' : ''}.
+              </div>
+            )}
+            {form.totalPrice === 0 && (
+              <div className="bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-700/40 rounded-xl px-4 py-3 text-sm text-green-800 dark:text-green-300">
+                🎉 <strong>Free course</strong> — all {form.lessonCount} sessions are open to everyone.
               </div>
             )}
 
