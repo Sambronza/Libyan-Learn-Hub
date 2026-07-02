@@ -28,7 +28,7 @@ export default function Checkout() {
   const { user } = useAuth();
   const isAr = language === 'ar';
 
-  const type = params?.type as 'course' | 'session';
+  const type = params?.type as 'course' | 'session' | 'live-course';
   const id = parseInt(params?.id || '0');
 
   const [method, setMethod] = useState('gateway');
@@ -37,7 +37,8 @@ export default function Checkout() {
   const { data: item } = useQuery({
     queryKey: [type, id],
     queryFn: async () => {
-      const res = await fetch(`${API_BASE}/${type === 'course' ? 'courses' : 'live-sessions'}/${id}`);
+      const endpoint = type === 'course' ? 'courses' : type === 'live-course' ? 'live-session-courses' : 'live-sessions';
+      const res = await fetch(`${API_BASE}/${endpoint}/${id}`);
       return res.json();
     },
     enabled: !!id,

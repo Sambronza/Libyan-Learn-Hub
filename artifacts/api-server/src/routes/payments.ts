@@ -12,6 +12,8 @@ import {
   withdrawalRequestsTable,
   tutoringRequestsTable,
   walletTransactionsTable,
+  liveSessionCoursesTable,
+  sessionRegistrationsTable,
 } from "@workspace/db";
 import { eq, and, or, sum, count, desc } from "drizzle-orm";
 import { requireAuth } from "../lib/auth.js";
@@ -74,6 +76,7 @@ router.post("/create-session", requireAuth, async (req, res) => {
     let currency = "LYD";
     let course = null;
     let session = null;
+    let liveCourse = null;
 
     if (type === "course") {
       [course] = await db.select().from(coursesTable).where(eq(coursesTable.id, itemId)).limit(1);
@@ -90,6 +93,10 @@ router.post("/create-session", requireAuth, async (req, res) => {
       [session] = await db.select().from(liveSessionsTable).where(eq(liveSessionsTable.id, itemId)).limit(1);
       if (!session) { res.status(404).json({ error: "Session not found" }); return; }
       amount = parseFloat(session.price);
+    } else if (type === "live-course") {
+      [liveCourse] = await db.select().from(liveSessionCoursesTable).where(eq(liveSessionCoursesTable.id, itemId)).limit(1);
+      if (!liveCourse) { res.status(404).json({ error: "Live Course not found" }); return; }
+      amount = parseFloat(liveCourse.totalPrice || "0");
     } else {
       res.status(400).json({ error: "Invalid type" }); return;
     }
@@ -98,6 +105,13 @@ router.post("/create-session", requireAuth, async (req, res) => {
       // Free item, auto-enroll
       if (type === "course") {
         await db.insert(enrollmentsTable).values({ courseId: itemId, userId, progress: "0" });
+      } else if (type === "live-course") {
+        const sessions = await db.select().from(liveSessionsTable).where(eq(liveSessionsTable.liveSessionCourseId, itemId));
+        if (sessions.length > 0) {
+           await db.insert(sessionRegistrationsTable).values(
+             sessions.map(s => ({ sessionId: s.id, userId }))
+           ).onConflictDoNothing();
+        }
       }
       return void res.json({ url: "/dashboard?success=true" });
     }
@@ -123,6 +137,7 @@ router.post("/create-session", requireAuth, async (req, res) => {
           userId,
           courseId: type === "course" ? itemId : null,
           sessionId: type === "session" ? itemId : null,
+          liveSessionCourseId: type === "live-course" ? itemId : null,
           amount: amount.toFixed(2),
           currency,
           method: "wallet",
@@ -171,6 +186,32 @@ router.post("/create-session", requireAuth, async (req, res) => {
                await tx.update(usersTable).set({ balance: newBalance.toFixed(2), updatedAt: new Date() }).where(eq(usersTable.id, session.teacherId));
              }
         }
+
+        if (type === "live-course" && liveCourse) {
+             const sessions = await tx.select().from(liveSessionsTable).where(eq(liveSessionsTable.liveSessionCourseId, itemId));
+             if (sessions.length > 0) {
+                await tx.insert(sessionRegistrationsTable).values(
+                  sessions.map(s => ({ sessionId: s.id, userId }))
+                ).onConflictDoNothing();
+             }
+
+             let platformFeePercent = 20;
+             try {
+               const [setting] = await tx.select().from(platformSettingsTable).where(eq(platformSettingsTable.key, "teacher_commission_percent")).limit(1);
+               if (setting && setting.value) platformFeePercent = parseFloat(setting.value);
+             } catch (e) {}
+             const platformFee = parseFloat((amount * platformFeePercent / 100).toFixed(2));
+             const netAmount = parseFloat((amount - platformFee).toFixed(2));
+             await tx.insert(teacherEarningsTable).values({
+               teacherId: liveCourse.teacherId, paymentId: payment.id, liveSessionCourseId: liveCourse.id,
+               grossAmount: amount.toFixed(2), platformFeePercent: platformFeePercent.toFixed(2), platformFee: platformFee.toFixed(2), netAmount: netAmount.toFixed(2), currency: "LYD", status: "available"
+             });
+             const [teacher] = await tx.select().from(usersTable).where(eq(usersTable.id, liveCourse.teacherId)).limit(1);
+             if (teacher) {
+               const newBalance = (parseFloat(teacher.balance as string) || 0) + netAmount;
+               await tx.update(usersTable).set({ balance: newBalance.toFixed(2), updatedAt: new Date() }).where(eq(usersTable.id, liveCourse.teacherId));
+             }
+        }
       });
       return void res.json({ url: "/dashboard?success=true" });
     }
@@ -180,6 +221,7 @@ router.post("/create-session", requireAuth, async (req, res) => {
       userId,
       courseId: type === "course" ? itemId : null,
       sessionId: type === "session" ? itemId : null,
+      liveSessionCourseId: type === "live-course" ? itemId : null,
       amount: amount.toFixed(2),
       currency,
       method: "bank_transfer",

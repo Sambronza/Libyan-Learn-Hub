@@ -4,6 +4,7 @@ import { z } from "zod/v4";
 import { usersTable } from "./users";
 import { coursesTable } from "./courses";
 import { tutoringRequestsTable } from "./tutoring-requests";
+import { liveSessionCoursesTable } from "./live-session-courses";
 
 export const paymentMethodEnum = pgEnum("payment_method", ["bank_transfer", "cash", "mobile_wallet", "wallet", "redeem_card"]);
 export const paymentStatusEnum = pgEnum("payment_status", ["pending", "completed", "failed", "refunded", "on_hold"]);
@@ -12,6 +13,7 @@ export const paymentsTable = pgTable("payments", {
   id: serial("id").primaryKey(),
   userId: integer("user_id").notNull().references(() => usersTable.id, { onDelete: "cascade" }),
   courseId: integer("course_id").references(() => coursesTable.id, { onDelete: "set null" }),
+  liveSessionCourseId: integer("live_session_course_id").references(() => liveSessionCoursesTable.id, { onDelete: "set null" }),
   sessionId: integer("session_id"),
   tutoringRequestId: integer("tutoring_request_id").references(() => tutoringRequestsTable.id, { onDelete: "set null" }),
   amount: numeric("amount", { precision: 10, scale: 2 }).notNull(),

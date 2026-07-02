@@ -250,6 +250,7 @@ router.get("/:id", async (req, res) => {
       titleAr: course.titleAr,
       description: course.description,
       totalPrice: parseFloat(course.totalPrice || "0"),
+      price: parseFloat(course.totalPrice || "0"),
       sessionCount: course.sessionCount,
       teacherName: teacher?.fullName || "",
       teacherAvatar: teacher?.avatarUrl || null,

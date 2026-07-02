@@ -2,6 +2,7 @@ import { pgTable, serial, integer, numeric, varchar, timestamp, pgEnum } from "d
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod/v4";
 import { usersTable } from "./users";
+import { liveSessionCoursesTable } from "./live-session-courses";
 
 export const earningsStatusEnum = pgEnum("earnings_status", ["pending", "available", "paid"]);
 
@@ -10,6 +11,7 @@ export const teacherEarningsTable = pgTable("teacher_earnings", {
   teacherId: integer("teacher_id").notNull().references(() => usersTable.id),
   paymentId: integer("payment_id").notNull(),
   courseId: integer("course_id"),
+  liveSessionCourseId: integer("live_session_course_id").references(() => liveSessionCoursesTable.id, { onDelete: "set null" }),
   sessionId: integer("session_id"),
   tutoringRequestId: integer("tutoring_request_id"),
   grossAmount: numeric("gross_amount", { precision: 10, scale: 2 }).notNull(),

@@ -6,7 +6,7 @@ import { useLanguage } from '@/contexts/LanguageContext';
 import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
-import { Calendar, Users, Video, Clock, DollarSign, Flag, Radio, Plus, ChevronDown, ChevronUp, Package } from 'lucide-react';
+import { Calendar, Users, Video, Clock, DollarSign, Flag, Radio, Plus, ChevronDown, ChevronUp, Package, CreditCard } from 'lucide-react';
 import { format } from 'date-fns';
 import { useLocation } from 'wouter';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
@@ -326,6 +326,7 @@ export default function LiveSessions() {
                 const isExpanded = expandedCourses.has(bundle.id);
                 // Teacher from first session
                 const teacherName = sessions[0]?.teacherName;
+                const isEnrolled = sessions.some((s: any) => s.isRegistered);
                 
                 return (
                   <div key={`bundle-${bundle.id}`} className="bg-gradient-to-br from-indigo-50 to-indigo-100/50 dark:from-indigo-950/20 dark:to-indigo-900/10 rounded-2xl border border-indigo-200 dark:border-indigo-800/30 overflow-hidden shadow-sm">
@@ -360,9 +361,20 @@ export default function LiveSessions() {
                           {bundle.totalPrice > 0 ? `${bundle.totalPrice} LYD` : 'Free'}
                         </div>
                         <div className="text-xs text-muted-foreground">Total Course Price</div>
+                        {user?.role === 'student' && !isEnrolled && (
+                          <Button 
+                            className="mt-4 w-full gap-2 bg-primary hover:bg-primary/90 text-white font-bold border-0 shadow-sm"
+                            onClick={() => {
+                               if (!isAuthenticated) setLocation(`/login`);
+                               else setLocation(`/checkout/live-course/${bundle.id}`);
+                            }}
+                          >
+                            <CreditCard className="w-4 h-4" /> Enroll Course
+                          </Button>
+                        )}
                         <Button 
                           variant="outline" 
-                          className="mt-4 w-full gap-2 border-indigo-300 hover:bg-indigo-200/50 dark:border-indigo-700 dark:hover:bg-indigo-800/50"
+                          className="mt-3 w-full gap-2 border-indigo-300 hover:bg-indigo-200/50 dark:border-indigo-700 dark:hover:bg-indigo-800/50"
                           onClick={() => toggleCourseExpand(bundle.id)}
                         >
                           {isExpanded ? (
