@@ -6,7 +6,7 @@ import { useLanguage } from '@/contexts/LanguageContext';
 import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
-import { Calendar, Users, Video, Clock, DollarSign, Flag, Radio, Plus } from 'lucide-react';
+import { Calendar, Users, Video, Clock, DollarSign, Flag, Radio, Plus, ChevronDown, ChevronUp, Package } from 'lucide-react';
 import { format } from 'date-fns';
 import { useLocation } from 'wouter';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
@@ -26,6 +26,7 @@ export default function LiveSessions() {
   const [reportSession, setReportSession] = useState<any>(null);
   const [activeTab, setActiveTab] = useState<'live' | 'recordings'>('live');
   const [playbackUrl, setPlaybackUrl] = useState<string | null>(null);
+  const [expandedCourses, setExpandedCourses] = useState<Set<number>>(new Set());
   const [showScheduleModal, setShowScheduleModal] = useState(false);
   const { register: registerReport, handleSubmit: handleReportSubmit, reset: resetReport } = useForm();
 
@@ -93,6 +94,171 @@ export default function LiveSessions() {
 
   const displayedSessions = activeTab === 'live' ? liveSessions : recordedSessions;
 
+  // Group sessions by liveSessionCourseId
+  const groupedSessions = React.useMemo(() => {
+    const groups = new Map<number, any>();
+    const standalone: any[] = [];
+    
+    displayedSessions.forEach((s: any) => {
+      if (s.liveSessionCourseId && s.courseBundle) {
+        if (!groups.has(s.liveSessionCourseId)) {
+          groups.set(s.liveSessionCourseId, {
+            isBundle: true,
+            bundleInfo: s.courseBundle,
+            sessions: []
+          });
+        }
+        groups.get(s.liveSessionCourseId)!.sessions.push(s);
+      } else {
+        standalone.push(s);
+      }
+    });
+
+    // Sort bundle sessions by date
+    groups.forEach(group => {
+      group.sessions.sort((a: any, b: any) => new Date(a.scheduledAt).getTime() - new Date(b.scheduledAt).getTime());
+    });
+
+    return [...Array.from(groups.values()), ...standalone];
+  }, [displayedSessions]);
+
+  const toggleCourseExpand = (courseId: number) => {
+    setExpandedCourses(prev => {
+      const next = new Set(prev);
+      if (next.has(courseId)) next.delete(courseId);
+      else next.add(courseId);
+      return next;
+    });
+  };
+
+  const renderSessionCard = (session: any, isNested: boolean = false) => {
+    const isFull = session.participantCount >= session.maxParticipants;
+    const seatsLeft = session.maxParticipants - (session.participantCount || 0);
+    const cfg = statusConfig[session.status] || statusConfig.scheduled;
+    const isEnded = session.status === 'ended' || session.status === 'cancelled';
+
+    return (
+      <div key={session.id} className={`bg-card rounded-2xl border overflow-hidden flex flex-col md:flex-row hover:shadow-md transition-all ${isNested ? 'border-primary/20 shadow-sm ml-4 md:ml-8 mt-3 mb-1 bg-background/50' : 'border-border shadow-sm'}`}>
+        {/* Date/Time block */}
+        <div className={`bg-muted/50 p-6 flex flex-col justify-center border-b md:border-b-0 md:border-r border-border shrink-0 ${isNested ? 'md:w-48 py-4' : 'md:w-56'}`}>
+          <div className="flex items-center gap-2 text-primary font-semibold mb-1 text-sm">
+            <Calendar className="w-4 h-4" />
+            {format(new Date(session.scheduledAt), 'EEE, MMM d')}
+          </div>
+          <div className="text-2xl font-bold">
+            {format(new Date(session.scheduledAt), 'h:mm a')}
+          </div>
+          <div className="text-xs text-muted-foreground mt-1 flex items-center gap-1">
+            <Clock className="w-3 h-3" /> {session.durationMinutes} min
+          </div>
+        </div>
+
+        <div className={`p-6 flex-1 flex flex-col ${isNested ? 'py-4' : ''}`}>
+          <div className="flex justify-between items-start mb-3">
+            <span className={`px-2.5 py-1 rounded-full text-xs font-bold ${cfg.color}`}>
+              {cfg.label}
+            </span>
+            <div className="flex items-center gap-3">
+              {/* Seats indicator */}
+              <div className={`flex items-center gap-1.5 text-sm font-medium ${isFull ? 'text-red-500' : 'text-muted-foreground'}`}>
+                <Users className="w-4 h-4" />
+                <span dir="ltr" className="inline-block">{session.participantCount || 0} / {session.maxParticipants}</span>
+                {!isEnded && (
+                  <span className={`text-xs px-1.5 py-0.5 rounded-full ${isFull ? 'bg-red-100 text-red-600' : 'bg-green-100 text-green-700'}`}>
+                    {isFull ? 'Full' : `${seatsLeft} left`}
+                  </span>
+                )}
+              </div>
+              {/* Seat bar */}
+              <div className="w-20 h-1.5 bg-muted rounded-full overflow-hidden hidden sm:block">
+                <div
+                  className={`h-full rounded-full ${isFull ? 'bg-red-400' : 'bg-green-500'}`}
+                  style={{ width: `${Math.min(100, ((session.participantCount || 0) / session.maxParticipants) * 100)}%` }}
+                />
+              </div>
+            </div>
+          </div>
+
+          <h3 className={`font-display font-bold ${isNested ? 'text-lg' : 'text-xl'} mb-1`}>
+            {language === 'ar' ? session.titleAr : session.title}
+          </h3>
+          {!isNested && session.description && (
+            <p className="text-muted-foreground text-sm line-clamp-2 mb-3">{session.description}</p>
+          )}
+
+          <div className="flex items-center justify-between mt-auto pt-4 border-t border-border">
+            <div className="flex items-center gap-3">
+              {!isNested && (
+                <div className="flex items-center gap-2 text-sm font-medium">
+                  <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center text-primary font-bold text-sm">
+                    {session.teacherName?.charAt(0)}
+                  </div>
+                  {session.teacherName}
+                </div>
+              )}
+              {!isNested && parseFloat(session.price) > 0 && (
+                <span className="flex items-center gap-1 text-sm font-bold text-primary">
+                  <DollarSign className="w-3.5 h-3.5" />{parseFloat(session.price)} LYD
+                </span>
+              )}
+              {!isNested && parseFloat(session.price) === 0 && (
+                <span className="text-xs bg-green-100 text-green-700 px-2 py-0.5 rounded-full font-semibold">Free</span>
+              )}
+            </div>
+
+            <div className="flex gap-2">
+              {isAuthenticated && !isEnded && (
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-9 w-9 text-muted-foreground hover:text-destructive"
+                  title="Report this session"
+                  onClick={() => setReportSession(session)}
+                >
+                  <Flag className="w-4 h-4" />
+                </Button>
+              )}
+              {activeTab === 'recordings' && session.recordingUrl ? (
+                <Button
+                  className="gap-2 bg-indigo-600 hover:bg-indigo-700 text-white"
+                  onClick={() => setPlaybackUrl(session.recordingUrl)}
+                >
+                  <Video className="w-4 h-4" />
+                  Watch
+                </Button>
+              ) : (() => {
+                const isTooEarly = session.status === 'scheduled' &&
+                  Date.now() < new Date(session.scheduledAt).getTime() - 10 * 60 * 1000;
+                const minsUntilOpen = isTooEarly
+                  ? Math.ceil((new Date(session.scheduledAt).getTime() - 10 * 60 * 1000 - Date.now()) / 60000)
+                  : 0;
+                return (
+                  <Button
+                    disabled={isEnded || isFull || isTooEarly}
+                    title={isTooEarly ? `Opens ${minsUntilOpen}m before start` : undefined}
+                    className={`gap-2 ${session.status === 'live' ? 'bg-red-600 hover:bg-red-700 text-white' : isEnded ? 'opacity-50' : isTooEarly ? 'opacity-60' : 'bg-primary hover:bg-primary/90'}`}
+                    onClick={() => handleEnterRoom(session)}
+                  >
+                    <Video className="w-4 h-4" />
+                    {session.status === 'live'
+                      ? 'Join Live'
+                      : isEnded
+                      ? 'Ended'
+                      : isFull
+                      ? 'Full'
+                      : isTooEarly
+                      ? `Opens in ${minsUntilOpen}m`
+                      : 'Enter Room'}
+                  </Button>
+                );
+              })()}
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  };
+
   return (
     <PageContainer>
       <div className="bg-gradient-to-r from-primary/10 via-primary/5 to-transparent py-12 border-b border-primary/10">
@@ -145,138 +311,79 @@ export default function LiveSessions() {
           <div className="space-y-4">
             {[1,2,3].map(i => <div key={i} className="h-40 bg-card rounded-2xl animate-pulse border border-border" />)}
           </div>
-        ) : (sessions || []).length === 0 ? (
+        ) : (groupedSessions || []).length === 0 ? (
           <div className="text-center py-20 bg-card rounded-3xl border border-dashed border-border">
             <Video className="w-16 h-16 text-muted-foreground mx-auto mb-4 opacity-20" />
             <h3 className="text-xl font-bold">No sessions found</h3>
             <p className="text-muted-foreground mt-2">Check back later for {activeTab === 'live' ? 'upcoming classes' : 'recordings'}.</p>
           </div>
         ) : (
-          <div className="space-y-5">
-            {displayedSessions.map((session: any) => {
-              const isFull = session.participantCount >= session.maxParticipants;
-              const seatsLeft = session.maxParticipants - (session.participantCount || 0);
-              const cfg = statusConfig[session.status] || statusConfig.scheduled;
-              const isEnded = session.status === 'ended' || session.status === 'cancelled';
-
-              return (
-                <div key={session.id} className="bg-card rounded-2xl border border-border overflow-hidden shadow-sm flex flex-col md:flex-row hover:shadow-md transition-shadow">
-                  {/* Date/Time block */}
-                  <div className="md:w-56 bg-muted/50 p-6 flex flex-col justify-center border-b md:border-b-0 md:border-r border-border shrink-0">
-                    <div className="flex items-center gap-2 text-primary font-semibold mb-1 text-sm">
-                      <Calendar className="w-4 h-4" />
-                      {format(new Date(session.scheduledAt), 'EEE, MMM d yyyy')}
-                    </div>
-                    <div className="text-2xl font-bold">
-                      {format(new Date(session.scheduledAt), 'h:mm a')}
-                    </div>
-                    <div className="text-xs text-muted-foreground mt-1 flex items-center gap-1">
-                      <Clock className="w-3 h-3" /> {session.durationMinutes} min
-                    </div>
-                  </div>
-
-                  <div className="p-6 flex-1 flex flex-col">
-                    <div className="flex justify-between items-start mb-3">
-                      <span className={`px-2.5 py-1 rounded-full text-xs font-bold ${cfg.color}`}>
-                        {cfg.label}
-                      </span>
-                      <div className="flex items-center gap-3">
-                        {/* Seats indicator */}
-                        <div className={`flex items-center gap-1.5 text-sm font-medium ${isFull ? 'text-red-500' : 'text-muted-foreground'}`}>
-                          <Users className="w-4 h-4" />
-                          <span dir="ltr" className="inline-block">{session.participantCount || 0} / {session.maxParticipants}</span>
-                          {!isEnded && (
-                            <span className={`text-xs px-1.5 py-0.5 rounded-full ${isFull ? 'bg-red-100 text-red-600' : 'bg-green-100 text-green-700'}`}>
-                              {isFull ? 'Full' : `${seatsLeft} left`}
-                            </span>
-                          )}
-                        </div>
-                        {/* Seat bar */}
-                        <div className="w-20 h-1.5 bg-muted rounded-full overflow-hidden hidden sm:block">
-                          <div
-                            className={`h-full rounded-full ${isFull ? 'bg-red-400' : 'bg-green-500'}`}
-                            style={{ width: `${Math.min(100, ((session.participantCount || 0) / session.maxParticipants) * 100)}%` }}
-                          />
-                        </div>
+          <div className="space-y-6">
+            {groupedSessions.map((item: any) => {
+              if (item.isBundle) {
+                const bundle = item.bundleInfo;
+                const sessions = item.sessions;
+                const isExpanded = expandedCourses.has(bundle.id);
+                // Teacher from first session
+                const teacherName = sessions[0]?.teacherName;
+                
+                return (
+                  <div key={`bundle-${bundle.id}`} className="bg-gradient-to-br from-indigo-50 to-indigo-100/50 dark:from-indigo-950/20 dark:to-indigo-900/10 rounded-2xl border border-indigo-200 dark:border-indigo-800/30 overflow-hidden shadow-sm">
+                    <div className="p-6 flex flex-col md:flex-row gap-6">
+                      <div className="w-16 h-16 rounded-2xl bg-indigo-100 dark:bg-indigo-900/50 flex items-center justify-center shrink-0">
+                        <Package className="w-8 h-8 text-indigo-600 dark:text-indigo-400" />
                       </div>
-                    </div>
-
-                    <h3 className="font-display font-bold text-xl mb-1">
-                      {language === 'ar' ? session.titleAr : session.title}
-                    </h3>
-                    {session.description && (
-                      <p className="text-muted-foreground text-sm line-clamp-2 mb-3">{session.description}</p>
-                    )}
-
-                    <div className="flex items-center justify-between mt-auto pt-4 border-t border-border">
-                      <div className="flex items-center gap-3">
-                        <div className="flex items-center gap-2 text-sm font-medium">
-                          <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center text-primary font-bold text-sm">
-                            {session.teacherName?.charAt(0)}
-                          </div>
-                          {session.teacherName}
-                        </div>
-                        {parseFloat(session.price) > 0 && (
-                          <span className="flex items-center gap-1 text-sm font-bold text-primary">
-                            <DollarSign className="w-3.5 h-3.5" />{parseFloat(session.price)} LYD
+                      <div className="flex-1 flex flex-col justify-center">
+                        <div className="flex items-center gap-2 mb-2">
+                          <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider bg-indigo-200 text-indigo-800 dark:bg-indigo-800 dark:text-indigo-200">
+                            Live Course Bundle
                           </span>
-                        )}
-                        {parseFloat(session.price) === 0 && (
-                          <span className="text-xs bg-green-100 text-green-700 px-2 py-0.5 rounded-full font-semibold">Free</span>
+                          <span className="text-xs font-semibold text-muted-foreground">
+                            {sessions.length} / {bundle.sessionCount} Sessions Scheduled
+                          </span>
+                        </div>
+                        <h3 className="font-display font-bold text-2xl mb-1 text-indigo-950 dark:text-indigo-50">
+                          {language === 'ar' ? bundle.titleAr : bundle.title}
+                        </h3>
+                        {bundle.description && (
+                          <p className="text-muted-foreground text-sm line-clamp-2">{bundle.description}</p>
                         )}
                       </div>
-
-                      <div className="flex gap-2">
-                        {isAuthenticated && !isEnded && (
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            className="h-9 w-9 text-muted-foreground hover:text-destructive"
-                            title="Report this session"
-                            onClick={() => setReportSession(session)}
-                          >
-                            <Flag className="w-4 h-4" />
-                          </Button>
-                        )}
-                        {activeTab === 'recordings' && session.recordingUrl ? (
-                          <Button
-                            className="gap-2 bg-indigo-600 hover:bg-indigo-700 text-white"
-                            onClick={() => setPlaybackUrl(session.recordingUrl)}
-                          >
-                            <Video className="w-4 h-4" />
-                            Watch Recording
-                          </Button>
-                        ) : (() => {
-                          const isTooEarly = session.status === 'scheduled' &&
-                            Date.now() < new Date(session.scheduledAt).getTime() - 10 * 60 * 1000;
-                          const minsUntilOpen = isTooEarly
-                            ? Math.ceil((new Date(session.scheduledAt).getTime() - 10 * 60 * 1000 - Date.now()) / 60000)
-                            : 0;
-                          return (
-                            <Button
-                              disabled={isEnded || isFull || isTooEarly}
-                              title={isTooEarly ? `Opens ${minsUntilOpen}m before start` : undefined}
-                              className={`gap-2 ${session.status === 'live' ? 'bg-red-600 hover:bg-red-700 text-white' : isEnded ? 'opacity-50' : isTooEarly ? 'opacity-60' : 'bg-primary hover:bg-primary/90'}`}
-                              onClick={() => handleEnterRoom(session)}
-                            >
-                              <Video className="w-4 h-4" />
-                              {session.status === 'live'
-                                ? 'Join Live'
-                                : isEnded
-                                ? 'Ended'
-                                : isFull
-                                ? 'Session Full'
-                                : isTooEarly
-                                ? `Opens in ${minsUntilOpen}m`
-                                : 'Enter Room'}
-                            </Button>
-                          );
-                        })()}
+                      <div className="md:w-64 flex flex-col justify-center items-end border-t md:border-t-0 md:border-l border-indigo-200/50 dark:border-indigo-800/30 pt-4 md:pt-0 md:pl-6 text-right">
+                        <div className="flex items-center gap-2 text-sm font-medium mb-3">
+                          <div className="w-8 h-8 rounded-full bg-indigo-200 dark:bg-indigo-800/50 flex items-center justify-center text-indigo-700 dark:text-indigo-300 font-bold text-sm">
+                            {teacherName?.charAt(0)}
+                          </div>
+                          {teacherName}
+                        </div>
+                        <div className="text-2xl font-bold text-primary mb-1">
+                          {bundle.totalPrice > 0 ? `${bundle.totalPrice} LYD` : 'Free'}
+                        </div>
+                        <div className="text-xs text-muted-foreground">Total Course Price</div>
+                        <Button 
+                          variant="outline" 
+                          className="mt-4 w-full gap-2 border-indigo-300 hover:bg-indigo-200/50 dark:border-indigo-700 dark:hover:bg-indigo-800/50"
+                          onClick={() => toggleCourseExpand(bundle.id)}
+                        >
+                          {isExpanded ? (
+                            <><ChevronUp className="w-4 h-4" /> Hide Sessions</>
+                          ) : (
+                            <><ChevronDown className="w-4 h-4" /> View {sessions.length} Sessions</>
+                          )}
+                        </Button>
                       </div>
                     </div>
+                    {isExpanded && (
+                      <div className="bg-background/80 backdrop-blur-sm p-4 pt-1 border-t border-indigo-200/50 dark:border-indigo-800/30">
+                        {sessions.map((s: any) => renderSessionCard(s, true))}
+                      </div>
+                    )}
                   </div>
-                </div>
-              );
+                );
+              }
+
+              // Standalone session
+              return renderSessionCard(item, false);
             })}
           </div>
         )}

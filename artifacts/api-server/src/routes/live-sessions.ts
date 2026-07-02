@@ -1,6 +1,6 @@
 import { Router } from "express";
 import { db } from "@workspace/db";
-import { liveSessionsTable, usersTable, enrollmentsTable, sessionRegistrationsTable } from "@workspace/db";
+import { liveSessionsTable, usersTable, enrollmentsTable, sessionRegistrationsTable, liveSessionCoursesTable } from "@workspace/db";
 import { eq, gte, count, and } from "drizzle-orm";
 import { requireAuth, requireRole } from "../lib/auth.js";
 import { parseParam } from "../lib/utils.js";
@@ -9,7 +9,7 @@ import type { TeacherTier } from "../lib/plans.js";
 
 const router = Router();
 
-async function formatSession(session: any, userId?: number | null, teacherCache?: Map<number, string>) {
+async function formatSession(session: any, userId?: number | null, teacherCache?: Map<number, string>, courseCache?: Map<number, any>) {
   let teacherName = "";
   if (teacherCache && teacherCache.has(session.teacherId)) {
     teacherName = teacherCache.get(session.teacherId)!;
@@ -17,6 +17,27 @@ async function formatSession(session: any, userId?: number | null, teacherCache?
     const [teacher] = await db.select().from(usersTable).where(eq(usersTable.id, session.teacherId)).limit(1);
     teacherName = teacher?.fullName || "";
     if (teacherCache) teacherCache.set(session.teacherId, teacherName);
+  }
+
+  // Fetch parent live session course if applicable
+  let courseBundle = null;
+  if (session.liveSessionCourseId) {
+    if (courseCache && courseCache.has(session.liveSessionCourseId)) {
+      courseBundle = courseCache.get(session.liveSessionCourseId);
+    } else {
+      const [course] = await db.select().from(liveSessionCoursesTable).where(eq(liveSessionCoursesTable.id, session.liveSessionCourseId)).limit(1);
+      if (course) {
+        courseBundle = {
+          id: course.id,
+          title: course.title,
+          titleAr: course.titleAr,
+          description: course.description,
+          totalPrice: parseFloat(course.totalPrice || "0"),
+          sessionCount: course.sessionCount
+        };
+        if (courseCache) courseCache.set(session.liveSessionCourseId, courseBundle);
+      }
+    }
   }
 
   const [regCount] = await db.select({ total: count() }).from(sessionRegistrationsTable)
@@ -39,6 +60,8 @@ async function formatSession(session: any, userId?: number | null, teacherCache?
   return {
     id: session.id,
     courseId: session.courseId,
+    liveSessionCourseId: session.liveSessionCourseId,
+    courseBundle,
     teacherId: session.teacherId,
     teacherName,
     title: session.title,
@@ -118,7 +141,8 @@ router.get("/", async (req, res) => {
     });
 
     const teacherCache = new Map<number, string>();
-    const result = await Promise.all(sessions.map(s => formatSession(s, userId, teacherCache)));
+    const courseCache = new Map<number, any>();
+    const result = await Promise.all(sessions.map(s => formatSession(s, userId, teacherCache, courseCache)));
     res.json(result);
   } catch (err: any) {
     res.status(500).json({ error: "Server error", message: err.message });
