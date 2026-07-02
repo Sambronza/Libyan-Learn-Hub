@@ -5,12 +5,14 @@ import { useGetCourses, useGetCategories, type GetCoursesLevel, type GetCoursesL
 import { Link } from 'wouter';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
-import { Search, Filter, BookOpen, Star, PlayCircle, ChevronDown, ChevronUp } from 'lucide-react';
+import { Search, Filter, BookOpen, Star, PlayCircle, ChevronDown, ChevronUp, Plus } from 'lucide-react';
 import { CourseCardSkeleton } from '@/components/ui/skeleton';
 import { EmptyState } from '@/components/ui/EmptyState';
+import { useAuth } from '@/contexts/AuthContext';
 
 export default function Courses() {
   const { t, language } = useLanguage();
+  const { user } = useAuth();
   const [search, setSearch] = useState('');
   const [categoryId, setCategoryId] = useState<number | undefined>();
   const [level, setLevel] = useState<GetCoursesLevel | undefined>();
@@ -31,7 +33,18 @@ export default function Courses() {
     <PageContainer>
       <div className="bg-primary/5 py-12 border-b border-primary/10">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <h1 className="text-4xl font-display font-bold text-foreground mb-4">{t('courses.explore')}</h1>
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+            <h1 className="text-4xl font-display font-bold text-foreground">{t('courses.explore')}</h1>
+            
+            {user?.role === 'teacher' && (
+              <Link href="/teacher/courses/new">
+                <Button className="gap-2 bg-primary hover:bg-primary/90 text-white shadow-md hover:shadow-lg transition-all duration-200 h-11 px-5 font-semibold rounded-xl w-full sm:w-auto">
+                  <Plus className="w-4 h-4" />
+                  New Course
+                </Button>
+              </Link>
+            )}
+          </div>
           
           <div className="flex flex-col md:flex-row gap-4 mt-8">
             <div className="relative flex-1">
