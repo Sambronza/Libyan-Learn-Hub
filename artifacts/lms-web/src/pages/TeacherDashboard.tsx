@@ -10,7 +10,7 @@ import { Link, useLocation } from 'wouter';
 import {
   Plus, Edit, Users, Video, BookOpen, Calendar,
   PlayCircle, Star, TrendingUp, Megaphone, CheckCircle, XCircle, HardDrive, Trophy, Zap, Wallet, Banknote,
-  Globe, DollarSign, GraduationCap, Lock, Trash2, Clock, Eye, Radio, AlertTriangle, UserCheck
+  Globe, DollarSign, GraduationCap, Lock, Trash2, Clock, Eye, Radio, AlertTriangle, UserCheck, Package, ChevronDown, ChevronUp
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useQueryClient } from '@tanstack/react-query';
@@ -36,6 +36,7 @@ export default function TeacherDashboard() {
   const [notifyStudents, setNotifyStudents] = React.useState(true);
   const [isCancelling, setIsCancelling] = React.useState(false);
   const [activeTab, setActiveTab] = React.useState("courses");
+  const [expandedCourses, setExpandedCourses] = React.useState<Set<number>>(new Set());
 
   React.useEffect(() => {
     if (!authLoading && !isAuthenticated) setLocation('/login');
@@ -59,7 +60,121 @@ export default function TeacherDashboard() {
 
   const mySessions = liveSessions?.filter((s: any) => s.teacherId === user?.id) || [];
 
+  const groupedMySessions = React.useMemo(() => {
+    const groups = new Map<number, any>();
+    const standalone: any[] = [];
+    
+    mySessions.forEach((s: any) => {
+      if (s.liveSessionCourseId && s.courseBundle) {
+        if (!groups.has(s.liveSessionCourseId)) {
+          groups.set(s.liveSessionCourseId, {
+            isBundle: true,
+            bundleInfo: s.courseBundle,
+            sessions: []
+          });
+        }
+        groups.get(s.liveSessionCourseId)!.sessions.push(s);
+      } else {
+        standalone.push(s);
+      }
+    });
 
+    groups.forEach(group => {
+      group.sessions.sort((a: any, b: any) => new Date(a.scheduledAt).getTime() - new Date(b.scheduledAt).getTime());
+    });
+
+    return [...Array.from(groups.values()), ...standalone];
+  }, [mySessions]);
+
+  const toggleCourseExpand = (courseId: number) => {
+    setExpandedCourses(prev => {
+      const next = new Set(prev);
+      if (next.has(courseId)) next.delete(courseId);
+      else next.add(courseId);
+      return next;
+    });
+  };
+
+  const renderMySessionCard = (session: any, isNested: boolean = false) => (
+    <div key={session.id} className={`bg-card rounded-2xl border p-5 ${isNested ? 'border-primary/20 shadow-none ml-4 md:ml-8 mt-3 mb-1 bg-background/50' : 'border-border shadow-sm'}`}>
+      <div className="flex justify-between items-start mb-3">
+        <div className="flex-1">
+          <h3 className="font-bold text-base">{session.title}</h3>
+          <p className="text-sm text-muted-foreground">{session.titleAr}</p>
+        </div>
+        <span className={`text-xs px-2.5 py-1 rounded-full font-bold ml-3 ${
+          session.status === 'live' ? 'bg-red-500 text-white animate-pulse' :
+          session.status === 'scheduled' ? 'bg-blue-100 text-blue-700' :
+          session.status === 'ended' ? 'bg-gray-100 text-gray-600' :
+          'bg-yellow-100 text-yellow-700'
+        }`}>
+          {session.status === 'live' ? '🔴 LIVE' : session.status}
+        </span>
+      </div>
+      {!isNested && session.description && (
+        <p className="text-sm text-muted-foreground mb-3 line-clamp-2">{session.description}</p>
+      )}
+      <div className={`grid ${isNested ? 'grid-cols-2' : 'grid-cols-3'} gap-2 text-center mb-4`}>
+        <div className="bg-muted/50 rounded-lg p-2">
+          <Calendar className="w-3.5 h-3.5 mx-auto text-muted-foreground mb-1" />
+          <div className="text-xs font-medium">{new Date(session.scheduledAt).toLocaleDateString('ar-LY')}</div>
+          <div className="text-xs text-muted-foreground">{new Date(session.scheduledAt).toLocaleTimeString('ar-LY', { hour: '2-digit', minute: '2-digit' })}</div>
+        </div>
+        <div className="bg-muted/50 rounded-lg p-2">
+          <Clock className="w-3.5 h-3.5 mx-auto text-muted-foreground mb-1" />
+          <div className="text-xs font-medium">{session.durationMinutes} min</div>
+          <div className="text-xs text-muted-foreground">Duration</div>
+        </div>
+        {!isNested && (
+          <div className="bg-muted/50 rounded-lg p-2">
+            <DollarSign className="w-3.5 h-3.5 mx-auto text-muted-foreground mb-1" />
+            <div className="text-xs font-medium">{parseFloat(session.price) === 0 ? 'Free' : `${parseFloat(session.price)} LYD`}</div>
+            <div className="text-xs text-muted-foreground">Price</div>
+          </div>
+        )}
+      </div>
+      {session.status !== 'cancelled' && (
+        <div className="flex gap-2">
+          <Link href={`/session/${session.id}`} className="flex-1">
+            <Button className="w-full gap-2 bg-red-500 hover:bg-red-600 text-white" size="sm">
+              <Radio className="w-3.5 h-3.5" /> Join Session
+            </Button>
+          </Link>
+          {session.status === 'live' && (
+            <Button 
+              variant="outline" 
+              className="text-destructive border-destructive/30 hover:bg-destructive/5 shrink-0 px-3" 
+              size="sm" 
+              onClick={() => openCancelModal(session)}
+              title="End Session"
+            >
+              <XCircle className="w-4 h-4" />
+            </Button>
+          )}
+        </div>
+      )}
+      {session.status === 'scheduled' && (
+        <Button 
+          variant="outline" 
+          className="w-full gap-2 mt-2 text-destructive border-destructive/30 hover:bg-destructive/5" 
+          size="sm" 
+          onClick={() => openCancelModal(session)}
+        >
+          <XCircle className="w-3.5 h-3.5" /> Cancel Session
+        </Button>
+      )}
+      {(session.status === 'ended' || session.status === 'cancelled') && (
+        <Button 
+          variant="outline" 
+          className="w-full gap-2 mt-2 text-muted-foreground hover:text-destructive hover:bg-destructive/5" 
+          size="sm" 
+          onClick={() => handleDeleteLiveSession(session.id)}
+        >
+          <Trash2 className="w-3.5 h-3.5" /> Delete Session
+        </Button>
+      )}
+    </div>
+  );
 
   const handleDeleteCourse = async (courseId: number) => {
     if (!window.confirm('Delete this course? This will permanently delete all its lessons. Students will lose access.')) return;
@@ -430,84 +545,64 @@ export default function TeacherDashboard() {
                 </div>
               ) : (
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  {mySessions.map((session: any) => (
-                    <div key={session.id} className="bg-card rounded-2xl border border-border p-5 shadow-sm">
-                      <div className="flex justify-between items-start mb-3">
-                        <div className="flex-1">
-                          <h3 className="font-bold text-base">{session.title}</h3>
-                          <p className="text-sm text-muted-foreground">{session.titleAr}</p>
-                        </div>
-                        <span className={`text-xs px-2.5 py-1 rounded-full font-bold ml-3 ${
-                          session.status === 'live' ? 'bg-red-500 text-white animate-pulse' :
-                          session.status === 'scheduled' ? 'bg-blue-100 text-blue-700' :
-                          session.status === 'ended' ? 'bg-gray-100 text-gray-600' :
-                          'bg-yellow-100 text-yellow-700'
-                        }`}>
-                          {session.status === 'live' ? '🔴 LIVE' : session.status}
-                        </span>
-                      </div>
-                      {session.description && (
-                        <p className="text-sm text-muted-foreground mb-3 line-clamp-2">{session.description}</p>
-                      )}
-                      <div className="grid grid-cols-3 gap-2 text-center mb-4">
-                        <div className="bg-muted/50 rounded-lg p-2">
-                          <Calendar className="w-3.5 h-3.5 mx-auto text-muted-foreground mb-1" />
-                          <div className="text-xs font-medium">{new Date(session.scheduledAt).toLocaleDateString('ar-LY')}</div>
-                          <div className="text-xs text-muted-foreground">{new Date(session.scheduledAt).toLocaleTimeString('ar-LY', { hour: '2-digit', minute: '2-digit' })}</div>
-                        </div>
-                        <div className="bg-muted/50 rounded-lg p-2">
-                          <Clock className="w-3.5 h-3.5 mx-auto text-muted-foreground mb-1" />
-                          <div className="text-xs font-medium">{session.durationMinutes} min</div>
-                          <div className="text-xs text-muted-foreground">Duration</div>
-                        </div>
-                        <div className="bg-muted/50 rounded-lg p-2">
-                          <DollarSign className="w-3.5 h-3.5 mx-auto text-muted-foreground mb-1" />
-                          <div className="text-xs font-medium">{parseFloat(session.price) === 0 ? 'Free' : `${parseFloat(session.price)} LYD`}</div>
-                          <div className="text-xs text-muted-foreground">Price</div>
-                        </div>
-                      </div>
-                      {session.status !== 'cancelled' && (
-                        <div className="flex gap-2">
-                          <Link href={`/session/${session.id}`} className="flex-1">
-                            <Button className="w-full gap-2 bg-red-500 hover:bg-red-600 text-white" size="sm">
-                              <Radio className="w-3.5 h-3.5" /> Join Session
-                            </Button>
-                          </Link>
-                          {session.status === 'live' && (
-                            <Button 
-                              variant="outline" 
-                              className="text-destructive border-destructive/30 hover:bg-destructive/5 shrink-0 px-3" 
-                              size="sm" 
-                              onClick={() => openCancelModal(session)}
-                              title="End Session"
-                            >
-                              <XCircle className="w-4 h-4" />
-                            </Button>
+                  {groupedMySessions.map((item: any) => {
+                    if (item.isBundle) {
+                      const bundle = item.bundleInfo;
+                      const sessions = item.sessions;
+                      const isExpanded = expandedCourses.has(bundle.id);
+                      
+                      return (
+                        <div key={`bundle-${bundle.id}`} className="bg-gradient-to-br from-indigo-50 to-indigo-100/50 dark:from-indigo-950/20 dark:to-indigo-900/10 rounded-2xl border border-indigo-200 dark:border-indigo-800/30 overflow-hidden shadow-sm md:col-span-2">
+                          <div className="p-6 flex flex-col md:flex-row gap-6">
+                            <div className="w-16 h-16 rounded-2xl bg-indigo-100 dark:bg-indigo-900/50 flex items-center justify-center shrink-0">
+                              <Package className="w-8 h-8 text-indigo-600 dark:text-indigo-400" />
+                            </div>
+                            <div className="flex-1 flex flex-col justify-center">
+                              <div className="flex items-center gap-2 mb-2">
+                                <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider bg-indigo-200 text-indigo-800 dark:bg-indigo-800 dark:text-indigo-200">
+                                  Live Course Bundle
+                                </span>
+                                <span className="text-xs font-semibold text-muted-foreground">
+                                  {sessions.length} / {bundle.sessionCount} Sessions Scheduled
+                                </span>
+                              </div>
+                              <h3 className="font-display font-bold text-xl mb-1 text-indigo-950 dark:text-indigo-50">
+                                {bundle.title}
+                              </h3>
+                              {bundle.description && (
+                                <p className="text-muted-foreground text-sm line-clamp-2">{bundle.description}</p>
+                              )}
+                            </div>
+                            <div className="md:w-64 flex flex-col justify-center items-end border-t md:border-t-0 md:border-l border-indigo-200/50 dark:border-indigo-800/30 pt-4 md:pt-0 md:pl-6 text-right">
+                              <div className="text-2xl font-bold text-primary mb-1">
+                                {bundle.totalPrice > 0 ? `${bundle.totalPrice} LYD` : 'Free'}
+                              </div>
+                              <div className="text-xs text-muted-foreground">Total Course Price</div>
+                              <Button 
+                                variant="outline" 
+                                className="mt-4 w-full gap-2 border-indigo-300 hover:bg-indigo-200/50 dark:border-indigo-700 dark:hover:bg-indigo-800/50"
+                                onClick={() => toggleCourseExpand(bundle.id)}
+                              >
+                                {isExpanded ? (
+                                  <><ChevronUp className="w-4 h-4" /> Hide Sessions</>
+                                ) : (
+                                  <><ChevronDown className="w-4 h-4" /> Manage {sessions.length} Sessions</>
+                                )}
+                              </Button>
+                            </div>
+                          </div>
+                          {isExpanded && (
+                            <div className="bg-background/80 backdrop-blur-sm p-4 pt-1 border-t border-indigo-200/50 dark:border-indigo-800/30 grid grid-cols-1 md:grid-cols-2 gap-4">
+                              {sessions.map((s: any) => renderMySessionCard(s, true))}
+                            </div>
                           )}
                         </div>
-                      )}
-                      {session.status === 'scheduled' && (
-                        <Button 
-                          variant="outline" 
-                          className="w-full gap-2 mt-2 text-destructive border-destructive/30 hover:bg-destructive/5" 
-                          size="sm" 
-                          onClick={() => openCancelModal(session)}
-                        >
-                          <XCircle className="w-3.5 h-3.5" /> Cancel Session
-                        </Button>
-                      )}
-                      {(session.status === 'ended' || session.status === 'cancelled') && (
-                        <Button 
-                          variant="outline" 
-                          className="w-full gap-2 mt-2 text-muted-foreground hover:text-destructive hover:bg-destructive/5" 
-                          size="sm" 
-                          onClick={() => handleDeleteLiveSession(session.id)}
-                        >
-                          <Trash2 className="w-3.5 h-3.5" /> Delete Session
-                        </Button>
-                      )}
-                    </div>
-                  ))}
+                      );
+                    }
+
+                    // Standalone session
+                    return renderMySessionCard(item, false);
+                  })}
                 </div>
               )}
             </div>
