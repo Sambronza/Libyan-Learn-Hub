@@ -258,7 +258,14 @@ export default function Dashboard() {
             </div>
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {enrollments.map((enrollment: any) => (
+              {enrollments.map((enrollment: any) => {
+                const expiresAt = enrollment.expiresAt ? new Date(enrollment.expiresAt) : null;
+                const isExpired = enrollment.isExpired === true || (expiresAt !== null && expiresAt <= new Date());
+                const daysLeft = expiresAt && !isExpired
+                  ? Math.max(0, Math.ceil((expiresAt.getTime() - Date.now()) / (24 * 60 * 60 * 1000)))
+                  : null;
+                const expiringSoon = daysLeft !== null && daysLeft <= 3;
+                return (
                 <div key={enrollment.id} className="bg-card rounded-2xl border border-border overflow-hidden shadow-sm flex flex-col hover:shadow-md transition-shadow">
                   <div className="aspect-video bg-muted relative overflow-hidden">
                     {enrollment.course?.thumbnailUrl ? (
@@ -268,11 +275,25 @@ export default function Dashboard() {
                         <PlayCircle className="w-10 h-10 text-primary/40" />
                       </div>
                     )}
-                    {enrollment.progress >= 100 && (
+                    {enrollment.progress >= 100 && !isExpired && (
                       <div className="absolute inset-0 bg-green-500/20 flex items-center justify-center">
                         <CheckCircle className="w-12 h-12 text-green-500" />
                       </div>
                     )}
+                    {/* Subscription status badge */}
+                    {isExpired ? (
+                      <div className="absolute top-2 end-2 bg-destructive text-white text-[11px] font-bold px-2.5 py-1 rounded-full shadow">
+                        Subscription expired
+                      </div>
+                    ) : expiringSoon ? (
+                      <div className="absolute top-2 end-2 bg-amber-500 text-white text-[11px] font-bold px-2.5 py-1 rounded-full shadow">
+                        {daysLeft === 0 ? 'Expires today' : `Expires in ${daysLeft}d`}
+                      </div>
+                    ) : expiresAt ? (
+                      <div className="absolute top-2 end-2 bg-black/60 text-white text-[11px] font-medium px-2.5 py-1 rounded-full backdrop-blur-sm">
+                        {daysLeft}d left
+                      </div>
+                    ) : null}
                   </div>
                   <div className="p-5 flex flex-col flex-1">
                     <h3 className="font-bold text-base mb-1 line-clamp-2">{enrollment.course?.title}</h3>
@@ -288,15 +309,33 @@ export default function Dashboard() {
                           style={{ width: `${Math.min(enrollment.progress, 100)}%` }}
                         />
                       </div>
-                      <Link href={`/courses/${enrollment.courseId}/learn`}>
-                        <Button className="w-full" variant={enrollment.progress > 0 ? 'default' : 'outline'}>
-                          {enrollment.progress >= 100 ? 'Review Course' : enrollment.progress > 0 ? 'Continue Learning →' : 'Start Course →'}
-                        </Button>
-                      </Link>
+                      {isExpired ? (
+                        <Link href={`/checkout/course/${enrollment.courseId}?duration=${enrollment.subscriptionMonths || 1}`}>
+                          <Button className="w-full" variant="destructive">
+                            Renew Subscription
+                          </Button>
+                        </Link>
+                      ) : (
+                        <div className="space-y-2">
+                          <Link href={`/courses/${enrollment.courseId}/learn`}>
+                            <Button className="w-full" variant={enrollment.progress > 0 ? 'default' : 'outline'}>
+                              {enrollment.progress >= 100 ? 'Review Course' : enrollment.progress > 0 ? 'Continue Learning →' : 'Start Course →'}
+                            </Button>
+                          </Link>
+                          {expiringSoon && (
+                            <Link href={`/checkout/course/${enrollment.courseId}?duration=${enrollment.subscriptionMonths || 1}`}>
+                              <Button className="w-full" variant="outline" size="sm">
+                                Renew now — keep your access
+                              </Button>
+                            </Link>
+                          )}
+                        </div>
+                      )}
                     </div>
                   </div>
                 </div>
-              ))}
+                );
+              })}
             </div>
           )}
         </section>

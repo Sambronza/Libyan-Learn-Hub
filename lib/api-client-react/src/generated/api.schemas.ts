@@ -49,9 +49,22 @@ export interface RegisterRequest {
   agreedToCommission?: boolean | null;
 }
 
+export type LoginRequestDevicePlatform =
+  (typeof LoginRequestDevicePlatform)[keyof typeof LoginRequestDevicePlatform];
+
+export const LoginRequestDevicePlatform = {
+  web: "web",
+  ios: "ios",
+  android: "android",
+} as const;
+
 export interface LoginRequest {
   email: string;
   password: string;
+  /** Persistent device identifier (student device binding) */
+  deviceFingerprint?: string;
+  deviceName?: string;
+  devicePlatform?: LoginRequestDevicePlatform;
 }
 
 export type UserRole = (typeof UserRole)[keyof typeof UserRole];
@@ -141,6 +154,14 @@ export interface Course {
   descriptionAr: string;
   thumbnailUrl?: string | null;
   price: number;
+  /** 1-month subscription price (null on free courses) */
+  priceMonth1?: number | null;
+  /** 3-month subscription price */
+  priceMonth3?: number | null;
+  /** 6-month subscription price */
+  priceMonth6?: number | null;
+  /** 12-month subscription price */
+  priceMonth12?: number | null;
   currency: string;
   level: CourseLevel;
   language: CourseLanguage;
@@ -176,8 +197,6 @@ export interface LessonSummary {
   order: number;
   isFree: boolean;
   type: LessonSummaryType;
-  /** Whether the current user has completed this lesson */
-  isCompleted?: boolean;
 }
 
 export interface TeacherProfile {
@@ -237,7 +256,11 @@ export interface CreateCourseRequest {
   description: string;
   descriptionAr: string;
   thumbnailUrl?: string;
-  price: number;
+  price?: number;
+  priceMonth1?: number | null;
+  priceMonth3?: number | null;
+  priceMonth6?: number | null;
+  priceMonth12?: number | null;
   level: CreateCourseRequestLevel;
   language: CreateCourseRequestLanguage;
   categoryId: number;
@@ -267,6 +290,10 @@ export interface UpdateCourseRequest {
   descriptionAr?: string;
   thumbnailUrl?: string;
   price?: number;
+  priceMonth1?: number | null;
+  priceMonth3?: number | null;
+  priceMonth6?: number | null;
+  priceMonth12?: number | null;
   level?: UpdateCourseRequestLevel;
   language?: UpdateCourseRequestLanguage;
   categoryId?: number;
@@ -276,9 +303,6 @@ export interface UpdateCourseRequest {
 export type Lesson = LessonSummary & {
   courseId: number;
   videoUrl?: string | null;
-  videoFilePath?: string | null;
-  documentFilePath?: string | null;
-  documentFileName?: string | null;
   content?: string | null;
   contentAr?: string | null;
   createdAt: string;
@@ -321,6 +345,20 @@ export interface UpdateLessonRequest {
   isFree?: boolean;
 }
 
+/**
+ * Subscription duration (null = permanent/free access)
+ */
+export type EnrollmentSubscriptionMonths =
+  | (typeof EnrollmentSubscriptionMonths)[keyof typeof EnrollmentSubscriptionMonths]
+  | null;
+
+export const EnrollmentSubscriptionMonths = {
+  NUMBER_1: 1,
+  NUMBER_3: 3,
+  NUMBER_6: 6,
+  NUMBER_12: 12,
+} as const;
+
 export interface Enrollment {
   id: number;
   courseId: number;
@@ -328,6 +366,13 @@ export interface Enrollment {
   enrolledAt: string;
   progress: number;
   completedAt?: string | null;
+  /** Subscription duration (null = permanent/free access) */
+  subscriptionMonths?: EnrollmentSubscriptionMonths;
+  startedAt?: string | null;
+  /** Subscription expiry (null = never expires) */
+  expiresAt?: string | null;
+  renewalCount?: number | null;
+  isExpired?: boolean | null;
 }
 
 export type EnrollmentWithCourse = Enrollment & {

@@ -21,6 +21,7 @@ export const paymentsTable = pgTable("payments", {
   method: paymentMethodEnum("method").notNull().default("bank_transfer"),
   status: paymentStatusEnum("status").notNull().default("pending"),
   reference: varchar("reference", { length: 100 }),
+  durationMonths: integer("duration_months"), // Subscription duration purchased (1|3|6|12); null for non-subscription payments
   notes: text("notes"),
   createdAt: timestamp("created_at").notNull().defaultNow(),
   updatedAt: timestamp("updated_at").notNull().defaultNow(),

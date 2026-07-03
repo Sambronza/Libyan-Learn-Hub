@@ -28,6 +28,9 @@ interface Enrollment {
   courseId: number;
   progress: number;
   enrolledAt: string;
+  subscriptionMonths?: number | null;
+  expiresAt?: string | null;
+  isExpired?: boolean;
   course: {
     id: number;
     title: string;
@@ -49,13 +52,20 @@ function ProgressBar({ value }: { value: number }) {
 
 function EnrollmentCard({ item }: { item: Enrollment }) {
   const { t } = useLanguage();
+  const expiresAt = item.expiresAt ? new Date(item.expiresAt) : null;
+  const isExpired = item.isExpired === true || (expiresAt !== null && expiresAt.getTime() <= Date.now());
+  const daysLeft = expiresAt && !isExpired
+    ? Math.max(0, Math.ceil((expiresAt.getTime() - Date.now()) / (24 * 60 * 60 * 1000)))
+    : null;
+  const expiringSoon = daysLeft !== null && daysLeft <= 3;
+
   return (
     <Pressable
-      style={({ pressed }) => [styles.card, pressed && { opacity: 0.85 }]}
+      style={({ pressed }) => [styles.card, pressed && { opacity: 0.85 }, isExpired && { opacity: 0.9, borderColor: "#fca5a5" }]}
       onPress={() => router.push({ pathname: "/course/[id]", params: { id: item.courseId.toString() } })}
     >
       <View style={styles.cardThumb}>
-        <Feather name="book-open" size={28} color={C.tint} />
+        <Feather name={isExpired ? "lock" : "book-open"} size={28} color={isExpired ? "#ef4444" : C.tint} />
       </View>
       <View style={styles.cardInfo}>
         <Text style={styles.cardTitle} numberOfLines={2}>{t(item.course.titleAr || item.course.title, item.course.title)}</Text>
@@ -67,6 +77,15 @@ function EnrollmentCard({ item }: { item: Enrollment }) {
         <Text style={styles.cardMeta}>
           {item.course.lessonCount} {t("درس", "lessons")} · {Math.round(item.course.totalDuration / 60)} {t("ساعة", "hrs")}
         </Text>
+        {isExpired ? (
+          <Text style={styles.expiredBadge}>{t("انتهى الاشتراك — اضغط للتجديد", "Subscription expired — tap to renew")}</Text>
+        ) : expiringSoon ? (
+          <Text style={styles.expiringBadge}>
+            {daysLeft === 0 ? t("ينتهي اليوم!", "Expires today!") : t(`ينتهي خلال ${daysLeft} يوم`, `Expires in ${daysLeft}d`)}
+          </Text>
+        ) : expiresAt ? (
+          <Text style={styles.cardMeta}>{t(`متبقٍ ${daysLeft} يوم`, `${daysLeft}d left`)}</Text>
+        ) : null}
       </View>
       <Feather name="chevron-left" size={18} color={C.textMuted} />
     </Pressable>
@@ -108,6 +127,12 @@ function TeacherDashboard() {
   const { data: listings = [] } = useQuery<any[]>({
     queryKey: ["tutoring-listings-my"],
     queryFn: () => apiFetch("/tutoring-listings/my"),
+  });
+
+  // Subscription stats (active/expired/renewed) across the teacher's courses
+  const { data: subStats } = useQuery<any>({
+    queryKey: ["teacher-subscription-stats"],
+    queryFn: () => apiFetch("/teacher/subscription-stats"),
   });
 
   const createSession = async () => {
@@ -208,6 +233,26 @@ function TeacherDashboard() {
           <Text style={styles.statLabel}>{t("إعلانات خصوصي", "Tutoring Listings")}</Text>
         </View>
       </View>
+
+      {/* Subscription stats */}
+      {subStats?.totals && (
+        <View style={styles.statsRow}>
+          <View style={styles.stat}>
+            <Text style={[styles.statValue, { color: "#22c55e" }]}>{subStats.totals.active}</Text>
+            <Text style={styles.statLabel}>{t("اشتراك نشط", "Active Subs")}</Text>
+          </View>
+          <View style={styles.statDivider} />
+          <View style={styles.stat}>
+            <Text style={[styles.statValue, { color: "#ef4444" }]}>{subStats.totals.expired}</Text>
+            <Text style={styles.statLabel}>{t("منتهي", "Expired")}</Text>
+          </View>
+          <View style={styles.statDivider} />
+          <View style={styles.stat}>
+            <Text style={[styles.statValue, { color: "#3B82F6" }]}>{subStats.totals.renewed}</Text>
+            <Text style={styles.statLabel}>{t("مجدَّد", "Renewed")}</Text>
+          </View>
+        </View>
+      )}
 
       {/* Quick Actions */}
       <View style={styles.section}>
@@ -659,6 +704,8 @@ const styles = StyleSheet.create({
   progressFill: { height: 5, backgroundColor: C.tint, borderRadius: 3 },
   progressPct: { fontFamily: "Inter_600SemiBold", fontSize: 11, color: C.tint, width: 32, textAlign: "right" },
   cardMeta: { fontFamily: "Inter_400Regular", fontSize: 11, color: C.textMuted, textAlign: "right" },
+  expiredBadge: { fontFamily: "Inter_700Bold", fontSize: 11, color: "#ef4444", textAlign: "right", marginTop: 4 },
+  expiringBadge: { fontFamily: "Inter_700Bold", fontSize: 11, color: "#f59e0b", textAlign: "right", marginTop: 4 },
   section: { paddingHorizontal: 20, marginBottom: 20 },
   sectionTitle: { fontFamily: "Inter_600SemiBold", fontSize: 14, color: C.textMuted, textAlign: "right", marginBottom: 10 },
   actionsRow: { flexDirection: "row-reverse", gap: 12 },

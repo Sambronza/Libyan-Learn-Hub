@@ -40,7 +40,12 @@ export default function RegisterScreen() {
     setError("");
     try {
       await register({ fullName, email: email.trim(), password, role });
-      router.replace("/(tabs)");
+      if (role === "student") {
+        // Students enroll their face at signup (device/identity security)
+        router.replace({ pathname: "/auth/face-capture" as any, params: { mode: "enroll" } });
+      } else {
+        router.replace("/(tabs)");
+      }
     } catch (e: any) {
       setError(e.message || "فشل التسجيل");
     } finally {

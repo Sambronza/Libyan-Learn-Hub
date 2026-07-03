@@ -738,6 +738,14 @@ components:
           format: email
         password:
           type: string
+        deviceFingerprint:
+          type: string
+          description: Persistent device identifier (student device binding)
+        deviceName:
+          type: string
+        devicePlatform:
+          type: string
+          enum: [web, ios, android]
       required:
         - email
         - password
@@ -855,6 +863,22 @@ components:
           nullable: true
         price:
           type: number
+        priceMonth1:
+          type: number
+          nullable: true
+          description: 1-month subscription price (null on free courses)
+        priceMonth3:
+          type: number
+          nullable: true
+          description: 3-month subscription price
+        priceMonth6:
+          type: number
+          nullable: true
+          description: 6-month subscription price
+        priceMonth12:
+          type: number
+          nullable: true
+          description: 12-month subscription price
         currency:
           type: string
           default: LYD
@@ -979,6 +1003,18 @@ components:
           type: string
         price:
           type: number
+        priceMonth1:
+          type: number
+          nullable: true
+        priceMonth3:
+          type: number
+          nullable: true
+        priceMonth6:
+          type: number
+          nullable: true
+        priceMonth12:
+          type: number
+          nullable: true
         level:
           type: string
           enum: [beginner, intermediate, advanced]
@@ -992,7 +1028,6 @@ components:
         - titleAr
         - description
         - descriptionAr
-        - price
         - level
         - language
         - categoryId
@@ -1012,6 +1047,18 @@ components:
           type: string
         price:
           type: number
+        priceMonth1:
+          type: number
+          nullable: true
+        priceMonth3:
+          type: number
+          nullable: true
+        priceMonth6:
+          type: number
+          nullable: true
+        priceMonth12:
+          type: number
+          nullable: true
         level:
           type: string
           enum: [beginner, intermediate, advanced]
@@ -1153,6 +1200,26 @@ components:
         completedAt:
           type: string
           format: date-time
+          nullable: true
+        subscriptionMonths:
+          type: integer
+          nullable: true
+          enum: [1, 3, 6, 12]
+          description: Subscription duration (null = permanent/free access)
+        startedAt:
+          type: string
+          format: date-time
+          nullable: true
+        expiresAt:
+          type: string
+          format: date-time
+          nullable: true
+          description: Subscription expiry (null = never expires)
+        renewalCount:
+          type: integer
+          nullable: true
+        isExpired:
+          type: boolean
           nullable: true
       required:
         - id

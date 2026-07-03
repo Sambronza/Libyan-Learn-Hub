@@ -395,6 +395,7 @@ export default function TeacherDashboard() {
             <TabsTrigger value="sessions" className="gap-2"><Radio className="w-4 h-4" /> {t('teacher_dashboard.live_sessions')}</TabsTrigger>
             <TabsTrigger value="students" className="gap-2"><GraduationCap className="w-4 h-4" /> {t('teacher_dashboard.students')}</TabsTrigger>
             <TabsTrigger value="earnings" className="gap-2"><Wallet className="w-4 h-4" /> Earnings & Payouts</TabsTrigger>
+            <TabsTrigger value="subscriptions" className="gap-2"><Clock className="w-4 h-4" /> Subscriptions</TabsTrigger>
             <TabsTrigger value="tutoring" className="gap-2"><UserCheck className="w-4 h-4" /> 1-to-1 Tutoring</TabsTrigger>
             <TabsTrigger value="promote" className="gap-2"><Star className="w-4 h-4" /> {t('teacher_dashboard.promote')}</TabsTrigger>
           </TabsList>
@@ -616,6 +617,11 @@ export default function TeacherDashboard() {
           {/* EARNINGS TAB */}
           <TabsContent value="earnings">
             <TeacherEarningsTab api={api} user={user} totalRevenue={totalRevenue} initialEarningsData={earningsData} />
+          </TabsContent>
+
+          {/* SUBSCRIPTIONS TAB */}
+          <TabsContent value="subscriptions">
+            <TeacherSubscriptionsTab api={api} />
           </TabsContent>
 
           {/* TUTORING TAB */}
@@ -1251,6 +1257,74 @@ function TeacherPromoteTab({ api, user }: { api: any; user: any }) {
             )}
           </div>
         </div>
+      </div>
+    </div>
+  );
+}
+
+// ─── Subscriptions Tab ────────────────────────────────────────────────────────
+function TeacherSubscriptionsTab({ api }: { api: any }) {
+  const [stats, setStats] = React.useState<any>(null);
+  const [loading, setLoading] = React.useState(true);
+
+  React.useEffect(() => {
+    api.get('/teacher/subscription-stats')
+      .then((data: any) => setStats(data))
+      .catch(() => setStats(null))
+      .finally(() => setLoading(false));
+  }, []);
+
+  if (loading) {
+    return <div className="py-20 text-center text-muted-foreground">Loading subscription stats…</div>;
+  }
+  if (!stats) {
+    return <div className="py-20 text-center text-muted-foreground">Could not load subscription stats.</div>;
+  }
+
+  const cards = [
+    { label: 'Active Subscriptions', value: stats.totals?.active ?? 0, color: 'text-green-600', bg: 'bg-green-100' },
+    { label: 'Expired', value: stats.totals?.expired ?? 0, color: 'text-red-600', bg: 'bg-red-100' },
+    { label: 'Renewed', value: stats.totals?.renewed ?? 0, color: 'text-blue-600', bg: 'bg-blue-100' },
+    { label: 'Total Enrollments', value: stats.totals?.total ?? 0, color: 'text-primary', bg: 'bg-primary/10' },
+  ];
+
+  return (
+    <div className="space-y-6">
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+        {cards.map((c) => (
+          <div key={c.label} className="bg-card border border-border rounded-2xl p-5 shadow-sm">
+            <div className={`w-10 h-10 rounded-xl ${c.bg} flex items-center justify-center mb-3`}>
+              <Clock className={`w-5 h-5 ${c.color}`} />
+            </div>
+            <div className="text-2xl font-extrabold text-foreground">{c.value}</div>
+            <div className="text-xs text-muted-foreground">{c.label}</div>
+          </div>
+        ))}
+      </div>
+
+      <div className="bg-card border border-border rounded-2xl shadow-sm overflow-hidden">
+        <div className="p-5 border-b border-border">
+          <h3 className="font-display font-bold text-foreground">Per-Course Breakdown</h3>
+          <p className="text-xs text-muted-foreground">Active, expired and renewed subscriptions for each of your courses.</p>
+        </div>
+        {(!stats.courses || stats.courses.length === 0) ? (
+          <div className="p-8 text-center text-muted-foreground text-sm">No courses yet.</div>
+        ) : (
+          <div className="divide-y divide-border">
+            {stats.courses.map((c: any) => (
+              <div key={c.courseId} className="p-4 flex items-center gap-4">
+                <div className="flex-1 min-w-0">
+                  <div className="font-medium text-sm text-foreground truncate">{c.title}</div>
+                </div>
+                <div className="flex gap-2 text-xs font-bold">
+                  <span className="px-2.5 py-1 rounded-full bg-green-100 text-green-700">{c.active} active</span>
+                  <span className="px-2.5 py-1 rounded-full bg-red-100 text-red-700">{c.expired} expired</span>
+                  <span className="px-2.5 py-1 rounded-full bg-blue-100 text-blue-700">{c.renewed} renewed</span>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
       </div>
     </div>
   );

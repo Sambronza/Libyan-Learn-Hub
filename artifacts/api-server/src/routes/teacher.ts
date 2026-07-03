@@ -47,6 +47,50 @@ router.get("/courses", requireAuth, requireRole("teacher", "admin"), async (req,
   }
 });
 
+// Subscription statistics per course: active, expired, renewed counts
+router.get("/subscription-stats", requireAuth, requireRole("teacher", "admin"), async (req, res) => {
+  try {
+    const { userId } = (req as any).user;
+    const courses = await db.select().from(coursesTable).where(eq(coursesTable.teacherId, userId));
+
+    const stats = await Promise.all(courses.map(async (course) => {
+      const [row] = await db
+        .select({
+          active: sql<number>`COUNT(*) FILTER (WHERE ${enrollmentsTable.expiresAt} IS NULL OR ${enrollmentsTable.expiresAt} > NOW())`,
+          expired: sql<number>`COUNT(*) FILTER (WHERE ${enrollmentsTable.expiresAt} IS NOT NULL AND ${enrollmentsTable.expiresAt} <= NOW())`,
+          renewed: sql<number>`COUNT(*) FILTER (WHERE ${enrollmentsTable.renewalCount} > 0)`,
+          total: count(),
+        })
+        .from(enrollmentsTable)
+        .where(eq(enrollmentsTable.courseId, course.id));
+
+      return {
+        courseId: course.id,
+        title: course.title,
+        titleAr: course.titleAr,
+        active: Number(row?.active || 0),
+        expired: Number(row?.expired || 0),
+        renewed: Number(row?.renewed || 0),
+        total: Number(row?.total || 0),
+      };
+    }));
+
+    const totals = stats.reduce(
+      (acc, s) => ({
+        active: acc.active + s.active,
+        expired: acc.expired + s.expired,
+        renewed: acc.renewed + s.renewed,
+        total: acc.total + s.total,
+      }),
+      { active: 0, expired: 0, renewed: 0, total: 0 },
+    );
+
+    res.json({ courses: stats, totals });
+  } catch (err: any) {
+    res.status(500).json({ error: "Server error", message: err.message });
+  }
+});
+
 router.get("/students", requireAuth, requireRole("teacher", "admin"), async (req, res) => {
   try {
     const { userId } = (req as any).user;

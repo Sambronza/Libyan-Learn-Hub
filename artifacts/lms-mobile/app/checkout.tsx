@@ -28,7 +28,7 @@ export default function CheckoutScreen() {
   const { apiFetch } = useApi();
   const { t, language } = useLanguage();
   const queryClient = useQueryClient();
-  const params = useLocalSearchParams<{ type: string; id: string; title?: string; titleAr?: string; price?: string; currency?: string }>();
+  const params = useLocalSearchParams<{ type: string; id: string; title?: string; titleAr?: string; price?: string; currency?: string; duration?: string }>();
   const topPad = Platform.OS === "web" ? 67 : insets.top;
 
   const [method, setMethod] = useState<PaymentMethod>("wallet");
@@ -44,18 +44,29 @@ export default function CheckoutScreen() {
   const price = parseFloat(params.price ?? "0");
   const hasEnoughBalance = balance >= price;
 
+  // Subscription duration for course purchases (1/3/6/12 months)
+  const durationMonths = [1, 3, 6, 12].includes(parseInt(params.duration ?? "1")) ? parseInt(params.duration ?? "1") : 1;
+
   const payMutation = useMutation({
     mutationFn: async () => {
       if (method === "wallet") {
         if (params.type === "course") {
-          return apiFetch(`/courses/${params.id}/enroll`, { method: "POST", body: JSON.stringify({ paymentMethod: "wallet" }) });
+          // Course subscriptions go through the unified payments flow (atomic wallet debit + enrollment)
+          return apiFetch("/payments/create-session", {
+            method: "POST",
+            body: JSON.stringify({ type: "course", itemId: parseInt(params.id!), method: "wallet", durationMonths }),
+          });
         } else {
           return apiFetch(`/live-sessions/${params.id}/register`, { method: "POST", body: JSON.stringify({ paymentMethod: "wallet" }) });
         }
       } else {
         return apiFetch("/payments/create-session", {
           method: "POST",
-          body: JSON.stringify({ type: params.type, itemId: parseInt(params.id!) }),
+          body: JSON.stringify({
+            type: params.type,
+            itemId: parseInt(params.id!),
+            ...(params.type === "course" ? { durationMonths } : {}),
+          }),
         });
       }
     },

@@ -4,10 +4,11 @@ import {
   usersTable, coursesTable, paymentsTable, enrollmentsTable,
   teacherEarningsTable, liveSessionsTable, categoriesTable, lessonsTable,
   platformSettingsTable, redeemCardsTable, withdrawalRequestsTable, notificationsTable,
-  tutoringRequestsTable, auditLogsTable
+  tutoringRequestsTable, auditLogsTable, deviceSwitchRequestsTable, studentDevicesTable
 } from "@workspace/db";
 import { eq, count, sql, sum, desc, and, ne, or } from "drizzle-orm";
-import { requireAuth, requireRole } from "../lib/auth.js";
+import { requireAuth, requireRole, invalidateDeviceCheckCache } from "../lib/auth.js";
+import { performDeviceSwitch } from "../lib/device-security.js";
 import { logAudit } from "../lib/auditLog.js";
 import bcrypt from "bcryptjs";
 import crypto from "crypto";
@@ -1046,6 +1047,130 @@ router.post("/tutoring-reviews/:id/partial-approve", async (req, res) => {
     const adminId = (req as any).user.userId;
     await logAudit({ adminId, action: "tutoring.partial_approved", targetType: "tutoring_request", targetId: requestId, details: { teacherAmount: approvedTeacherAmount, refundAmount, totalAmount: total }, ip: req.ip });
     res.json({ success: true, status: "partially_approved" });
+  } catch (err: any) {
+    res.status(500).json({ error: "Server error", message: err.message });
+  }
+});
+
+// ─── DEVICE SWITCH REVIEW (student face-mismatch requests) ───────────────────
+
+router.get("/device-switch-requests", async (req, res) => {
+  try {
+    const status = (req.query.status as string) || "pending";
+    const requests = await db
+      .select({
+        request: deviceSwitchRequestsTable,
+        student: {
+          id: usersTable.id,
+          fullName: usersTable.fullName,
+          fullNameAr: usersTable.fullNameAr,
+          email: usersTable.email,
+          avatarUrl: usersTable.avatarUrl,
+          accountBlocked: usersTable.accountBlocked,
+        },
+      })
+      .from(deviceSwitchRequestsTable)
+      .innerJoin(usersTable, eq(deviceSwitchRequestsTable.studentId, usersTable.id))
+      .where(["pending", "approved", "rejected"].includes(status)
+        ? eq(deviceSwitchRequestsTable.status, status as any)
+        : undefined)
+      .orderBy(desc(deviceSwitchRequestsTable.createdAt));
+    res.json(requests);
+  } catch (err: any) {
+    res.status(500).json({ error: "Server error", message: err.message });
+  }
+});
+
+// Approve: perform the device switch (old device blocked, new trusted) + unblock account
+router.post("/device-switch-requests/:id/approve", async (req, res) => {
+  try {
+    const adminId = (req as any).user.userId;
+    const id = parseInt(req.params.id);
+    const [request] = await db.select().from(deviceSwitchRequestsTable).where(eq(deviceSwitchRequestsTable.id, id)).limit(1);
+    if (!request) { res.status(404).json({ error: "Request not found" }); return; }
+    if (request.status !== "pending") { res.status(400).json({ error: "Request already reviewed" }); return; }
+
+    await performDeviceSwitch({
+      studentId: request.studentId,
+      newFingerprint: request.newFingerprint,
+      deviceName: request.newDeviceName,
+      platform: request.newPlatform,
+      ip: request.newIp,
+      userAgent: request.newUserAgent,
+    });
+    invalidateDeviceCheckCache(request.studentId);
+
+    await db.update(deviceSwitchRequestsTable)
+      .set({ status: "approved", reviewedBy: adminId, reviewedAt: new Date() })
+      .where(eq(deviceSwitchRequestsTable.id, id));
+
+    await db.insert(notificationsTable).values({
+      userId: request.studentId,
+      type: "system_alert",
+      title: "Device Switch Approved",
+      titleAr: "تمت الموافقة على تغيير الجهاز",
+      message: "An administrator approved your device switch. You can now log in from your new device.",
+      messageAr: "وافق المشرف على تغيير جهازك. يمكنك الآن تسجيل الدخول من جهازك الجديد.",
+      referenceId: id,
+    });
+
+    await logAudit({ adminId, action: "device_switch.approved", targetType: "device_switch_request", targetId: id, ip: req.ip });
+    res.json({ success: true });
+  } catch (err: any) {
+    res.status(500).json({ error: "Server error", message: err.message });
+  }
+});
+
+// Reject: account stays blocked
+router.post("/device-switch-requests/:id/reject", async (req, res) => {
+  try {
+    const adminId = (req as any).user.userId;
+    const id = parseInt(req.params.id);
+    const [request] = await db.select().from(deviceSwitchRequestsTable).where(eq(deviceSwitchRequestsTable.id, id)).limit(1);
+    if (!request) { res.status(404).json({ error: "Request not found" }); return; }
+    if (request.status !== "pending") { res.status(400).json({ error: "Request already reviewed" }); return; }
+
+    await db.update(deviceSwitchRequestsTable)
+      .set({ status: "rejected", reviewedBy: adminId, reviewedAt: new Date() })
+      .where(eq(deviceSwitchRequestsTable.id, id));
+
+    await logAudit({ adminId, action: "device_switch.rejected", targetType: "device_switch_request", targetId: id, ip: req.ip });
+    res.json({ success: true });
+  } catch (err: any) {
+    res.status(500).json({ error: "Server error", message: err.message });
+  }
+});
+
+// Manually unblock a student account (keeps current trusted device)
+router.post("/users/:userId/unblock", async (req, res) => {
+  try {
+    const adminId = (req as any).user.userId;
+    const userId = parseInt(req.params.userId);
+    await db.update(usersTable)
+      .set({ accountBlocked: false, accountBlockedReason: null, updatedAt: new Date() })
+      .where(eq(usersTable.id, userId));
+    invalidateDeviceCheckCache(userId);
+    await logAudit({ adminId, action: "user.unblocked", targetType: "user", targetId: userId, ip: req.ip });
+    res.json({ success: true });
+  } catch (err: any) {
+    res.status(500).json({ error: "Server error", message: err.message });
+  }
+});
+
+// Reset a student's devices entirely (next login registers a fresh trusted device)
+router.post("/users/:userId/reset-devices", async (req, res) => {
+  try {
+    const adminId = (req as any).user.userId;
+    const userId = parseInt(req.params.userId);
+    await db.update(studentDevicesTable)
+      .set({ status: "blocked", blockedAt: new Date() })
+      .where(and(eq(studentDevicesTable.studentId, userId), eq(studentDevicesTable.status, "trusted")));
+    await db.update(usersTable)
+      .set({ accountBlocked: false, accountBlockedReason: null, reverifyUntil: null, nextReverifyAt: null, updatedAt: new Date() })
+      .where(eq(usersTable.id, userId));
+    invalidateDeviceCheckCache(userId);
+    await logAudit({ adminId, action: "user.devices_reset", targetType: "user", targetId: userId, ip: req.ip });
+    res.json({ success: true });
   } catch (err: any) {
     res.status(500).json({ error: "Server error", message: err.message });
   }

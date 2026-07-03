@@ -14,7 +14,12 @@ export const coursesTable = pgTable("courses", {
   description: text("description").notNull(),
   descriptionAr: text("description_ar").notNull(),
   thumbnailUrl: text("thumbnail_url"),
-  price: numeric("price", { precision: 10, scale: 2 }).notNull().default("0"),
+  price: numeric("price", { precision: 10, scale: 2 }).notNull().default("0"), // Legacy: shown as "from" price; equals priceMonth1 for paid courses
+  // Subscription plan prices (null on free courses). Paid courses must set all 4 before publishing.
+  priceMonth1: numeric("price_month_1", { precision: 10, scale: 2 }),
+  priceMonth3: numeric("price_month_3", { precision: 10, scale: 2 }),
+  priceMonth6: numeric("price_month_6", { precision: 10, scale: 2 }),
+  priceMonth12: numeric("price_month_12", { precision: 10, scale: 2 }),
   currency: varchar("currency", { length: 10 }).notNull().default("LYD"),
   level: levelEnum("level").notNull().default("beginner"),
   language: varchar("language", { length: 5 }).notNull().default("ar"),

@@ -6,6 +6,7 @@ import jwt from "jsonwebtoken";
 import https from "https";
 import http from "http";
 import { requireAuth } from "../lib/auth.js";
+import { requireActiveEnrollment, SUBSCRIPTION_EXPIRED_ERROR, NOT_ENROLLED_ERROR } from "../lib/subscriptions.js";
 
 const router = Router();
 const JWT_SECRET = process.env.JWT_SECRET || "default_super_secret_jwt_key_for_dev_only";
@@ -38,17 +39,11 @@ router.post("/generate-token", async (req, res) => {
         res.status(401).json({ error: "Unauthorized" });
         return;
       }
-      if (role !== 'admin') {
-        const [enrollment] = await db.select().from(enrollmentsTable)
-          .where(and(eq(enrollmentsTable.courseId, parseInt(courseId)), eq(enrollmentsTable.userId, userId)))
-          .limit(1);
-        
-        const [course] = await db.select().from(coursesTable).where(eq(coursesTable.id, parseInt(courseId))).limit(1);
-        
-        if (!enrollment && course?.teacherId !== userId) {
-          res.status(403).json({ error: "Not enrolled in this course" });
-          return;
-        }
+      // Enrollment must exist AND the subscription must not be expired.
+      const access = await requireActiveEnrollment(userId, parseInt(courseId), role);
+      if (!access.ok) {
+        res.status(403).json(access.reason === "expired" ? SUBSCRIPTION_EXPIRED_ERROR : NOT_ENROLLED_ERROR);
+        return;
       }
     }
 

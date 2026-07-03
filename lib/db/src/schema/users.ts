@@ -48,6 +48,11 @@ export const usersTable = pgTable("users", {
   sponsoredUntil: timestamp("sponsored_until"),
   balance: numeric("balance", { precision: 10, scale: 2 }).default("0.00").notNull(),
   passkeyHash: text("passkey_hash"),
+  // Student device security
+  accountBlocked: boolean("account_blocked").notNull().default(false),
+  accountBlockedReason: varchar("account_blocked_reason", { length: 50 }), // "face_mismatch" | "admin"
+  reverifyUntil: timestamp("reverify_until"), // end of periodic face re-verification window after a device switch
+  nextReverifyAt: timestamp("next_reverify_at"), // next required face re-verification
   createdAt: timestamp("created_at").notNull().defaultNow(),
   updatedAt: timestamp("updated_at").notNull().defaultNow(),
 });

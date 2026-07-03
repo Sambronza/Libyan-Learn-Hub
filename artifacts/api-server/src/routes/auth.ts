@@ -4,6 +4,16 @@ import { db } from "@workspace/db";
 import { usersTable } from "@workspace/db";
 import { eq, ilike } from "drizzle-orm";
 import { signToken, requireAuth } from "../lib/auth.js";
+import {
+  isDeviceEnforcementEnabled,
+  getTrustedDevice,
+  registerTrustedDevice,
+  needsReverification,
+  ACCOUNT_BLOCKED_ERROR,
+  NEW_DEVICE_ERROR,
+  REVERIFY_REQUIRED_ERROR,
+} from "../lib/device-security.js";
+import { hasFaceProfile } from "../lib/face.js";
 import { RegisterBody, LoginBody } from "@workspace/api-zod";
 import { sendEmail } from "../lib/email.js";
 import { rateLimit } from "express-rate-limit";
@@ -122,7 +132,33 @@ router.post("/register", authLimiter, async (req, res) => {
       }).returning();
     }
     
-    const token = signToken({ userId: user.id, role: user.role });
+    // ── Student device binding + face enrollment (signup) ────────────────
+    let deviceId: number | undefined;
+    if (user.role === "student") {
+      // Store face descriptors captured at signup (same 5-pose shape as teacher biometrics)
+      const faceDescriptors = req.body.faceDescriptors;
+      if (faceDescriptors && faceDescriptors.front) {
+        const profile = { face: faceDescriptors, voice: {} };
+        const facePhotoUrl = typeof req.body.facePhotoUrl === "string" ? req.body.facePhotoUrl : undefined;
+        await db.update(usersTable)
+          .set({ biometricProfile: JSON.stringify(profile), ...(facePhotoUrl ? { facePhotoUrl } : {}) })
+          .where(eq(usersTable.id, user.id));
+      }
+      // Register the signup device as the trusted device
+      if (typeof req.body.deviceFingerprint === "string" && req.body.deviceFingerprint.length > 0) {
+        const device = await registerTrustedDevice({
+          studentId: user.id,
+          fingerprint: req.body.deviceFingerprint,
+          deviceName: req.body.deviceName || null,
+          platform: req.body.devicePlatform || null,
+          ip: req.ip,
+          userAgent: req.headers["user-agent"] || null,
+        });
+        deviceId = device.id;
+      }
+    }
+
+    const token = signToken({ userId: user.id, role: user.role, ...(deviceId ? { deviceId } : {}) });
     const plan = PLANS[(user.tier as TeacherTier) || "free"];
 
     if (user.email) {
@@ -250,6 +286,57 @@ router.post("/login", authLimiter, async (req, res) => {
       return;
     }
 
+    // ── Student device-based login restriction (teachers/admins unaffected) ──
+    let deviceIdForToken: number | undefined;
+    let faceEnrollmentRequired = false;
+    if (user.role === "student" && (await isDeviceEnforcementEnabled())) {
+      if (user.accountBlocked) {
+        res.status(403).json(ACCOUNT_BLOCKED_ERROR);
+        return;
+      }
+
+      const fingerprint = typeof req.body.deviceFingerprint === "string" ? req.body.deviceFingerprint : null;
+      if (fingerprint) {
+        const trusted = await getTrustedDevice(user.id);
+
+        if (!trusted) {
+          // Grandfathering: existing student with no registered device —
+          // this first device becomes the trusted device.
+          const device = await registerTrustedDevice({
+            studentId: user.id,
+            fingerprint,
+            deviceName: req.body.deviceName || null,
+            platform: req.body.devicePlatform || null,
+            ip: req.ip,
+            userAgent: req.headers["user-agent"] || null,
+          });
+          deviceIdForToken = device.id;
+          // Prompt face enrollment if they have no stored face profile yet
+          let profile: any = null;
+          try { profile = user.biometricProfile ? JSON.parse(user.biometricProfile) : null; } catch {}
+          faceEnrollmentRequired = !hasFaceProfile(profile?.face);
+        } else if (trusted.deviceFingerprint === fingerprint) {
+          // Known trusted device
+          const { db: dbi, studentDevicesTable } = await import("@workspace/db");
+          await dbi.update(studentDevicesTable)
+            .set({ lastUsedAt: new Date(), lastIp: req.ip || null })
+            .where(eq(studentDevicesTable.id, trusted.id));
+          deviceIdForToken = trusted.id;
+
+          // Periodic re-verification after a recent device switch
+          if (needsReverification(user)) {
+            res.status(403).json(REVERIFY_REQUIRED_ERROR);
+            return;
+          }
+        } else {
+          // Different device: warn — old device will be blocklisted; face check required
+          res.status(409).json(NEW_DEVICE_ERROR);
+          return;
+        }
+      }
+      // No fingerprint sent (outdated client): allow login without device binding
+    }
+
     if (!user.emailVerified && !user.phoneVerified) {
       const otpCode = generateOtp();
       const otpExpiry = new Date(Date.now() + 10 * 60 * 1000);
@@ -264,8 +351,8 @@ router.post("/login", authLimiter, async (req, res) => {
           html: `<div dir="ltr"><p>Hello ${user.fullName || "User"},</p><p>Your account verification code is: <strong style="font-size:1.5em;letter-spacing:2px;display:block;margin:10px 0;">${otpCode}</strong></p><p>It will expire in 10 minutes.</p></div>`,
         }).catch((err) => console.error("Failed to send OTP email:", err));
       }
-      const token = signToken({ userId: user.id, role: user.role });
-      
+      const token = signToken({ userId: user.id, role: user.role, ...(deviceIdForToken ? { deviceId: deviceIdForToken } : {}) });
+
       res.status(200).json({
         requireVerification: true,
         token,
@@ -274,9 +361,10 @@ router.post("/login", authLimiter, async (req, res) => {
       return;
     }
 
-    const token = signToken({ userId: user.id, role: user.role });
+    const token = signToken({ userId: user.id, role: user.role, ...(deviceIdForToken ? { deviceId: deviceIdForToken } : {}) });
     const plan = PLANS[(user.tier as TeacherTier) || "free"];
     res.json({
+      faceEnrollmentRequired,
       user: {
         id: user.id,
         email: user.email,

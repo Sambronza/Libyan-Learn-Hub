@@ -16,6 +16,14 @@ export interface Course {
   descriptionAr: string;
   thumbnailUrl?: string | null;
   price: number;
+  /** 1-month subscription price (null on free courses) */
+  priceMonth1?: number | null;
+  /** 3-month subscription price */
+  priceMonth3?: number | null;
+  /** 6-month subscription price */
+  priceMonth6?: number | null;
+  /** 12-month subscription price */
+  priceMonth12?: number | null;
   currency: string;
   level: CourseLevel;
   language: CourseLanguage;

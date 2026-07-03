@@ -19,6 +19,14 @@ import { eq, and, or, sum, count, desc } from "drizzle-orm";
 import { requireAuth } from "../lib/auth.js";
 import { PLANS } from "../lib/plans.js";
 import type { TeacherTier } from "../lib/plans.js";
+import {
+  isValidDuration,
+  getPlanPrice,
+  isFreeCourse,
+  applyCourseSubscription,
+  creditTeacherInTx,
+  type SubscriptionDuration,
+} from "../lib/subscriptions.js";
 
 const router = Router();
 
@@ -77,17 +85,47 @@ router.post("/create-session", requireAuth, async (req, res) => {
     let course = null;
     let session = null;
     let liveCourse = null;
+    let durationMonths: SubscriptionDuration | null = null;
 
     if (type === "course") {
       [course] = await db.select().from(coursesTable).where(eq(coursesTable.id, itemId)).limit(1);
       if (!course) { res.status(404).json({ error: "Course not found" }); return; }
-      
-      const existing = await db.select().from(enrollmentsTable)
+
+      const [existing] = await db.select().from(enrollmentsTable)
         .where(and(eq(enrollmentsTable.courseId, itemId), eq(enrollmentsTable.userId, userId)))
         .limit(1);
-      if (existing.length > 0) { res.status(400).json({ error: "Already enrolled" }); return; }
-      
-      amount = parseFloat(course.price);
+
+      if (isFreeCourse(course)) {
+        // Free course: permanent access, single enrollment
+        if (existing) { res.status(400).json({ error: "Already enrolled" }); return; }
+        amount = 0;
+      } else {
+        // Paid course: subscription purchase or renewal
+        if (existing && !existing.expiresAt) {
+          // Permanent enrollment (shouldn't exist on paid courses post-migration)
+          res.status(400).json({ error: "Already enrolled" }); return;
+        }
+        const rawDuration = Number(req.body.durationMonths);
+        if (!isValidDuration(rawDuration)) {
+          res.status(400).json({
+            error: "Invalid subscription duration",
+            message: "durationMonths must be one of 1, 3, 6, 12",
+            messageAr: "مدة الاشتراك يجب أن تكون 1 أو 3 أو 6 أو 12 شهرًا",
+          });
+          return;
+        }
+        const planPrice = getPlanPrice(course, rawDuration);
+        if (planPrice === null || planPrice <= 0) {
+          res.status(400).json({
+            error: "Plan not available",
+            message: "This subscription duration is not available for this course yet.",
+            messageAr: "مدة الاشتراك هذه غير متاحة لهذه الدورة حاليًا.",
+          });
+          return;
+        }
+        durationMonths = rawDuration;
+        amount = planPrice;
+      }
       currency = course.currency || "LYD";
     } else if (type === "session") {
       [session] = await db.select().from(liveSessionsTable).where(eq(liveSessionsTable.id, itemId)).limit(1);
@@ -143,74 +181,43 @@ router.post("/create-session", requireAuth, async (req, res) => {
           method: "wallet",
           status: "completed",
           reference: `WALLET-${Date.now()}`,
+          durationMonths,
         }).returning();
 
         // Enroll or credit teacher
-        if (type === "course") {
-          await tx.insert(enrollmentsTable).values({ courseId: itemId, userId, progress: "0" });
-          if (course) {
-             let platformFeePercent = 20;
-             try {
-               const [setting] = await tx.select().from(platformSettingsTable).where(eq(platformSettingsTable.key, "teacher_commission_percent")).limit(1);
-               if (setting && setting.value) platformFeePercent = parseFloat(setting.value);
-             } catch (e) {}
-             const platformFee = parseFloat((amount * platformFeePercent / 100).toFixed(2));
-             const netAmount = parseFloat((amount - platformFee).toFixed(2));
-             await tx.insert(teacherEarningsTable).values({
-               teacherId: course.teacherId, paymentId: payment.id, courseId: course.id,
-               grossAmount: amount.toFixed(2), platformFeePercent: platformFeePercent.toFixed(2), platformFee: platformFee.toFixed(2), netAmount: netAmount.toFixed(2), currency: course.currency || "LYD", status: "available"
-             });
-             const [teacher] = await tx.select().from(usersTable).where(eq(usersTable.id, course.teacherId)).limit(1);
-             if (teacher) {
-               const newBalance = (parseFloat(teacher.balance as string) || 0) + netAmount;
-               await tx.update(usersTable).set({ balance: newBalance.toFixed(2), updatedAt: new Date() }).where(eq(usersTable.id, course.teacherId));
-             }
-          }
+        if (type === "course" && course && durationMonths) {
+          await applyCourseSubscription(tx, { userId, courseId: itemId, durationMonths, paymentId: payment.id });
+          await creditTeacherInTx(tx, {
+            teacherId: course.teacherId,
+            paymentId: payment.id,
+            amount,
+            courseId: course.id,
+            currency: course.currency || "LYD",
+          });
         }
-        
+
         if (type === "session" && session) {
-             let platformFeePercent = 20;
-             try {
-               const [setting] = await tx.select().from(platformSettingsTable).where(eq(platformSettingsTable.key, "teacher_commission_percent")).limit(1);
-               if (setting && setting.value) platformFeePercent = parseFloat(setting.value);
-             } catch (e) {}
-             const platformFee = parseFloat((amount * platformFeePercent / 100).toFixed(2));
-             const netAmount = parseFloat((amount - platformFee).toFixed(2));
-             await tx.insert(teacherEarningsTable).values({
-               teacherId: session.teacherId, paymentId: payment.id, sessionId: session.id,
-               grossAmount: amount.toFixed(2), platformFeePercent: platformFeePercent.toFixed(2), platformFee: platformFee.toFixed(2), netAmount: netAmount.toFixed(2), currency: "LYD", status: "available"
-             });
-             const [teacher] = await tx.select().from(usersTable).where(eq(usersTable.id, session.teacherId)).limit(1);
-             if (teacher) {
-               const newBalance = (parseFloat(teacher.balance as string) || 0) + netAmount;
-               await tx.update(usersTable).set({ balance: newBalance.toFixed(2), updatedAt: new Date() }).where(eq(usersTable.id, session.teacherId));
-             }
+          await creditTeacherInTx(tx, {
+            teacherId: session.teacherId,
+            paymentId: payment.id,
+            amount,
+            sessionId: session.id,
+          });
         }
 
         if (type === "live-course" && liveCourse) {
-             const sessions = await tx.select().from(liveSessionsTable).where(eq(liveSessionsTable.liveSessionCourseId, itemId));
-             if (sessions.length > 0) {
-                await tx.insert(sessionRegistrationsTable).values(
-                  sessions.map(s => ({ sessionId: s.id, userId }))
-                ).onConflictDoNothing();
-             }
-
-             let platformFeePercent = 20;
-             try {
-               const [setting] = await tx.select().from(platformSettingsTable).where(eq(platformSettingsTable.key, "teacher_commission_percent")).limit(1);
-               if (setting && setting.value) platformFeePercent = parseFloat(setting.value);
-             } catch (e) {}
-             const platformFee = parseFloat((amount * platformFeePercent / 100).toFixed(2));
-             const netAmount = parseFloat((amount - platformFee).toFixed(2));
-             await tx.insert(teacherEarningsTable).values({
-               teacherId: liveCourse.teacherId, paymentId: payment.id, liveSessionCourseId: liveCourse.id,
-               grossAmount: amount.toFixed(2), platformFeePercent: platformFeePercent.toFixed(2), platformFee: platformFee.toFixed(2), netAmount: netAmount.toFixed(2), currency: "LYD", status: "available"
-             });
-             const [teacher] = await tx.select().from(usersTable).where(eq(usersTable.id, liveCourse.teacherId)).limit(1);
-             if (teacher) {
-               const newBalance = (parseFloat(teacher.balance as string) || 0) + netAmount;
-               await tx.update(usersTable).set({ balance: newBalance.toFixed(2), updatedAt: new Date() }).where(eq(usersTable.id, liveCourse.teacherId));
-             }
+          const sessions = await tx.select().from(liveSessionsTable).where(eq(liveSessionsTable.liveSessionCourseId, itemId));
+          if (sessions.length > 0) {
+            await tx.insert(sessionRegistrationsTable).values(
+              sessions.map(s => ({ sessionId: s.id, userId }))
+            ).onConflictDoNothing();
+          }
+          await creditTeacherInTx(tx, {
+            teacherId: liveCourse.teacherId,
+            paymentId: payment.id,
+            amount,
+            liveSessionCourseId: liveCourse.id,
+          });
         }
       });
       return void res.json({ url: "/dashboard?success=true" });
@@ -227,6 +234,7 @@ router.post("/create-session", requireAuth, async (req, res) => {
       method: "bank_transfer",
       status: "pending",
       reference: `SESS-${Date.now()}`,
+      durationMonths,
     }).returning();
 
     // In a real integration (Stripe/Sadad), this URL is returned from the provider's API.
@@ -358,68 +366,43 @@ router.get("/callback", requireAuth, async (req, res) => {
 
       if (payment.courseId) {
         const [course] = await tx.select().from(coursesTable).where(eq(coursesTable.id, payment.courseId)).limit(1);
-        const alreadyEnrolled = await tx.select().from(enrollmentsTable)
-          .where(and(eq(enrollmentsTable.courseId, payment.courseId), eq(enrollmentsTable.userId, payment.userId)))
-          .limit(1);
-        if (alreadyEnrolled.length === 0) {
-          await tx.insert(enrollmentsTable).values({ courseId: payment.courseId, userId: payment.userId, progress: "0" });
+        if (course && payment.durationMonths && isValidDuration(payment.durationMonths)) {
+          // Subscription purchase or renewal
+          await applyCourseSubscription(tx, {
+            userId: payment.userId,
+            courseId: payment.courseId,
+            durationMonths: payment.durationMonths,
+            paymentId,
+          });
+        } else {
+          // Legacy/permanent enrollment (payments created before subscriptions)
+          const alreadyEnrolled = await tx.select().from(enrollmentsTable)
+            .where(and(eq(enrollmentsTable.courseId, payment.courseId), eq(enrollmentsTable.userId, payment.userId)))
+            .limit(1);
+          if (alreadyEnrolled.length === 0) {
+            await tx.insert(enrollmentsTable).values({ courseId: payment.courseId, userId: payment.userId, progress: "0" });
+          }
         }
         if (course) {
-          let platformFeePercent = 20;
-          try {
-            const [setting] = await tx.select().from(platformSettingsTable).where(eq(platformSettingsTable.key, "teacher_commission_percent")).limit(1);
-            if (setting && setting.value) {
-              const parsed = parseFloat(setting.value);
-              if (!isNaN(parsed) && parsed >= 0 && parsed <= 100) platformFeePercent = parsed;
-            }
-          } catch (err) {}
-          const platformFee = parseFloat((amount * platformFeePercent / 100).toFixed(2));
-          const netAmount = parseFloat((amount - platformFee).toFixed(2));
-          await tx.insert(teacherEarningsTable).values({
-            teacherId: course.teacherId, paymentId,
+          await creditTeacherInTx(tx, {
+            teacherId: course.teacherId,
+            paymentId,
+            amount,
             courseId: course.id,
-            grossAmount: amount.toFixed(2),
-            platformFeePercent: platformFeePercent.toFixed(2),
-            platformFee: platformFee.toFixed(2),
-            netAmount: netAmount.toFixed(2),
             currency: course.currency || "LYD",
-            status: "available",
           });
-          const [teacher] = await tx.select().from(usersTable).where(eq(usersTable.id, course.teacherId)).limit(1);
-          if (teacher) {
-            const newBalance = (parseFloat(teacher.balance as string) || 0) + netAmount;
-            await tx.update(usersTable).set({ balance: newBalance.toFixed(2), updatedAt: new Date() }).where(eq(usersTable.id, course.teacherId));
-          }
         }
       }
 
       if (payment.sessionId) {
         const [session] = await tx.select().from(liveSessionsTable).where(eq(liveSessionsTable.id, payment.sessionId)).limit(1);
         if (session) {
-          let platformFeePercent = 20;
-          try {
-            const [setting] = await tx.select().from(platformSettingsTable).where(eq(platformSettingsTable.key, "teacher_commission_percent")).limit(1);
-            if (setting && setting.value) {
-              const parsed = parseFloat(setting.value);
-              if (!isNaN(parsed) && parsed >= 0 && parsed <= 100) platformFeePercent = parsed;
-            }
-          } catch (err) {}
-          const platformFee = parseFloat((amount * platformFeePercent / 100).toFixed(2));
-          const netAmount = parseFloat((amount - platformFee).toFixed(2));
-          await tx.insert(teacherEarningsTable).values({
-            teacherId: session.teacherId, paymentId, sessionId: session.id,
-            grossAmount: amount.toFixed(2),
-            platformFeePercent: platformFeePercent.toFixed(2),
-            platformFee: platformFee.toFixed(2),
-            netAmount: netAmount.toFixed(2),
-            currency: "LYD",
-            status: "available",
+          await creditTeacherInTx(tx, {
+            teacherId: session.teacherId,
+            paymentId,
+            amount,
+            sessionId: session.id,
           });
-          const [teacher] = await tx.select().from(usersTable).where(eq(usersTable.id, session.teacherId)).limit(1);
-          if (teacher) {
-            const newBalance = (parseFloat(teacher.balance as string) || 0) + netAmount;
-            await tx.update(usersTable).set({ balance: newBalance.toFixed(2), updatedAt: new Date() }).where(eq(usersTable.id, session.teacherId));
-          }
         }
       }
 
