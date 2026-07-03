@@ -15,6 +15,7 @@ import { eq, and, ilike, count, avg, sum, sql, desc } from "drizzle-orm";
 import { requireAuth, requireRole } from "../lib/auth.js";
 import { parseParam } from "../lib/utils.js";
 import { deleteFromCloudinaryByUrl } from "../lib/cloudinary.js";
+import { parsePlanPrices, hasIncompletePlanPrices } from "../lib/subscriptions.js";
 
 const router = Router();
 
@@ -27,6 +28,10 @@ function buildCourseResult(course: any, teacher: any, reviewData: any, enrollCou
     descriptionAr: course.descriptionAr,
     thumbnailUrl: course.thumbnailUrl,
     price: parseFloat(course.price),
+    priceMonth1: course.priceMonth1 !== null && course.priceMonth1 !== undefined ? parseFloat(course.priceMonth1) : null,
+    priceMonth3: course.priceMonth3 !== null && course.priceMonth3 !== undefined ? parseFloat(course.priceMonth3) : null,
+    priceMonth6: course.priceMonth6 !== null && course.priceMonth6 !== undefined ? parseFloat(course.priceMonth6) : null,
+    priceMonth12: course.priceMonth12 !== null && course.priceMonth12 !== undefined ? parseFloat(course.priceMonth12) : null,
     currency: course.currency,
     level: course.level,
     language: course.language,
@@ -139,13 +144,19 @@ router.post("/bulk", requireAuth, requireRole("teacher", "admin"), async (req, r
       return res.status(400).json({ error: "At least one lesson is required" });
     }
 
+    // Subscription plan prices (paid courses must set all 4 before review)
+    const planPrices = parsePlanPrices(req.body);
+    if (planPrices.error) {
+      return res.status(400).json(planPrices.error);
+    }
+
     // 1. Create the course
     const [course] = await db.insert(coursesTable).values({
       title,
       titleAr: titleAr || title,
       description: description || title,
       descriptionAr: descriptionAr || titleAr || title,
-      price: (price ?? 0).toString(),
+      ...planPrices.values!,
       level,
       language,
       categoryId: parseInt(categoryId),
@@ -207,10 +218,15 @@ router.post("/bulk", requireAuth, requireRole("teacher", "admin"), async (req, r
 router.post("/", requireAuth, requireRole("teacher", "admin"), async (req, res) => {
   try {
     const { userId } = (req as any).user;
-    const { title, titleAr, description, descriptionAr, thumbnailUrl, price, level, language, categoryId } = req.body;
+    const { title, titleAr, description, descriptionAr, thumbnailUrl, level, language, categoryId } = req.body;
+    const planPrices = parsePlanPrices(req.body);
+    if (planPrices.error) {
+      res.status(400).json(planPrices.error);
+      return;
+    }
     const [course] = await db.insert(coursesTable).values({
       title, titleAr, description, descriptionAr, thumbnailUrl,
-      price: price.toString(),
+      ...planPrices.values!,
       level, language, categoryId,
       isPublished: false,
       teacherId: userId,
@@ -325,8 +341,22 @@ router.put("/:courseId", requireAuth, requireRole("teacher", "admin"), async (re
     if (course.teacherId !== userId && role !== "admin") { res.status(403).json({ error: "Forbidden" }); return; }
 
     const { title, titleAr, description, descriptionAr, thumbnailUrl, price, level, language, categoryId } = req.body;
+
+    // Only touch pricing when the request includes pricing fields
+    const hasPricingFields = [price, req.body.priceMonth1, req.body.priceMonth3, req.body.priceMonth6, req.body.priceMonth12]
+      .some((v) => v !== undefined);
+    let pricingValues = {};
+    if (hasPricingFields) {
+      const planPrices = parsePlanPrices(req.body);
+      if (planPrices.error) {
+        res.status(400).json(planPrices.error);
+        return;
+      }
+      pricingValues = planPrices.values!;
+    }
+
     const [updated] = await db.update(coursesTable)
-      .set({ title, titleAr, description, descriptionAr, thumbnailUrl, price: price?.toString(), level, language, categoryId, updatedAt: new Date() })
+      .set({ title, titleAr, description, descriptionAr, thumbnailUrl, ...pricingValues, level, language, categoryId, updatedAt: new Date() })
       .where(eq(coursesTable.id, courseId))
       .returning();
 
@@ -372,9 +402,19 @@ router.put("/:courseId/submit", requireAuth, requireRole("teacher", "admin"), as
       return;
     }
 
+    // Paid courses must have all 4 subscription prices before publishing
+    if (hasIncompletePlanPrices(course)) {
+      res.status(400).json({
+        error: "Missing subscription prices",
+        message: "Set prices for all four subscription durations (1, 3, 6, and 12 months) before submitting the course.",
+        messageAr: "حدّد أسعار جميع مدد الاشتراك الأربع (شهر، 3 أشهر، 6 أشهر، 12 شهرًا) قبل إرسال الدورة للمراجعة.",
+      });
+      return;
+    }
+
     const [updated] = await db.update(coursesTable)
-      .set({ 
-        status: "pending_review", 
+      .set({
+        status: "pending_review",
         submittedAt: new Date(),
         updatedAt: new Date() 
       })

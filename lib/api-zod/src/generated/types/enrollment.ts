@@ -5,6 +5,7 @@
  * Libyan E-Learning Platform API
  * OpenAPI spec version: 1.0.0
  */
+import type { EnrollmentSubscriptionMonths } from "./enrollmentSubscriptionMonths";
 
 export interface Enrollment {
   id: number;
@@ -13,4 +14,11 @@ export interface Enrollment {
   enrolledAt: Date;
   progress: number;
   completedAt?: Date | null;
+  /** Subscription duration (null = permanent/free access) */
+  subscriptionMonths?: EnrollmentSubscriptionMonths;
+  startedAt?: Date | null;
+  /** Subscription expiry (null = never expires) */
+  expiresAt?: Date | null;
+  renewalCount?: number | null;
+  isExpired?: boolean | null;
 }

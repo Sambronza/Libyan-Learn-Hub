@@ -3,6 +3,7 @@ import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod/v4";
 import { coursesTable } from "./courses";
 import { usersTable } from "./users";
+import { paymentsTable } from "./payments";
 
 export const enrollmentsTable = pgTable("enrollments", {
   id: serial("id").primaryKey(),
@@ -11,6 +12,15 @@ export const enrollmentsTable = pgTable("enrollments", {
   progress: numeric("progress", { precision: 5, scale: 2 }).notNull().default("0"),
   enrolledAt: timestamp("enrolled_at").notNull().defaultNow(),
   completedAt: timestamp("completed_at"),
+  // Subscription fields (null subscriptionMonths/expiresAt = permanent access, e.g. free courses)
+  subscriptionMonths: integer("subscription_months"), // 1 | 3 | 6 | 12
+  startedAt: timestamp("started_at"),
+  expiresAt: timestamp("expires_at"),
+  lastPaymentId: integer("last_payment_id").references(() => paymentsTable.id, { onDelete: "set null" }),
+  renewalCount: integer("renewal_count").notNull().default(0),
+  // Scheduler idempotency stamps
+  expiryNotifiedAt: timestamp("expiry_notified_at"),
+  expiredNotifiedAt: timestamp("expired_notified_at"),
 });
 
 export const insertEnrollmentSchema = createInsertSchema(enrollmentsTable).omit({ id: true, enrolledAt: true });

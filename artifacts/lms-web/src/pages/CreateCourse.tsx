@@ -76,7 +76,10 @@ export default function CreateCourse() {
   const [courseTitle, setCourseTitle] = useState('');
   const [courseTitleAr, setCourseTitleAr] = useState('');
   const [categoryId, setCategoryId] = useState('');
-  const [price, setPrice] = useState('0');
+  const [price, setPrice] = useState('0'); // 1-month subscription price; 0 = free course
+  const [priceMonth3, setPriceMonth3] = useState('');
+  const [priceMonth6, setPriceMonth6] = useState('');
+  const [priceMonth12, setPriceMonth12] = useState('');
 
   // Inline title editing
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -88,7 +91,8 @@ export default function CreateCourse() {
   const allDone = lessons.length > 0 && lessons.every(l => l.status === 'done');
   const anyUploading = lessons.some(l => l.status === 'uploading' || l.status === 'pending');
   const anyErrored = lessons.some(l => l.status === 'error');
-  const canSubmit = allDone && !anyErrored && courseTitle.trim() && categoryId && !isSubmitting;
+  const pricesComplete = parseFloat(price) <= 0 || (parseFloat(priceMonth3) > 0 && parseFloat(priceMonth6) > 0 && parseFloat(priceMonth12) > 0);
+  const canSubmit = allDone && !anyErrored && courseTitle.trim() && categoryId && pricesComplete && !isSubmitting;
 
   // ── Upload helpers ─────────────────────────────────────────────────────────
   const uploadLesson = useCallback(async (draft: LessonDraft) => {
@@ -227,6 +231,12 @@ export default function CreateCourse() {
           title: courseTitle.trim(),
           titleAr: courseTitleAr.trim() || courseTitle.trim(),
           price: parseFloat(price) || 0,
+          ...(parseFloat(price) > 0 ? {
+            priceMonth1: parseFloat(price) || 0,
+            priceMonth3: parseFloat(priceMonth3) || 0,
+            priceMonth6: parseFloat(priceMonth6) || 0,
+            priceMonth12: parseFloat(priceMonth12) || 0,
+          } : {}),
           categoryId: parseInt(categoryId),
           lessons: lessons.map(l => ({
             title: l.title,
@@ -514,10 +524,10 @@ export default function CreateCourse() {
                 </select>
               </div>
 
-              {/* Price */}
+              {/* Subscription Prices */}
               <div>
                 <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-1.5 block">
-                  Price (LYD)
+                  1-Month Price (LYD)
                 </label>
                 <Input
                   type="number"
@@ -529,6 +539,33 @@ export default function CreateCourse() {
                   className="h-10"
                 />
               </div>
+              {parseFloat(price) > 0 && (
+                <div className="space-y-2">
+                  <p className="text-[11px] text-muted-foreground">
+                    Paid courses use subscriptions — set a price for every duration.
+                  </p>
+                  {([
+                    ['3-Month Price (LYD)', priceMonth3, setPriceMonth3],
+                    ['6-Month Price (LYD)', priceMonth6, setPriceMonth6],
+                    ['12-Month Price (LYD)', priceMonth12, setPriceMonth12],
+                  ] as [string, string, (v: string) => void][]).map(([label, value, setter]) => (
+                    <div key={label}>
+                      <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-1.5 block">
+                        {label}
+                      </label>
+                      <Input
+                        type="number"
+                        min="0"
+                        step="0.5"
+                        value={value}
+                        onChange={e => setter(e.target.value)}
+                        placeholder="Required"
+                        className="h-10"
+                      />
+                    </div>
+                  ))}
+                </div>
+              )}
 
               {/* Status indicator */}
               <div className="bg-muted/50 rounded-xl p-3 space-y-2">
@@ -539,6 +576,12 @@ export default function CreateCourse() {
                 />
                 <StatusRow done={!!courseTitle.trim()} label="Course title" />
                 <StatusRow done={!!categoryId} label="Category selected" />
+                {parseFloat(price) > 0 && (
+                  <StatusRow
+                    done={parseFloat(priceMonth3) > 0 && parseFloat(priceMonth6) > 0 && parseFloat(priceMonth12) > 0}
+                    label="All subscription prices set"
+                  />
+                )}
               </div>
 
               {/* Submit */}

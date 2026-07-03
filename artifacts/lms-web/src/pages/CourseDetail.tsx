@@ -133,13 +133,15 @@ export default function CourseDetail() {
     return s > 0 ? `${m}m ${s}s` : `${m}m`;
   };
 
+  const [selectedDuration, setSelectedDuration] = useState<number>(1);
+
   const handleEnroll = () => {
     if (!isAuthenticated) {
       setLocation(`/login?returnTo=${encodeURIComponent(window.location.pathname + window.location.search)}`);
       return;
     }
     if (course.price > 0) {
-      setLocation(`/checkout/course/${courseId}`);
+      setLocation(`/checkout/course/${courseId}?duration=${selectedDuration}`);
     } else {
       enroll({ courseId });
     }
@@ -238,13 +240,40 @@ export default function CourseDetail() {
               <div className="p-8 lg:p-10 relative overflow-hidden">
                 <div className="absolute top-0 right-0 w-32 h-32 bg-primary/20 rounded-full blur-3xl -mr-16 -mt-16 pointer-events-none"></div>
                 
-                <div className="text-4xl font-bold mb-8 flex items-end gap-2 text-white">
-                  {course.price === 0 ? (
+                {course.price === 0 ? (
+                  <div className="text-4xl font-bold mb-8 flex items-end gap-2 text-white">
                     <span className="text-emerald-400 drop-shadow-md">{language === 'ar' ? 'مجاناً' : 'Free'}</span>
-                  ) : (
-                    <span>{course.price} <span className="text-2xl text-white/70">{language === 'ar' ? 'د.ل' : 'LYD'}</span></span>
-                  )}
-                </div>
+                  </div>
+                ) : (
+                  <div className="mb-8">
+                    <p className="text-sm text-white/70 font-bold mb-3">
+                      {language === 'ar' ? 'خطط الاشتراك' : 'Subscription Plans'}
+                    </p>
+                    <div className="grid grid-cols-2 gap-2">
+                      {([
+                        [1, course.priceMonth1 ?? course.price, language === 'ar' ? 'شهر' : '1 Mo'],
+                        [3, course.priceMonth3, language === 'ar' ? '3 أشهر' : '3 Mo'],
+                        [6, course.priceMonth6, language === 'ar' ? '6 أشهر' : '6 Mo'],
+                        [12, course.priceMonth12, language === 'ar' ? 'سنة' : '1 Yr'],
+                      ] as [number, number | null, string][]).map(([months, p, label]) => (
+                        <button
+                          key={months}
+                          onClick={() => p != null && p > 0 && setSelectedDuration(months)}
+                          disabled={p == null || p <= 0}
+                          className={`rounded-xl border p-3 text-start transition-all
+                            ${selectedDuration === months ? 'border-primary bg-primary/20 text-white' : 'border-white/20 bg-white/5 text-white/80 hover:bg-white/10'}
+                            ${p == null || p <= 0 ? 'opacity-40 cursor-not-allowed' : ''}
+                          `}
+                        >
+                          <div className="text-xs font-bold">{label}</div>
+                          <div className="text-lg font-extrabold">
+                            {p != null && p > 0 ? `${p}` : '—'} <span className="text-xs font-normal text-white/60">{language === 'ar' ? 'د.ل' : 'LYD'}</span>
+                          </div>
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                )}
                 
                 {course.isEnrolled ? (
                   <>

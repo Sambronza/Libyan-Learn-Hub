@@ -133,6 +133,7 @@ export default function AdminDashboard() {
             <TabsTrigger value="redeem_cards" className="gap-2"><Ticket className="w-4 h-4" /> Redeem Cards</TabsTrigger>
             <TabsTrigger value="reports" className="gap-2"><Flag className="w-4 h-4" /> Reports</TabsTrigger>
             <TabsTrigger value="dmca" className="gap-2"><ShieldAlert className="w-4 h-4" /> DMCA</TabsTrigger>
+            <TabsTrigger value="device_security" className="gap-2"><ShieldAlert className="w-4 h-4" /> Device Security</TabsTrigger>
             <TabsTrigger value="academy" className="gap-2 text-amber-600"><School className="w-4 h-4 text-amber-500" /> Academy</TabsTrigger>
             <TabsTrigger value="settings" className="gap-2"><Settings className="w-4 h-4" /> Settings</TabsTrigger>
           </TabsList>
@@ -149,6 +150,7 @@ export default function AdminDashboard() {
           <TabsContent value="redeem_cards"><RedeemCardsTab api={api} queryClient={queryClient} toast={toast} /></TabsContent>
           <TabsContent value="reports"><ReportsTab api={api} queryClient={queryClient} toast={toast} /></TabsContent>
           <TabsContent value="dmca"><DMCAComplaintsTab api={api} queryClient={queryClient} toast={toast} /></TabsContent>
+          <TabsContent value="device_security"><DeviceSecurityTab api={api} toast={toast} /></TabsContent>
           <TabsContent value="academy"><AcademyAdminTab api={api} queryClient={queryClient} toast={toast} /></TabsContent>
           <TabsContent value="settings"><SettingsTab api={api} queryClient={queryClient} toast={toast} /></TabsContent>
         </Tabs>
@@ -2552,6 +2554,141 @@ function TutoringReviewsTab({ api, queryClient, toast }: any) {
                   <div className="text-muted-foreground italic">{r.adminReview || 'No note provided'}</div>
                 </div>
               )}
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ─── Device Security Tab (device-switch reviews + account unblocking) ─────────
+function DeviceSecurityTab({ api, toast }: any) {
+  const [requests, setRequests] = useState<any[]>([]);
+  const [statusFilter, setStatusFilter] = useState('pending');
+  const [loading, setLoading] = useState(true);
+  const [busyId, setBusyId] = useState<number | null>(null);
+
+  const load = () => {
+    setLoading(true);
+    api.get(`/admin/device-switch-requests?status=${statusFilter}`)
+      .then((data: any) => setRequests(Array.isArray(data) ? data : []))
+      .catch(() => setRequests([]))
+      .finally(() => setLoading(false));
+  };
+
+  useEffect(load, [statusFilter]);
+
+  const review = async (id: number, action: 'approve' | 'reject') => {
+    setBusyId(id);
+    try {
+      await api.post(`/admin/device-switch-requests/${id}/${action}`, {});
+      toast({ title: action === 'approve' ? 'Request approved — device switched & account unblocked.' : 'Request rejected — account stays blocked.' });
+      load();
+    } catch (err: any) {
+      toast({ title: err.message || 'Action failed', variant: 'destructive' });
+    } finally {
+      setBusyId(null);
+    }
+  };
+
+  const unblock = async (userId: number) => {
+    try {
+      await api.post(`/admin/users/${userId}/unblock`, {});
+      toast({ title: 'Account unblocked.' });
+      load();
+    } catch (err: any) {
+      toast({ title: err.message || 'Unblock failed', variant: 'destructive' });
+    }
+  };
+
+  return (
+    <div className="space-y-6">
+      <div className="flex items-center justify-between">
+        <div>
+          <h3 className="text-lg font-display font-bold">Device Switch Reviews</h3>
+          <p className="text-sm text-muted-foreground">
+            Students who failed the face identity check while switching devices. Compare the signup face with the new attempt.
+          </p>
+        </div>
+        <select
+          value={statusFilter}
+          onChange={(e) => setStatusFilter(e.target.value)}
+          className="h-10 px-3 rounded-md border border-input bg-background text-sm"
+        >
+          <option value="pending">Pending</option>
+          <option value="approved">Approved</option>
+          <option value="rejected">Rejected</option>
+        </select>
+      </div>
+
+      {loading ? (
+        <div className="py-16 text-center text-muted-foreground">Loading…</div>
+      ) : requests.length === 0 ? (
+        <div className="py-16 text-center text-muted-foreground bg-card border border-border rounded-2xl">
+          No {statusFilter} requests.
+        </div>
+      ) : (
+        <div className="space-y-4">
+          {requests.map(({ request, student }: any) => (
+            <div key={request.id} className="bg-card border border-border rounded-2xl p-5 shadow-sm">
+              <div className="flex flex-wrap items-start gap-6">
+                <div className="flex-1 min-w-[220px]">
+                  <div className="font-bold text-foreground">{student.fullName}</div>
+                  <div className="text-xs text-muted-foreground mb-2">{student.email}</div>
+                  <div className="text-xs space-y-1 text-muted-foreground">
+                    <div>New device: <span className="font-medium text-foreground">{request.newDeviceName || 'Unknown'}</span> ({request.newPlatform || '—'})</div>
+                    <div>IP: {request.newIp || '—'}</div>
+                    <div>Face distance: <span className="font-mono">{request.distance ?? '—'}</span></div>
+                    <div>Requested: {request.createdAt ? new Date(request.createdAt).toLocaleString() : '—'}</div>
+                    {student.accountBlocked && (
+                      <span className="inline-block mt-1 px-2 py-0.5 rounded-full bg-red-100 text-red-700 font-bold">Account blocked</span>
+                    )}
+                  </div>
+                </div>
+
+                {/* Side-by-side face evidence */}
+                <div className="flex gap-4">
+                  <div className="text-center">
+                    <div className="text-[11px] font-bold text-muted-foreground mb-1">Signup face</div>
+                    {request.originalFaceSnapshotUrl ? (
+                      <img src={request.originalFaceSnapshotUrl} alt="Original face" className="w-32 h-32 object-cover rounded-xl border border-border" />
+                    ) : (
+                      <div className="w-32 h-32 rounded-xl bg-muted flex items-center justify-center text-xs text-muted-foreground">No photo</div>
+                    )}
+                  </div>
+                  <div className="text-center">
+                    <div className="text-[11px] font-bold text-muted-foreground mb-1">New attempt</div>
+                    {request.attemptFaceSnapshotUrl ? (
+                      <img src={request.attemptFaceSnapshotUrl} alt="Attempt face" className="w-32 h-32 object-cover rounded-xl border border-border" />
+                    ) : (
+                      <div className="w-32 h-32 rounded-xl bg-muted flex items-center justify-center text-xs text-muted-foreground">No photo</div>
+                    )}
+                  </div>
+                </div>
+
+                {request.status === 'pending' ? (
+                  <div className="flex flex-col gap-2 min-w-[140px]">
+                    <Button size="sm" disabled={busyId === request.id} onClick={() => review(request.id, 'approve')} className="bg-green-600 hover:bg-green-700 text-white">
+                      Approve switch
+                    </Button>
+                    <Button size="sm" variant="destructive" disabled={busyId === request.id} onClick={() => review(request.id, 'reject')}>
+                      Reject
+                    </Button>
+                    {student.accountBlocked && (
+                      <Button size="sm" variant="outline" onClick={() => unblock(student.id)}>
+                        Unblock only
+                      </Button>
+                    )}
+                  </div>
+                ) : (
+                  <div className="min-w-[140px]">
+                    <span className={`px-3 py-1 rounded-full text-xs font-bold ${request.status === 'approved' ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>
+                      {request.status}
+                    </span>
+                  </div>
+                )}
+              </div>
             </div>
           ))}
         </div>

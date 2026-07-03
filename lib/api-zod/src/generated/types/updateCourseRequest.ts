@@ -15,6 +15,10 @@ export interface UpdateCourseRequest {
   descriptionAr?: string;
   thumbnailUrl?: string;
   price?: number;
+  priceMonth1?: number | null;
+  priceMonth3?: number | null;
+  priceMonth6?: number | null;
+  priceMonth12?: number | null;
   level?: UpdateCourseRequestLevel;
   language?: UpdateCourseRequestLanguage;
   categoryId?: number;

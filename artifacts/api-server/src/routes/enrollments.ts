@@ -26,6 +26,12 @@ router.get("/", requireAuth, async (req, res) => {
           progress: parseFloat(e.progress),
           enrolledAt: e.enrolledAt,
           completedAt: e.completedAt,
+          // Subscription info for expiry badges / renew buttons
+          subscriptionMonths: e.subscriptionMonths,
+          startedAt: e.startedAt,
+          expiresAt: e.expiresAt,
+          renewalCount: e.renewalCount,
+          isExpired: e.expiresAt !== null && e.expiresAt <= new Date(),
           course: {
             id: course.id,
             title: course.title,
@@ -85,6 +91,16 @@ router.post("/", requireAuth, async (req, res) => {
     // Prevent the course's own teacher from enrolling (belt-and-suspenders)
     if (course.teacherId === userId) {
       res.status(403).json({ error: "You cannot enroll in your own course" });
+      return;
+    }
+
+    // Paid courses require a subscription purchase via the payments flow
+    if ((parseFloat(course.price) || 0) > 0) {
+      res.status(400).json({
+        error: "Payment required",
+        message: "This course requires a subscription. Choose a plan and complete payment to enroll.",
+        messageAr: "تتطلب هذه الدورة اشتراكًا. اختر خطة وأكمل الدفع للتسجيل.",
+      });
       return;
     }
 

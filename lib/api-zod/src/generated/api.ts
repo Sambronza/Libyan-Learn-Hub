@@ -40,6 +40,12 @@ export const RegisterBody = zod.object({
 export const LoginBody = zod.object({
   email: zod.string().email(),
   password: zod.string(),
+  deviceFingerprint: zod
+    .string()
+    .optional()
+    .describe("Persistent device identifier (student device binding)"),
+  deviceName: zod.string().optional(),
+  devicePlatform: zod.enum(["web", "ios", "android"]).optional(),
 });
 
 export const LoginResponse = zod.object({
@@ -132,6 +138,22 @@ export const GetCoursesResponse = zod.object({
       descriptionAr: zod.string(),
       thumbnailUrl: zod.string().nullish(),
       price: zod.number(),
+      priceMonth1: zod
+        .number()
+        .nullish()
+        .describe("1-month subscription price (null on free courses)"),
+      priceMonth3: zod
+        .number()
+        .nullish()
+        .describe("3-month subscription price"),
+      priceMonth6: zod
+        .number()
+        .nullish()
+        .describe("6-month subscription price"),
+      priceMonth12: zod
+        .number()
+        .nullish()
+        .describe("12-month subscription price"),
       currency: zod
         .string()
         .default(getCoursesResponseCoursesItemCurrencyDefault),
@@ -165,7 +187,11 @@ export const CreateCourseBody = zod.object({
   description: zod.string(),
   descriptionAr: zod.string(),
   thumbnailUrl: zod.string().optional(),
-  price: zod.number(),
+  price: zod.number().optional(),
+  priceMonth1: zod.number().nullish(),
+  priceMonth3: zod.number().nullish(),
+  priceMonth6: zod.number().nullish(),
+  priceMonth12: zod.number().nullish(),
   level: zod.enum(["beginner", "intermediate", "advanced"]),
   language: zod.enum(["ar", "en"]),
   categoryId: zod.number(),
@@ -189,6 +215,16 @@ export const GetCourseResponse = zod
     descriptionAr: zod.string(),
     thumbnailUrl: zod.string().nullish(),
     price: zod.number(),
+    priceMonth1: zod
+      .number()
+      .nullish()
+      .describe("1-month subscription price (null on free courses)"),
+    priceMonth3: zod.number().nullish().describe("3-month subscription price"),
+    priceMonth6: zod.number().nullish().describe("6-month subscription price"),
+    priceMonth12: zod
+      .number()
+      .nullish()
+      .describe("12-month subscription price"),
     currency: zod.string().default(getCourseResponseOneCurrencyDefault),
     level: zod.enum(["beginner", "intermediate", "advanced"]),
     language: zod.enum(["ar", "en"]),
@@ -259,6 +295,10 @@ export const UpdateCourseBody = zod.object({
   descriptionAr: zod.string().optional(),
   thumbnailUrl: zod.string().optional(),
   price: zod.number().optional(),
+  priceMonth1: zod.number().nullish(),
+  priceMonth3: zod.number().nullish(),
+  priceMonth6: zod.number().nullish(),
+  priceMonth12: zod.number().nullish(),
   level: zod.enum(["beginner", "intermediate", "advanced"]).optional(),
   language: zod.enum(["ar", "en"]).optional(),
   categoryId: zod.number().optional(),
@@ -275,6 +315,13 @@ export const UpdateCourseResponse = zod.object({
   descriptionAr: zod.string(),
   thumbnailUrl: zod.string().nullish(),
   price: zod.number(),
+  priceMonth1: zod
+    .number()
+    .nullish()
+    .describe("1-month subscription price (null on free courses)"),
+  priceMonth3: zod.number().nullish().describe("3-month subscription price"),
+  priceMonth6: zod.number().nullish().describe("6-month subscription price"),
+  priceMonth12: zod.number().nullish().describe("12-month subscription price"),
   currency: zod.string().default(updateCourseResponseCurrencyDefault),
   level: zod.enum(["beginner", "intermediate", "advanced"]),
   language: zod.enum(["ar", "en"]),
@@ -372,7 +419,6 @@ export const GetLessonResponse = zod
     zod.object({
       courseId: zod.number(),
       videoUrl: zod.string().nullish(),
-      videoFilePath: zod.string().nullish(),
       content: zod.string().nullish(),
       contentAr: zod.string().nullish(),
       createdAt: zod.date(),
@@ -492,6 +538,17 @@ export const GetMyEnrollmentsResponseItem = zod
     enrolledAt: zod.date(),
     progress: zod.number(),
     completedAt: zod.date().nullish(),
+    subscriptionMonths: zod
+      .union([zod.literal(1), zod.literal(3), zod.literal(6), zod.literal(12)])
+      .nullish()
+      .describe("Subscription duration (null = permanent\/free access)"),
+    startedAt: zod.date().nullish(),
+    expiresAt: zod
+      .date()
+      .nullish()
+      .describe("Subscription expiry (null = never expires)"),
+    renewalCount: zod.number().nullish(),
+    isExpired: zod.boolean().nullish(),
   })
   .and(
     zod.object({
@@ -503,6 +560,22 @@ export const GetMyEnrollmentsResponseItem = zod
         descriptionAr: zod.string(),
         thumbnailUrl: zod.string().nullish(),
         price: zod.number(),
+        priceMonth1: zod
+          .number()
+          .nullish()
+          .describe("1-month subscription price (null on free courses)"),
+        priceMonth3: zod
+          .number()
+          .nullish()
+          .describe("3-month subscription price"),
+        priceMonth6: zod
+          .number()
+          .nullish()
+          .describe("6-month subscription price"),
+        priceMonth12: zod
+          .number()
+          .nullish()
+          .describe("12-month subscription price"),
         currency: zod
           .string()
           .default(getMyEnrollmentsResponseTwoCourseCurrencyDefault),
@@ -705,6 +778,16 @@ export const GetTeacherCoursesResponseItem = zod
     descriptionAr: zod.string(),
     thumbnailUrl: zod.string().nullish(),
     price: zod.number(),
+    priceMonth1: zod
+      .number()
+      .nullish()
+      .describe("1-month subscription price (null on free courses)"),
+    priceMonth3: zod.number().nullish().describe("3-month subscription price"),
+    priceMonth6: zod.number().nullish().describe("6-month subscription price"),
+    priceMonth12: zod
+      .number()
+      .nullish()
+      .describe("12-month subscription price"),
     currency: zod.string().default(getTeacherCoursesResponseOneCurrencyDefault),
     level: zod.enum(["beginner", "intermediate", "advanced"]),
     language: zod.enum(["ar", "en"]),

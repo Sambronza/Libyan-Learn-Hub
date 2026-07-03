@@ -14,7 +14,11 @@ export interface CreateCourseRequest {
   description: string;
   descriptionAr: string;
   thumbnailUrl?: string;
-  price: number;
+  price?: number;
+  priceMonth1?: number | null;
+  priceMonth3?: number | null;
+  priceMonth6?: number | null;
+  priceMonth12?: number | null;
   level: CreateCourseRequestLevel;
   language: CreateCourseRequestLanguage;
   categoryId: number;

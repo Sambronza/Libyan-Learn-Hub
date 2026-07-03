@@ -8,6 +8,7 @@
     "seed": "tsx ./src/seed.ts",
     "normalize": "tsx --env-file=../lib/db/.env ./src/normalize-subjects.ts",
     "admin:setup": "tsx ./src/reset_admin.ts",
+    "migrate:subscriptions": "tsx --env-file=../lib/db/.env ./src/migrate-subscriptions.ts",
     "typecheck": "tsc -p tsconfig.json --noEmit"
   },
   "dependencies": {

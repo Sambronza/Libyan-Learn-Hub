@@ -44,6 +44,10 @@ interface CourseDetail {
   teacherNameAr?: string;
   teacherBio?: string;
   price: number;
+  priceMonth1?: number | null;
+  priceMonth3?: number | null;
+  priceMonth6?: number | null;
+  priceMonth12?: number | null;
   currency: string;
   rating: number;
   reviewCount: number;
@@ -157,16 +161,18 @@ export default function CourseDetailScreen() {
     onError: (e: any) => Alert.alert("خطأ", e.message),
   });
 
+  const [selectedDuration, setSelectedDuration] = useState<number>(1);
+
   const enrollMutation = useMutation({
     mutationFn: async () => {
       if (!course) throw new Error("Course not found");
       if (course.price === 0) {
         return apiFetch(`/courses/${id}/enroll`, { method: "POST" });
       } else {
-        // Paid course -> create payment session
+        // Paid course -> subscription payment session for the chosen duration
         return apiFetch(`/payments/create-session`, {
           method: "POST",
-          body: JSON.stringify({ type: "course", itemId: parseInt(id!) }),
+          body: JSON.stringify({ type: "course", itemId: parseInt(id!), durationMonths: selectedDuration }),
         });
       }
     },
@@ -365,11 +371,46 @@ export default function CourseDetailScreen() {
         </View>
       </ScrollView>
 
+      {/* Subscription duration selector (paid courses) */}
+      {course.price > 0 && !course.isEnrolled && (
+        <View style={styles.planRow}>
+          {([
+            [1, "شهر", course.priceMonth1 ?? course.price],
+            [3, "3 أشهر", course.priceMonth3],
+            [6, "6 أشهر", course.priceMonth6],
+            [12, "سنة", course.priceMonth12],
+          ] as [number, string, number | null | undefined][]).map(([months, label, p]) => {
+            const available = p != null && p > 0;
+            const selected = selectedDuration === months;
+            return (
+              <Pressable
+                key={months}
+                disabled={!available}
+                onPress={() => setSelectedDuration(months)}
+                style={[styles.planChip, selected && styles.planChipSelected, !available && { opacity: 0.35 }]}
+              >
+                <Text style={[styles.planChipLabel, selected && styles.planChipLabelSelected]}>{label}</Text>
+                <Text style={[styles.planChipPrice, selected && styles.planChipLabelSelected]}>
+                  {available ? `${p}` : "—"}
+                </Text>
+              </Pressable>
+            );
+          })}
+        </View>
+      )}
+
       {/* Bottom CTA */}
       <View style={[styles.bottomBar, { paddingBottom: bottomPad + 16 }]}>
         <View style={styles.priceArea}>
           <Text style={styles.price}>
-            {course.price === 0 ? "مجاني" : `${course.price}`}
+            {course.price === 0
+              ? "مجاني"
+              : `${(
+                  (selectedDuration === 1 ? course.priceMonth1 ?? course.price :
+                   selectedDuration === 3 ? course.priceMonth3 :
+                   selectedDuration === 6 ? course.priceMonth6 :
+                   course.priceMonth12) ?? course.price
+                )}`}
           </Text>
           {course.price > 0 && <Text style={styles.currency}>{course.currency}</Text>}
         </View>
@@ -493,6 +534,42 @@ const styles = StyleSheet.create({
   freeBadge: { backgroundColor: "#D1FAE5", borderRadius: 5, paddingHorizontal: 6, paddingVertical: 2 },
   freeBadgeText: { fontFamily: "Inter_600SemiBold", fontSize: 9, color: "#065F46" },
   lessonDuration: { fontFamily: "Inter_400Regular", fontSize: 11, color: C.textMuted },
+  planRow: {
+    flexDirection: "row-reverse",
+    gap: 8,
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    backgroundColor: C.card,
+    borderTopWidth: 1,
+    borderTopColor: C.cardBorder,
+  },
+  planChip: {
+    flex: 1,
+    alignItems: "center",
+    paddingVertical: 8,
+    borderRadius: 12,
+    borderWidth: 1.5,
+    borderColor: C.cardBorder,
+    backgroundColor: C.background,
+  },
+  planChipSelected: {
+    borderColor: C.tint,
+    backgroundColor: C.tint + "15",
+  },
+  planChipLabel: {
+    fontFamily: "Inter_500Medium",
+    fontSize: 11,
+    color: C.textSecondary,
+  },
+  planChipPrice: {
+    fontFamily: "Inter_700Bold",
+    fontSize: 14,
+    color: C.text,
+    marginTop: 2,
+  },
+  planChipLabelSelected: {
+    color: C.tint,
+  },
   bottomBar: {
     position: "absolute",
     bottom: 0,

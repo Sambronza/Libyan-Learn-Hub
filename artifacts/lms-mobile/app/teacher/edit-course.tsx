@@ -80,6 +80,9 @@ export default function EditCourseScreen() {
     description: "",
     descriptionAr: "",
     price: "0",
+    priceMonth3: "",
+    priceMonth6: "",
+    priceMonth12: "",
     level: "beginner",
     language: "ar",
     categoryId: "",
@@ -103,7 +106,10 @@ export default function EditCourseScreen() {
         titleAr: course.titleAr || "",
         description: course.description || "",
         descriptionAr: course.descriptionAr || "",
-        price: String(course.price ?? "0"),
+        price: String(course.priceMonth1 ?? course.price ?? "0"),
+        priceMonth3: course.priceMonth3 != null ? String(course.priceMonth3) : "",
+        priceMonth6: course.priceMonth6 != null ? String(course.priceMonth6) : "",
+        priceMonth12: course.priceMonth12 != null ? String(course.priceMonth12) : "",
         level: course.level || "beginner",
         language: course.language || "ar",
         categoryId: String(course.categoryId ?? ""),
@@ -112,15 +118,30 @@ export default function EditCourseScreen() {
   }, [course]);
 
   const updateMutation = useMutation({
-    mutationFn: () =>
-      apiFetch(`/courses/${id}`, {
+    mutationFn: () => {
+      const p1 = parseFloat(form.price) || 0;
+      const p3 = parseFloat(form.priceMonth3) || 0;
+      const p6 = parseFloat(form.priceMonth6) || 0;
+      const p12 = parseFloat(form.priceMonth12) || 0;
+      if (p1 > 0 && (p3 <= 0 || p6 <= 0 || p12 <= 0)) {
+        return Promise.reject(new Error(t(
+          "يجب تحديد أسعار جميع مدد الاشتراك الأربع (شهر، 3، 6، 12) للدورة المدفوعة",
+          "A paid course must set prices for all four durations (1, 3, 6, 12 months)"
+        )));
+      }
+      return apiFetch(`/courses/${id}`, {
         method: "PUT",
         body: JSON.stringify({
           ...form,
-          price: parseFloat(form.price) || 0,
+          price: p1,
+          priceMonth1: p1 > 0 ? p1 : null,
+          priceMonth3: p1 > 0 ? p3 : null,
+          priceMonth6: p1 > 0 ? p6 : null,
+          priceMonth12: p1 > 0 ? p12 : null,
           categoryId: form.categoryId ? parseInt(form.categoryId) : undefined,
         }),
-      }),
+      });
+    },
     onSuccess: () => {
       Alert.alert(t("تم!", "Done!"), t("تم تحديث الدورة بنجاح", "Course updated successfully."));
       queryClient.invalidateQueries({ queryKey: ["teacher-courses"] });
@@ -174,7 +195,14 @@ export default function EditCourseScreen() {
         {/* Pricing & Settings */}
         <View style={styles.card}>
           <Text style={styles.sectionTitle}>{t("السعر والإعدادات", "Pricing & Settings")}</Text>
-          <InputField label={t("السعر (0 = مجاني)", "Price (0 = Free)")} value={form.price} onChangeText={(v: string) => setForm(f => ({ ...f, price: v }))} placeholder="0" keyboardType="decimal-pad" />
+          <InputField label={t("سعر شهر واحد (0 = مجاني)", "1-Month Price (0 = Free)")} value={form.price} onChangeText={(v: string) => setForm(f => ({ ...f, price: v }))} placeholder="0" keyboardType="decimal-pad" />
+          {(parseFloat(form.price) || 0) > 0 && (
+            <>
+              <InputField label={t("سعر 3 أشهر *", "3-Month Price *")} value={form.priceMonth3} onChangeText={(v: string) => setForm(f => ({ ...f, priceMonth3: v }))} placeholder="0" keyboardType="decimal-pad" />
+              <InputField label={t("سعر 6 أشهر *", "6-Month Price *")} value={form.priceMonth6} onChangeText={(v: string) => setForm(f => ({ ...f, priceMonth6: v }))} placeholder="0" keyboardType="decimal-pad" />
+              <InputField label={t("سعر 12 شهرًا *", "12-Month Price *")} value={form.priceMonth12} onChangeText={(v: string) => setForm(f => ({ ...f, priceMonth12: v }))} placeholder="0" keyboardType="decimal-pad" />
+            </>
+          )}
 
           <Text style={styles.fieldLabel}>{t("المستوى", "Level")}</Text>
           <SegmentControl options={LEVELS} value={form.level} onChange={(v) => setForm(f => ({ ...f, level: v }))} />

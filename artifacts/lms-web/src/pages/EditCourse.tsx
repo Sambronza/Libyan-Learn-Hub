@@ -31,7 +31,8 @@ export default function EditCourse() {
   const courseForm = useForm({
     defaultValues: {
       title: '', titleAr: '', description: '', descriptionAr: '',
-      price: 0, categoryId: '', level: 'beginner', language: 'ar',
+      price: 0, priceMonth3: 0, priceMonth6: 0, priceMonth12: 0,
+      categoryId: '', level: 'beginner', language: 'ar',
       thumbnailUrl: ''
     }
   });
@@ -47,7 +48,10 @@ export default function EditCourse() {
           titleAr: course.titleAr,
           description: course.description,
           descriptionAr: course.descriptionAr,
-          price: course.price,
+          price: course.priceMonth1 ?? course.price,
+          priceMonth3: course.priceMonth3 ?? 0,
+          priceMonth6: course.priceMonth6 ?? 0,
+          priceMonth12: course.priceMonth12 ?? 0,
           categoryId: String(course.categoryId),
           level: course.level,
           language: course.language,
@@ -59,10 +63,26 @@ export default function EditCourse() {
   }, [courseId, user]);
 
   const handleUpdateCourse = async (data: any) => {
+    const p1 = parseFloat(data.price) || 0;
+    const p3 = parseFloat(data.priceMonth3) || 0;
+    const p6 = parseFloat(data.priceMonth6) || 0;
+    const p12 = parseFloat(data.priceMonth12) || 0;
+    if (p1 > 0 && (p3 <= 0 || p6 <= 0 || p12 <= 0)) {
+      toast({
+        title: 'Missing subscription prices',
+        description: 'A paid course must set prices for all four durations (1, 3, 6 and 12 months).',
+        variant: 'destructive',
+      });
+      return;
+    }
     try {
       await api.put(`/courses/${courseId}`, {
         ...data,
-        price: parseFloat(data.price) || 0,
+        price: p1,
+        priceMonth1: p1 > 0 ? p1 : null,
+        priceMonth3: p1 > 0 ? p3 : null,
+        priceMonth6: p1 > 0 ? p6 : null,
+        priceMonth12: p1 > 0 ? p12 : null,
         categoryId: parseInt(data.categoryId),
       });
       toast({ title: 'Course updated!' });
@@ -138,10 +158,31 @@ export default function EditCourse() {
                 </select>
               </div>
               <div>
-                <label className="text-sm font-medium mb-1.5 block">Price (LYD)</label>
+                <label className="text-sm font-medium mb-1.5 block">1-Month Price (LYD)</label>
                 <Input type="number" min="0" step="0.5" {...courseForm.register('price', { valueAsNumber: true })} placeholder="0 = Free" className="h-11" />
               </div>
             </div>
+            {(courseForm.watch('price') || 0) > 0 && (
+              <div>
+                <p className="text-xs text-muted-foreground mb-2">
+                  Subscription pricing — students subscribe for a duration. All four prices are required for paid courses.
+                </p>
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                  <div>
+                    <label className="text-sm font-medium mb-1.5 block">3-Month Price (LYD) *</label>
+                    <Input type="number" min="0" step="0.5" {...courseForm.register('priceMonth3', { valueAsNumber: true })} className="h-11" />
+                  </div>
+                  <div>
+                    <label className="text-sm font-medium mb-1.5 block">6-Month Price (LYD) *</label>
+                    <Input type="number" min="0" step="0.5" {...courseForm.register('priceMonth6', { valueAsNumber: true })} className="h-11" />
+                  </div>
+                  <div>
+                    <label className="text-sm font-medium mb-1.5 block">12-Month Price (LYD) *</label>
+                    <Input type="number" min="0" step="0.5" {...courseForm.register('priceMonth12', { valueAsNumber: true })} className="h-11" />
+                  </div>
+                </div>
+              </div>
+            )}
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
                 <label className="text-sm font-medium mb-1.5 block">Level</label>

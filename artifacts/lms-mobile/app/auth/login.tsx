@@ -14,7 +14,8 @@ import {
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import Colors from "@/constants/colors";
-import { useAuth } from "@/contexts/AuthContext";
+import { useAuth, DeviceSecurityError } from "@/contexts/AuthContext";
+import { Alert } from "react-native";
 
 const C = Colors.light;
 
@@ -34,9 +35,45 @@ export default function LoginScreen() {
     setLoading(true);
     setError("");
     try {
-      await login(email.trim(), password);
+      const result = await login(email.trim(), password);
+      if (result?.faceEnrollmentRequired) {
+        // Grandfathered student without a face profile — enroll before continuing
+        router.replace({ pathname: "/auth/face-capture" as any, params: { mode: "enroll" } });
+        return;
+      }
       router.replace("/(tabs)");
     } catch (e: any) {
+      if (e instanceof DeviceSecurityError) {
+        if (e.code === "NEW_DEVICE") {
+          // Warn: old device will be blocklisted; face check required
+          Alert.alert(
+            "جهاز جديد",
+            e.messageAr || e.message,
+            [
+              { text: "إلغاء", style: "cancel" },
+              {
+                text: "متابعة والتحقق من الوجه",
+                onPress: () =>
+                  router.push({
+                    pathname: "/auth/face-capture" as any,
+                    params: { mode: "switch", email: email.trim(), password },
+                  }),
+              },
+            ],
+          );
+          return;
+        }
+        if (e.code === "REVERIFY_REQUIRED") {
+          router.push({
+            pathname: "/auth/face-capture" as any,
+            params: { mode: "reverify", email: email.trim(), password },
+          });
+          return;
+        }
+        // ACCOUNT_BLOCKED
+        setError(e.messageAr || e.message);
+        return;
+      }
       setError(e.message || "بيانات خاطئة");
     } finally {
       setLoading(false);

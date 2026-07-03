@@ -1,6 +1,7 @@
 import { Router, type IRouter } from "express";
 import healthRouter from "./health.js";
 import authRouter from "./auth.js";
+import deviceSecurityRouter from "./device-security.js";
 import categoriesRouter from "./categories.js";
 import coursesRouter from "./courses.js";
 import sectionsRouter from "./sections.js";
@@ -39,6 +40,7 @@ const router: IRouter = Router();
 
 router.use(healthRouter);
 router.use("/auth", authRouter);
+router.use("/auth", deviceSecurityRouter);
 router.use("/categories", categoriesRouter);
 router.use("/courses", coursesRouter);
 router.use("/courses/:courseId/sections", sectionsRouter);

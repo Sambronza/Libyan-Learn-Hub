@@ -1,7 +1,16 @@
 import { db, pool } from "@workspace/db";
-import { liveSessionsTable, sessionRegistrationsTable, notificationsTable } from "@workspace/db";
-import { eq, and, lte, gt } from "drizzle-orm";
+import {
+  liveSessionsTable,
+  sessionRegistrationsTable,
+  notificationsTable,
+  enrollmentsTable,
+  coursesTable,
+  usersTable,
+  userPushTokensTable,
+} from "@workspace/db";
+import { eq, and, lte, gt, isNull, isNotNull, inArray } from "drizzle-orm";
 import { sendExpoPushNotifications } from "./expo-notifications.js";
+import { sendEmail } from "./email.js";
 
 // Poll every 5 minutes
 const POLL_INTERVAL = 5 * 60 * 1000;
@@ -81,4 +90,139 @@ export function startScheduler() {
       console.error("Error in scheduler:", error);
     }
   }, POLL_INTERVAL);
+
+  // Subscription expiry notifications (3-day warning + expired notice)
+  setInterval(async () => {
+    try {
+      await notifyExpiringSubscriptions();
+      await notifyExpiredSubscriptions();
+    } catch (error) {
+      console.error("Error in subscription expiry scheduler:", error);
+    }
+  }, POLL_INTERVAL);
+}
+
+/** Push an in-app notification + email + Expo push to one user. */
+async function notifySubscriptionEvent(opts: {
+  userId: number;
+  type: "subscription_expiring" | "subscription_expired";
+  title: string;
+  titleAr: string;
+  message: string;
+  messageAr: string;
+  courseId: number;
+}) {
+  await db.insert(notificationsTable).values({
+    userId: opts.userId,
+    type: opts.type,
+    title: opts.title,
+    titleAr: opts.titleAr,
+    message: opts.message,
+    messageAr: opts.messageAr,
+    referenceId: opts.courseId,
+  });
+
+  // Email (best-effort)
+  try {
+    const [user] = await db.select().from(usersTable).where(eq(usersTable.id, opts.userId)).limit(1);
+    if (user?.email) {
+      const localizedMsg = user.language === "ar" ? opts.messageAr : opts.message;
+      await sendEmail({
+        to: user.email,
+        subject: user.language === "ar" ? opts.titleAr : opts.title,
+        text: localizedMsg,
+        html: `<p>${localizedMsg}</p>`,
+      });
+    }
+  } catch (err) {
+    console.warn("[Scheduler] Subscription email failed:", err);
+  }
+
+  // Expo push (best-effort)
+  try {
+    const tokens = await db.select().from(userPushTokensTable).where(eq(userPushTokensTable.userId, opts.userId));
+    if (tokens.length > 0) {
+      await sendExpoPushNotifications(
+        tokens.map((t) => ({
+          to: t.token,
+          title: opts.title,
+          body: opts.message,
+          data: { type: opts.type, courseId: opts.courseId },
+        })),
+      );
+    }
+  } catch (err) {
+    console.warn("[Scheduler] Subscription push failed:", err);
+  }
+}
+
+async function notifyExpiringSubscriptions() {
+  const now = new Date();
+  const in3Days = new Date(now.getTime() + 3 * 24 * 60 * 60 * 1000);
+
+  const expiring = await db
+    .select({ enrollment: enrollmentsTable, course: coursesTable })
+    .from(enrollmentsTable)
+    .innerJoin(coursesTable, eq(enrollmentsTable.courseId, coursesTable.id))
+    .where(
+      and(
+        isNotNull(enrollmentsTable.expiresAt),
+        gt(enrollmentsTable.expiresAt, now),
+        lte(enrollmentsTable.expiresAt, in3Days),
+        isNull(enrollmentsTable.expiryNotifiedAt),
+      ),
+    )
+    .limit(200);
+
+  for (const { enrollment, course } of expiring) {
+    const days = Math.max(1, Math.ceil((enrollment.expiresAt!.getTime() - now.getTime()) / (24 * 60 * 60 * 1000)));
+    await notifySubscriptionEvent({
+      userId: enrollment.userId,
+      type: "subscription_expiring",
+      title: "Subscription Expiring Soon",
+      titleAr: "اشتراكك سينتهي قريباً",
+      message: `Your subscription to "${course.title}" expires in ${days} day(s). Renew now to keep your access.`,
+      messageAr: `اشتراكك في دورة "${course.titleAr}" سينتهي خلال ${days} يوم. جدّد الآن للحفاظ على وصولك.`,
+      courseId: course.id,
+    });
+    await db
+      .update(enrollmentsTable)
+      .set({ expiryNotifiedAt: now })
+      .where(eq(enrollmentsTable.id, enrollment.id));
+  }
+  if (expiring.length > 0) console.log(`[Scheduler] Sent ${expiring.length} subscription expiry warnings.`);
+}
+
+async function notifyExpiredSubscriptions() {
+  const now = new Date();
+
+  const expired = await db
+    .select({ enrollment: enrollmentsTable, course: coursesTable })
+    .from(enrollmentsTable)
+    .innerJoin(coursesTable, eq(enrollmentsTable.courseId, coursesTable.id))
+    .where(
+      and(
+        isNotNull(enrollmentsTable.expiresAt),
+        lte(enrollmentsTable.expiresAt, now),
+        isNull(enrollmentsTable.expiredNotifiedAt),
+      ),
+    )
+    .limit(200);
+
+  for (const { enrollment, course } of expired) {
+    await notifySubscriptionEvent({
+      userId: enrollment.userId,
+      type: "subscription_expired",
+      title: "Subscription Expired",
+      titleAr: "انتهى اشتراكك",
+      message: `Your subscription to "${course.title}" has expired. Renew to regain access to the course content.`,
+      messageAr: `انتهى اشتراكك في دورة "${course.titleAr}". جدّد الاشتراك لاستعادة الوصول إلى محتوى الدورة.`,
+      courseId: course.id,
+    });
+    await db
+      .update(enrollmentsTable)
+      .set({ expiredNotifiedAt: now })
+      .where(eq(enrollmentsTable.id, enrollment.id));
+  }
+  if (expired.length > 0) console.log(`[Scheduler] Sent ${expired.length} subscription expired notices.`);
 }

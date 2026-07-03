@@ -33,6 +33,7 @@ minimumReleaseAge: 1440
 
 onlyBuiltDependencies:
   - '@swc/core'
+  - '@tensorflow/tfjs-node'
   - esbuild
   - msw
   - unrs-resolver

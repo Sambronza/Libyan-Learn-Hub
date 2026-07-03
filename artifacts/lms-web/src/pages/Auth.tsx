@@ -15,6 +15,10 @@ import { useApi } from '@/hooks/useApi';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Logo } from '@/components/ui/Logo';
 import { Blob } from '@/components/ui/Blob';
+import { getDeviceInfo } from '@/lib/deviceFingerprint';
+import { FaceCapture } from '@/components/FaceCapture';
+import { FaceEnroll } from '@/components/FaceEnroll';
+import { ShieldAlert, ShieldCheck } from 'lucide-react';
 
 const loginSchema = z.object({
   email: z.string().email('Invalid email address'),
@@ -58,7 +62,11 @@ export default function Auth() {
   const Arrow = isRtl ? ArrowLeft : ArrowRight;
   const api = useApi();
   const [errorMsg, setErrorMsg] = useState('');
-  const [step, setStep] = useState<'form' | 'otp' | 'forgot' | 'reset'>('form');
+  const [step, setStep] = useState<'form' | 'otp' | 'forgot' | 'reset' | 'newDevice' | 'faceVerify' | 'reverify' | 'faceEnroll'>('form');
+  // Credentials kept in memory for the device-switch / reverify face calls
+  const [securityCreds, setSecurityCreds] = useState<{ email: string; password: string } | null>(null);
+  const [securityMsg, setSecurityMsg] = useState<{ message: string; messageAr: string } | null>(null);
+  const [securityBusy, setSecurityBusy] = useState(false);
   const [resetEmail, setResetEmail] = useState('');
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
@@ -139,9 +147,15 @@ export default function Auth() {
         // Pre-seed the user cache to avoid a second /auth/me round-trip
         setAuthContext(data.token, data.user);
 
+        // Grandfathered student with no face profile yet: enroll before continuing
+        if (data.faceEnrollmentRequired && data.user.role === 'student') {
+          setStep('faceEnroll');
+          return;
+        }
+
         const searchParams = new URLSearchParams(window.location.search);
         const returnTo = searchParams.get('returnTo');
-        
+
         if (returnTo) {
           setLocation(decodeURIComponent(returnTo));
         } else {
@@ -152,9 +166,93 @@ export default function Auth() {
           }
         }
       },
-      onError: (err) => setErrorMsg(err.message || 'Login failed')
+      onError: (err: any) => {
+        const code = err?.data?.code;
+        if (err?.status === 409 && code === 'NEW_DEVICE') {
+          setSecurityCreds(loginForm.getValues());
+          setSecurityMsg({ message: err.data.message, messageAr: err.data.messageAr });
+          setStep('newDevice');
+          return;
+        }
+        if (err?.status === 403 && code === 'REVERIFY_REQUIRED') {
+          setSecurityCreds(loginForm.getValues());
+          setSecurityMsg({ message: err.data.message, messageAr: err.data.messageAr });
+          setStep('reverify');
+          return;
+        }
+        if (err?.status === 403 && code === 'ACCOUNT_BLOCKED') {
+          setErrorMsg(isRtl ? err.data.messageAr : err.data.message);
+          return;
+        }
+        setErrorMsg(err.message || 'Login failed');
+      }
     }
   });
+
+  // ── Device-switch face verification (after NEW_DEVICE warning) ──────────────
+  const handleDeviceSwitchCapture = async (descriptor: number[], imageBase64: string) => {
+    if (!securityCreds) return;
+    setSecurityBusy(true);
+    setErrorMsg('');
+    try {
+      const data = await api.post('/auth/device-switch/verify', {
+        ...securityCreds,
+        ...getDeviceInfo(),
+        faceDescriptor: descriptor,
+        snapshot: imageBase64,
+      });
+      toast({
+        title: isRtl ? 'تم تأكيد هويتك ✓' : 'Identity confirmed ✓',
+        description: isRtl ? data.messageAr : data.message,
+      });
+      setAuthContext(data.token);
+      setLocation('/dashboard');
+    } catch (err: any) {
+      const body = err?.data || {};
+      setErrorMsg(isRtl ? (body.messageAr || err.message) : (body.message || err.message));
+      setStep('form');
+    } finally {
+      setSecurityBusy(false);
+    }
+  };
+
+  // ── Periodic face re-verification ────────────────────────────────────────────
+  const handleReverifyCapture = async (descriptor: number[], imageBase64: string) => {
+    if (!securityCreds) return;
+    setSecurityBusy(true);
+    setErrorMsg('');
+    try {
+      const data = await api.post('/auth/reverify-face', {
+        ...securityCreds,
+        deviceFingerprint: getDeviceInfo().deviceFingerprint,
+        faceDescriptor: descriptor,
+        snapshot: imageBase64,
+      });
+      toast({ title: isRtl ? 'تم التحقق ✓' : 'Verified ✓' });
+      setAuthContext(data.token);
+      setLocation('/dashboard');
+    } catch (err: any) {
+      const body = err?.data || {};
+      setErrorMsg(isRtl ? (body.messageAr || err.message) : (body.message || err.message));
+      setStep('form');
+    } finally {
+      setSecurityBusy(false);
+    }
+  };
+
+  // ── Face enrollment for grandfathered students ───────────────────────────────
+  const handleFaceEnrollComplete = async (descriptors: Record<string, number[]>, snapshot: string | null) => {
+    setSecurityBusy(true);
+    try {
+      await api.post('/auth/enroll-face', { faceDescriptors: descriptors, facePhotoUrl: snapshot });
+      toast({ title: isRtl ? 'تم حفظ ملف الوجه ✓' : 'Face profile saved ✓' });
+    } catch (err: any) {
+      toast({ title: err.message || 'Failed to save face profile', variant: 'destructive' });
+    } finally {
+      setSecurityBusy(false);
+      setLocation('/dashboard');
+    }
+  };
 
 
   const { mutate: registerMutate, isPending: isRegistering } = useRegister({
@@ -171,7 +269,7 @@ export default function Auth() {
 
   const onSubmitLogin = (data: z.infer<typeof loginSchema>) => {
     setErrorMsg('');
-    loginMutate({ data });
+    loginMutate({ data: { ...data, ...getDeviceInfo() } as any });
   };
 
   const handleRequestReset = async () => {
@@ -238,7 +336,8 @@ export default function Auth() {
     setErrorMsg('');
     // All roles now register directly. Teachers default to 'free' tier on the backend,
     // but we can be explicit here if the API expects it.
-    registerMutate({ data: { ...data, tier: 'free' } as any });
+    // Device info binds the signup device as the student's trusted device.
+    registerMutate({ data: { ...data, tier: 'free', ...getDeviceInfo() } as any });
   };
 
   const handleVerifyOtp = async () => {
@@ -255,7 +354,12 @@ export default function Auth() {
       await api.post('/auth/verify-otp', { code: otpCode, type: isPhone ? 'phone' : 'email' });
       setAuthContext(pendingToken);
       toast({ title: 'Registration successful!' });
-      window.location.href = pendingRole === 'teacher' ? '/teacher/biometrics-setup' : '/dashboard';
+      if (pendingRole === 'teacher') {
+        window.location.href = '/teacher/biometrics-setup';
+      } else {
+        // Students must enroll their face at signup (device/identity security)
+        setStep('faceEnroll');
+      }
     } catch (err: any) {
       localStorage.removeItem('lms_token');
       setErrorMsg(err.message || 'Invalid code');
@@ -269,6 +373,110 @@ export default function Auth() {
   };
 
 
+
+  // ── New Device Warning ────────────────────────────────────────────────
+  if (step === 'newDevice') {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-background px-4">
+        <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }}
+          className="bg-card rounded-3xl border border-border shadow-xl p-10 w-full max-w-md">
+          <div className="text-center mb-6">
+            <div className="w-16 h-16 rounded-2xl bg-amber-100 flex items-center justify-center mx-auto mb-4">
+              <ShieldAlert className="w-8 h-8 text-amber-600" />
+            </div>
+            <h2 className="text-2xl font-display font-bold">
+              {isRtl ? 'جهاز جديد تم اكتشافه' : 'New Device Detected'}
+            </h2>
+          </div>
+          <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 mb-6 text-sm text-amber-800 leading-relaxed">
+            {isRtl ? securityMsg?.messageAr : securityMsg?.message}
+          </div>
+          <div className="space-y-3">
+            <Button className="w-full h-12 text-base font-semibold" onClick={() => { setErrorMsg(''); setStep('faceVerify'); }}>
+              {isRtl ? 'متابعة والتحقق من الوجه' : 'Continue & Verify My Face'}
+            </Button>
+            <Button variant="outline" className="w-full h-12" onClick={() => setStep('form')}>
+              {isRtl ? 'إلغاء' : 'Cancel'}
+            </Button>
+          </div>
+        </motion.div>
+      </div>
+    );
+  }
+
+  // ── Device-Switch Face Verification ──────────────────────────────────────
+  if (step === 'faceVerify' || step === 'reverify') {
+    const isReverify = step === 'reverify';
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-background px-4">
+        <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }}
+          className="bg-card rounded-3xl border border-border shadow-xl p-10 w-full max-w-md">
+          <div className="text-center mb-6">
+            <div className="w-16 h-16 rounded-2xl bg-primary/10 flex items-center justify-center mx-auto mb-4">
+              <ShieldCheck className="w-8 h-8 text-primary" />
+            </div>
+            <h2 className="text-2xl font-display font-bold">
+              {isReverify
+                ? (isRtl ? 'إعادة التحقق من الهوية' : 'Identity Re-verification')
+                : (isRtl ? 'التحقق من الوجه' : 'Face Verification')}
+            </h2>
+            <p className="text-muted-foreground mt-2 text-sm">
+              {isReverify && securityMsg
+                ? (isRtl ? securityMsg.messageAr : securityMsg.message)
+                : (isRtl ? 'انظر إلى الكاميرا مباشرة والتقط صورة للتحقق من هويتك.' : 'Look directly at the camera and capture a photo to confirm your identity.')}
+            </p>
+          </div>
+          {errorMsg && (
+            <div className="mb-4 p-4 rounded-xl bg-destructive/10 text-destructive border border-destructive/20 text-sm font-medium">
+              {errorMsg}
+            </div>
+          )}
+          {securityBusy ? (
+            <div className="py-10 text-center text-muted-foreground">{isRtl ? 'جارٍ التحقق…' : 'Verifying…'}</div>
+          ) : (
+            <FaceCapture onCapture={isReverify ? handleReverifyCapture : handleDeviceSwitchCapture} />
+          )}
+          <Button variant="ghost" className="w-full mt-4" onClick={() => setStep('form')}>
+            {isRtl ? 'رجوع' : 'Back'}
+          </Button>
+        </motion.div>
+      </div>
+    );
+  }
+
+  // ── Student Face Enrollment (signup / grandfathered) ─────────────────────
+  if (step === 'faceEnroll') {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-background px-4">
+        <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }}
+          className="bg-card rounded-3xl border border-border shadow-xl p-10 w-full max-w-md">
+          <div className="text-center mb-6">
+            <div className="w-16 h-16 rounded-2xl bg-primary/10 flex items-center justify-center mx-auto mb-4">
+              <ShieldCheck className="w-8 h-8 text-primary" />
+            </div>
+            <h2 className="text-2xl font-display font-bold">
+              {isRtl ? 'تسجيل ملف الوجه' : 'Face Profile Setup'}
+            </h2>
+            <p className="text-muted-foreground mt-2 text-sm">
+              {isRtl
+                ? 'لحماية حسابك، حرّك رأسك ببطء في الاتجاهات الخمسة حتى تلتقط الكاميرا جميع الأوضاع. يُستخدم هذا للتحقق من هويتك عند تغيير الجهاز.'
+                : 'To protect your account, slowly move your head in 5 directions while the camera captures each pose. This is used to verify your identity if you switch devices.'}
+            </p>
+          </div>
+          {securityBusy ? (
+            <div className="py-10 text-center text-muted-foreground">{isRtl ? 'جارٍ الحفظ…' : 'Saving…'}</div>
+          ) : (
+            <FaceEnroll onComplete={handleFaceEnrollComplete} onError={(m) => setErrorMsg(m)} />
+          )}
+          {errorMsg && (
+            <div className="mt-4 p-4 rounded-xl bg-destructive/10 text-destructive border border-destructive/20 text-sm font-medium">
+              {errorMsg}
+            </div>
+          )}
+        </motion.div>
+      </div>
+    );
+  }
 
   // ── Forgot Password Step ───────────────────────────────────────────────
   if (step === 'forgot') {

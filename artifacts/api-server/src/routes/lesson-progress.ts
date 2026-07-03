@@ -4,6 +4,7 @@ import { lessonProgressTable, lessonsTable, enrollmentsTable } from "@workspace/
 import { eq, and, count } from "drizzle-orm";
 import { requireAuth } from "../lib/auth.js";
 import { parseParam } from "../lib/utils.js";
+import { requireActiveEnrollment, SUBSCRIPTION_EXPIRED_ERROR, NOT_ENROLLED_ERROR } from "../lib/subscriptions.js";
 
 const router = Router();
 
@@ -34,6 +35,14 @@ router.post("/lessons/:lessonId/complete", requireAuth, async (req, res) => {
     const lessonId = parseParam(req.params.lessonId);
     const [lesson] = await db.select().from(lessonsTable).where(eq(lessonsTable.id, lessonId)).limit(1);
     if (!lesson) { res.status(404).json({ error: "Lesson not found" }); return; }
+
+    // Require an active (non-expired) enrollment to record progress
+    const { role } = (req as any).user;
+    const access = await requireActiveEnrollment(userId, lesson.courseId, role);
+    if (!access.ok) {
+      res.status(403).json(access.reason === "expired" ? SUBSCRIPTION_EXPIRED_ERROR : NOT_ENROLLED_ERROR);
+      return;
+    }
 
     const existing = await db.select().from(lessonProgressTable)
       .where(and(eq(lessonProgressTable.userId, userId), eq(lessonProgressTable.lessonId, lessonId))).limit(1);

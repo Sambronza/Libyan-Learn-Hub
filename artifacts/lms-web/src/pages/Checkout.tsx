@@ -34,6 +34,14 @@ export default function Checkout() {
   const [method, setMethod] = useState('gateway');
   const [step, setStep] = useState<'select' | 'done'>('select');
 
+  // Subscription duration for course purchases (preselected via ?duration=N)
+  const initialDuration = (() => {
+    const p = new URLSearchParams(window.location.search).get('duration');
+    const n = p ? parseInt(p) : 1;
+    return [1, 3, 6, 12].includes(n) ? n : 1;
+  })();
+  const [duration, setDuration] = useState<number>(initialDuration);
+
   const { data: item } = useQuery({
     queryKey: [type, id],
     queryFn: async () => {
@@ -64,7 +72,7 @@ export default function Checkout() {
       const res = await fetch(`${API_BASE}/payments/create-session`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-        body: JSON.stringify({ type, itemId: id, method }),
+        body: JSON.stringify({ type, itemId: id, method, ...(type === 'course' ? { durationMonths: duration } : {}) }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'Payment request failed');
@@ -87,9 +95,25 @@ export default function Checkout() {
   });
 
 // Replaced confirmMutation and handleCopy
-  const price = item?.price ?? 0;
+  const isCourse = type === 'course';
+  const planPrices: Record<number, number | null> = {
+    1: item?.priceMonth1 ?? null,
+    3: item?.priceMonth3 ?? null,
+    6: item?.priceMonth6 ?? null,
+    12: item?.priceMonth12 ?? null,
+  };
+  const hasPlans = isCourse && Object.values(planPrices).some(p => p !== null && p > 0);
+  const price = isCourse && hasPlans ? (planPrices[duration] ?? item?.price ?? 0) : (item?.price ?? 0);
   const title = isAr ? item?.titleAr : item?.title;
-  const isFree = price === 0;
+  const isFree = (item?.price ?? 0) === 0 && !hasPlans;
+  const isRenewal = isCourse && item?.isEnrolled === true;
+
+  const PLAN_LABELS: Record<number, { ar: string; en: string }> = {
+    1: { ar: 'شهر واحد', en: '1 Month' },
+    3: { ar: '3 أشهر', en: '3 Months' },
+    6: { ar: '6 أشهر', en: '6 Months' },
+    12: { ar: 'سنة كاملة', en: '12 Months' },
+  };
   // Use live balance fetched from server (not stale auth context)
   const liveBalance = parseFloat(walletData?.balance || user?.balance || "0");
 
@@ -150,6 +174,45 @@ export default function Checkout() {
 
             {step === 'select' && (
               <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}>
+                {hasPlans && (
+                  <div className="mb-6">
+                    <h2 className="text-xl font-display font-bold text-foreground mb-4">
+                      {isAr ? 'اختر مدة الاشتراك' : 'Choose Subscription Duration'}
+                    </h2>
+                    {isRenewal && (
+                      <div className="bg-blue-50 border border-blue-200 rounded-2xl p-4 mb-4 text-sm text-blue-700">
+                        {isAr
+                          ? 'تجديد الاشتراك: ستُضاف المدة الجديدة إلى تاريخ انتهاء اشتراكك الحالي — لن تخسر أي أيام متبقية.'
+                          : 'Renewal: the new period will be added on top of your current expiry date — no remaining days are lost.'}
+                      </div>
+                    )}
+                    <div className="grid grid-cols-2 gap-3">
+                      {[1, 3, 6, 12].map((m) => {
+                        const p = planPrices[m];
+                        const available = p !== null && p > 0;
+                        return (
+                          <button
+                            key={m}
+                            onClick={() => available && setDuration(m)}
+                            disabled={!available}
+                            className={`p-4 rounded-2xl border-2 text-start transition-all
+                              ${duration === m ? 'border-primary bg-primary/5' : 'border-border bg-card hover:border-primary/30'}
+                              ${!available ? 'opacity-40 cursor-not-allowed' : ''}
+                            `}
+                          >
+                            <div className="font-bold text-foreground">{isAr ? PLAN_LABELS[m].ar : PLAN_LABELS[m].en}</div>
+                            <div className="text-lg font-extrabold text-primary mt-1">
+                              {available ? `${p} LYD` : (isAr ? 'غير متاح' : 'N/A')}
+                            </div>
+                            {m === 12 && available && (
+                              <div className="text-[10px] text-green-600 font-bold mt-1">{isAr ? 'أفضل قيمة' : 'Best value'}</div>
+                            )}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
                 <h2 className="text-xl font-display font-bold text-foreground mb-4">اختر طريقة الدفع</h2>
                 {isFree ? (
                   <div className="bg-green-50 border border-green-200 rounded-2xl p-6 mb-6 flex items-center gap-4">

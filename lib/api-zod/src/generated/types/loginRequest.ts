@@ -5,8 +5,13 @@
  * Libyan E-Learning Platform API
  * OpenAPI spec version: 1.0.0
  */
+import type { LoginRequestDevicePlatform } from "./loginRequestDevicePlatform";
 
 export interface LoginRequest {
   email: string;
   password: string;
+  /** Persistent device identifier (student device binding) */
+  deviceFingerprint?: string;
+  deviceName?: string;
+  devicePlatform?: LoginRequestDevicePlatform;
 }
