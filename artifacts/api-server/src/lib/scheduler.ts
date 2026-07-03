@@ -9,7 +9,7 @@ import {
   userPushTokensTable,
 } from "@workspace/db";
 import { eq, and, lte, gt, isNull, isNotNull, inArray } from "drizzle-orm";
-import { sendExpoPushNotifications } from "./expo-notifications.js";
+import { sendExpoPushNotifications, sendPushToUsers } from "./expo-notifications.js";
 import { sendEmail } from "./email.js";
 
 // Poll every 5 minutes
@@ -81,9 +81,14 @@ export function startScheduler() {
           .where(eq(liveSessionsTable.id, session.id));
           
         console.log(`Sent notifications for upcoming live session: ${session.id}`);
-        
-        // TODO: In a production scenario, we would also fetch userPushTokensTable
-        // here for these users and dispatch via sendExpoPushNotifications().
+
+        // Push notification to registered devices
+        await sendPushToUsers(
+          registrations.map((r) => r.userId),
+          "Live Session Starting Soon! | الجلسة ستبدأ قريباً",
+          `"${session.titleAr || session.title}" starts in 15 minutes | تبدأ خلال 15 دقيقة`,
+          { type: "live_session_starting", sessionId: session.id },
+        );
       }
       
     } catch (error) {

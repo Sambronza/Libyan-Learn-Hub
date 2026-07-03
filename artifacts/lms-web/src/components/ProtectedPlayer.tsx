@@ -10,10 +10,17 @@ interface ProtectedPlayerProps {
   startAt?: number;
   onEnded?: () => void;
   onProgress?: (progress: { playedSeconds: number }) => void;
+  /**
+   * Certificate courses: disallow seeking forward past what has actually been
+   * watched (no skip / no fast-forward). Rewinding is always allowed.
+   */
+  antiSkip?: boolean;
 }
 
-export function ProtectedPlayer({ url, courseId, lessonId, startAt = 0, onEnded, onProgress }: ProtectedPlayerProps) {
+export function ProtectedPlayer({ url, courseId, lessonId, startAt = 0, onEnded, onProgress, antiSkip = false }: ProtectedPlayerProps) {
   const videoRef = useRef<HTMLVideoElement>(null);
+  // Furthest point genuinely reached by continuous playback (anti-skip ceiling)
+  const maxWatchedRef = useRef(startAt);
   const [secureUrl, setSecureUrl] = useState<string | null>(null);
   const [isHls, setIsHls] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -76,6 +83,31 @@ export function ProtectedPlayer({ url, courseId, lessonId, startAt = 0, onEnded,
     video.addEventListener('ended', handleEnded);
     video.addEventListener('play', setupProgress);
 
+    // ── Anti-skip enforcement (certificate courses) ──────────────────────
+    // timeupdate advances the ceiling only through real playback (≤1.5s steps);
+    // seeking beyond the ceiling snaps back to it.
+    maxWatchedRef.current = Math.max(maxWatchedRef.current, startAt);
+    const handleTimeUpdate = () => {
+      if (!antiSkip) return;
+      const t = video.currentTime;
+      if (t > maxWatchedRef.current && t - maxWatchedRef.current <= 1.5) {
+        maxWatchedRef.current = t;
+      }
+    };
+    const handleSeeking = () => {
+      if (!antiSkip) return;
+      if (video.currentTime > maxWatchedRef.current + 1.5) {
+        video.currentTime = maxWatchedRef.current;
+      }
+    };
+    const handleRateChange = () => {
+      // No fast-forward via playback speed either
+      if (antiSkip && video.playbackRate > 1) video.playbackRate = 1;
+    };
+    video.addEventListener('timeupdate', handleTimeUpdate);
+    video.addEventListener('seeking', handleSeeking);
+    video.addEventListener('ratechange', handleRateChange);
+
     if (startAt > 0) {
       const seekOnce = () => {
         video.currentTime = startAt;
@@ -116,6 +148,9 @@ export function ProtectedPlayer({ url, courseId, lessonId, startAt = 0, onEnded,
     return () => {
       video.removeEventListener('ended', handleEnded);
       video.removeEventListener('play', setupProgress);
+      video.removeEventListener('timeupdate', handleTimeUpdate);
+      video.removeEventListener('seeking', handleSeeking);
+      video.removeEventListener('ratechange', handleRateChange);
       if (progressTimerRef.current) clearInterval(progressTimerRef.current);
       if (hlsInstance) hlsInstance.destroy();
     };

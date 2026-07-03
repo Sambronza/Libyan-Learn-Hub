@@ -303,7 +303,28 @@ export default function CourseDetail() {
                   </div>
                 )}
                 
-                {course.price > 0 && <p className="text-center text-sm text-white/60 mb-6 font-medium">{language === 'ar' ? 'ضمان استرجاع الأموال خلال 30 يوماً' : '30-Day Money-Back Guarantee'}</p>}
+                {course.price > 0 && !course.isEnrolled && (
+                  <p className="text-center text-sm text-white/60 mb-6 font-medium">
+                    {language === 'ar' ? 'استرجاع الأموال متاح عند الطلب — تتم مراجعته من الإدارة' : 'Refunds available on request — reviewed by administration'}
+                  </p>
+                )}
+                {course.price > 0 && course.isEnrolled && (
+                  <button
+                    onClick={async () => {
+                      const reason = window.prompt(language === 'ar' ? 'سبب طلب الاسترجاع (اختياري):' : 'Reason for the refund request (optional):');
+                      if (reason === null) return;
+                      try {
+                        const data = await api.post('/payments/refund-requests', { courseId, reason });
+                        toast({ title: language === 'ar' ? data.messageAr : data.message });
+                      } catch (err: any) {
+                        toast({ title: language === 'ar' ? (err?.data?.messageAr || err.message) : (err?.data?.message || err.message), variant: 'destructive' });
+                      }
+                    }}
+                    className="w-full text-center text-xs text-white/50 hover:text-white/80 underline mb-6 transition-colors"
+                  >
+                    {language === 'ar' ? 'طلب استرجاع المال' : 'Request a refund'}
+                  </button>
+                )}
 
                 <div className="space-y-5 text-sm font-medium text-white/80 pt-6 border-t border-white/10">
                   <div className="flex items-center gap-4">

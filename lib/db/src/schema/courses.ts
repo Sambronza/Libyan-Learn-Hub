@@ -6,6 +6,9 @@ import { categoriesTable } from "./categories";
 
 export const levelEnum = pgEnum("level", ["beginner", "intermediate", "advanced"]);
 export const courseStatusEnum = pgEnum("course_status", ["draft", "pending_review", "published", "rejected"]);
+// none = no certificate; completion = full watch of all lessons (anti-skip);
+// quiz = full watch AND pass the final quiz. Only certificate-approved teachers may enable.
+export const certificateModeEnum = pgEnum("certificate_mode", ["none", "completion", "quiz"]);
 
 export const coursesTable = pgTable("courses", {
   id: serial("id").primaryKey(),
@@ -25,6 +28,7 @@ export const coursesTable = pgTable("courses", {
   language: varchar("language", { length: 5 }).notNull().default("ar"),
   categoryId: integer("category_id").notNull().references(() => categoriesTable.id),
   teacherId: integer("teacher_id").notNull().references(() => usersTable.id),
+  certificateMode: certificateModeEnum("certificate_mode").notNull().default("none"),
   isPublished: boolean("is_published").notNull().default(false), // Kept for backwards compatibility
   status: courseStatusEnum("status").notNull().default("draft"),
   rejectionReason: text("rejection_reason"),

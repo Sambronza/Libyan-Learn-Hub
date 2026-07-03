@@ -32,6 +32,12 @@ export * from "./teacher-devices.ts";
 // Student device security
 export * from "./student-devices.ts";
 export * from "./device-switch-requests.ts";
+// Refunds
+export * from "./refund-requests.ts";
+// Certificates
+export * from "./certificates.ts";
+// Coupons & referrals
+export * from "./coupons.ts";
 // Academy tables
 export * from "./academy.ts";
 export * from "./redeem-cards.ts";

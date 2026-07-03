@@ -17,6 +17,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import Colors from "@/constants/colors";
 import { useApi } from "@/hooks/useApi";
 import { useLanguage } from "@/contexts/LanguageContext";
+import { useAuth } from "@/contexts/AuthContext";
 
 const C = Colors.light;
 
@@ -28,6 +29,11 @@ const LEVELS = [
 const LANGS = [
   { value: "ar", ar: "عربي", en: "Arabic" },
   { value: "en", ar: "إنجليزي", en: "English" },
+];
+const CERT_MODES = [
+  { value: "none", ar: "بدون شهادة", en: "None" },
+  { value: "completion", ar: "عند الإتمام", en: "On completion" },
+  { value: "quiz", ar: "إتمام + اختبار", en: "Completion + quiz" },
 ];
 
 function InputField({ label, value, onChangeText, placeholder, multiline, keyboardType }: any) {
@@ -70,6 +76,7 @@ export default function EditCourseScreen() {
   const insets = useSafeAreaInsets();
   const { apiFetch } = useApi();
   const { t } = useLanguage();
+  const { user } = useAuth();
   const queryClient = useQueryClient();
   const { id } = useLocalSearchParams<{ id: string }>();
   const topPad = Platform.OS === "web" ? 67 : insets.top;
@@ -83,6 +90,7 @@ export default function EditCourseScreen() {
     priceMonth3: "",
     priceMonth6: "",
     priceMonth12: "",
+    certificateMode: "none",
     level: "beginner",
     language: "ar",
     categoryId: "",
@@ -110,6 +118,7 @@ export default function EditCourseScreen() {
         priceMonth3: course.priceMonth3 != null ? String(course.priceMonth3) : "",
         priceMonth6: course.priceMonth6 != null ? String(course.priceMonth6) : "",
         priceMonth12: course.priceMonth12 != null ? String(course.priceMonth12) : "",
+        certificateMode: course.certificateMode || "none",
         level: course.level || "beginner",
         language: course.language || "ar",
         categoryId: String(course.categoryId ?? ""),
@@ -202,6 +211,22 @@ export default function EditCourseScreen() {
               <InputField label={t("سعر 6 أشهر *", "6-Month Price *")} value={form.priceMonth6} onChangeText={(v: string) => setForm(f => ({ ...f, priceMonth6: v }))} placeholder="0" keyboardType="decimal-pad" />
               <InputField label={t("سعر 12 شهرًا *", "12-Month Price *")} value={form.priceMonth12} onChangeText={(v: string) => setForm(f => ({ ...f, priceMonth12: v }))} placeholder="0" keyboardType="decimal-pad" />
             </>
+          )}
+
+          <Text style={styles.fieldLabel}>{t("شهادة الإتمام", "Completion Certificate")}</Text>
+          {(user as any)?.certificatesApproved ? (
+            <>
+              <SegmentControl options={CERT_MODES} value={form.certificateMode} onChange={(v) => setForm(f => ({ ...f, certificateMode: v }))} />
+              {form.certificateMode !== "none" && (
+                <Text style={{ fontFamily: "Inter_400Regular", fontSize: 11, color: C.textMuted, textAlign: "right", marginBottom: 8 }}>
+                  {t("سيُمنع التخطي والتسريع في دروس هذه الدورة", "Skipping and fast-forward will be disabled in this course's lessons")}
+                </Text>
+              )}
+            </>
+          ) : (
+            <Text style={{ fontFamily: "Inter_400Regular", fontSize: 11, color: C.textMuted, textAlign: "right", marginBottom: 8 }}>
+              {t("🎓 الشهادات متاحة للمعلمين المعتمدين فقط — تواصل مع الإدارة", "🎓 Certificates are for approved teachers only — contact administration")}
+            </Text>
           )}
 
           <Text style={styles.fieldLabel}>{t("المستوى", "Level")}</Text>

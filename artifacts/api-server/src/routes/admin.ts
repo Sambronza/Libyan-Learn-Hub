@@ -63,6 +63,82 @@ router.get("/stats", async (_req, res) => {
   }
 });
 
+// ─── ANALYTICS (weekly time-series for the last 12 weeks) ────────────────────
+
+router.get("/analytics", async (_req, res) => {
+  try {
+    const weeks = 12;
+
+    // Weekly revenue from completed payments
+    const revenue = await db.execute(sql`
+      SELECT date_trunc('week', created_at)::date AS week,
+             COALESCE(SUM(amount::numeric), 0) AS revenue,
+             COUNT(*) AS payments
+      FROM payments
+      WHERE status = 'completed' AND created_at >= NOW() - INTERVAL '12 weeks'
+      GROUP BY 1 ORDER BY 1
+    `);
+
+    // Weekly new enrollments
+    const enrollments = await db.execute(sql`
+      SELECT date_trunc('week', enrolled_at)::date AS week, COUNT(*) AS enrollments
+      FROM enrollments
+      WHERE enrolled_at >= NOW() - INTERVAL '12 weeks'
+      GROUP BY 1 ORDER BY 1
+    `);
+
+    // Weekly renewals (completed course payments on already-existing enrollments)
+    const renewals = await db.execute(sql`
+      SELECT date_trunc('week', p.created_at)::date AS week, COUNT(*) AS renewals
+      FROM payments p
+      JOIN enrollments e ON e.course_id = p.course_id AND e.user_id = p.user_id
+      WHERE p.status = 'completed' AND p.duration_months IS NOT NULL
+        AND e.renewal_count > 0
+        AND p.created_at >= NOW() - INTERVAL '12 weeks'
+      GROUP BY 1 ORDER BY 1
+    `);
+
+    // Weekly subscription expirations
+    const expirations = await db.execute(sql`
+      SELECT date_trunc('week', expires_at)::date AS week, COUNT(*) AS expirations
+      FROM enrollments
+      WHERE expires_at IS NOT NULL
+        AND expires_at >= NOW() - INTERVAL '12 weeks' AND expires_at <= NOW()
+      GROUP BY 1 ORDER BY 1
+    `);
+
+    // Current subscription snapshot
+    const [snapshot] = (await db.execute(sql`
+      SELECT
+        COUNT(*) FILTER (WHERE expires_at IS NOT NULL AND expires_at > NOW()) AS active_subscriptions,
+        COUNT(*) FILTER (WHERE expires_at IS NOT NULL AND expires_at <= NOW()) AS expired_subscriptions,
+        COUNT(*) FILTER (WHERE expires_at IS NULL) AS permanent_enrollments
+      FROM enrollments
+    `)).rows;
+
+    // Merge series on week key
+    const byWeek = new Map<string, any>();
+    const merge = (rows: any[], fields: string[]) => {
+      for (const row of rows) {
+        const key = String(row.week);
+        const entry = byWeek.get(key) || { week: key, revenue: 0, payments: 0, enrollments: 0, renewals: 0, expirations: 0 };
+        for (const f of fields) entry[f] = Number(row[f] ?? 0);
+        byWeek.set(key, entry);
+      }
+    };
+    merge((revenue as any).rows, ["revenue", "payments"]);
+    merge((enrollments as any).rows, ["enrollments"]);
+    merge((renewals as any).rows, ["renewals"]);
+    merge((expirations as any).rows, ["expirations"]);
+
+    const series = [...byWeek.values()].sort((a, b) => a.week.localeCompare(b.week));
+
+    res.json({ weeks, series, snapshot });
+  } catch (err: any) {
+    res.status(500).json({ error: "Server error", message: err.message });
+  }
+});
+
 // ─── SETTINGS ─────────────────────────────────────────────────────────────────
 
 router.get("/settings", async (_req, res) => {
@@ -1047,6 +1123,225 @@ router.post("/tutoring-reviews/:id/partial-approve", async (req, res) => {
     const adminId = (req as any).user.userId;
     await logAudit({ adminId, action: "tutoring.partial_approved", targetType: "tutoring_request", targetId: requestId, details: { teacherAmount: approvedTeacherAmount, refundAmount, totalAmount: total }, ip: req.ip });
     res.json({ success: true, status: "partially_approved" });
+  } catch (err: any) {
+    res.status(500).json({ error: "Server error", message: err.message });
+  }
+});
+
+// ─── TEACHER CERTIFICATE APPROVAL ─────────────────────────────────────────────
+
+router.post("/users/:userId/certificates-approval", async (req, res) => {
+  try {
+    const adminId = (req as any).user.userId;
+    const userId = parseInt(req.params.userId);
+    const approved = req.body.approved === true || req.body.approved === "true";
+
+    const [target] = await db.select().from(usersTable).where(eq(usersTable.id, userId)).limit(1);
+    if (!target) { res.status(404).json({ error: "User not found" }); return; }
+    if (target.role !== "teacher") { res.status(400).json({ error: "Only teachers can be certificate-approved" }); return; }
+
+    await db.update(usersTable)
+      .set({ certificatesApproved: approved, updatedAt: new Date() })
+      .where(eq(usersTable.id, userId));
+
+    await db.insert(notificationsTable).values({
+      userId,
+      type: "system_alert",
+      title: approved ? "Certificate Issuing Approved" : "Certificate Issuing Revoked",
+      titleAr: approved ? "تم اعتمادك لإصدار الشهادات" : "تم إلغاء اعتماد إصدار الشهادات",
+      message: approved
+        ? "You can now enable completion certificates on your courses."
+        : "Your permission to issue course certificates has been revoked.",
+      messageAr: approved
+        ? "يمكنك الآن تفعيل شهادات الإتمام في دوراتك."
+        : "تم إلغاء صلاحيتك لإصدار شهادات الدورات.",
+    });
+
+    await logAudit({ adminId, action: approved ? "teacher.certificates_approved" : "teacher.certificates_revoked", targetType: "user", targetId: userId, ip: req.ip });
+    res.json({ success: true, certificatesApproved: approved });
+  } catch (err: any) {
+    res.status(500).json({ error: "Server error", message: err.message });
+  }
+});
+
+// ─── REFUND REQUESTS (admin review with watch stats) ─────────────────────────
+
+router.get("/refund-requests", async (req, res) => {
+  try {
+    const { refundRequestsTable, progressTable, lessonProgressTable } = await import("@workspace/db");
+    const status = (req.query.status as string) || "pending";
+
+    const requests = await db
+      .select({
+        request: refundRequestsTable,
+        student: { id: usersTable.id, fullName: usersTable.fullName, email: usersTable.email },
+        course: { id: coursesTable.id, title: coursesTable.title, titleAr: coursesTable.titleAr },
+      })
+      .from(refundRequestsTable)
+      .innerJoin(usersTable, eq(refundRequestsTable.userId, usersTable.id))
+      .innerJoin(coursesTable, eq(refundRequestsTable.courseId, coursesTable.id))
+      .where(["pending", "approved", "rejected"].includes(status)
+        ? eq(refundRequestsTable.status, status as any)
+        : undefined)
+      .orderBy(desc(refundRequestsTable.createdAt));
+
+    // Attach watch statistics so the admin can judge how much was consumed
+    const withStats = await Promise.all(requests.map(async (row) => {
+      const [totalLessons] = await db.select({ total: count() }).from(lessonsTable)
+        .where(eq(lessonsTable.courseId, row.request.courseId));
+      // Lessons the student OPENED (any watch record)
+      const [opened] = await db.select({ total: count() }).from(progressTable)
+        .where(and(eq(progressTable.userId, row.request.userId), eq(progressTable.courseId, row.request.courseId)));
+      // Lessons marked COMPLETED
+      const [completed] = await db.select({ total: count() }).from(lessonProgressTable)
+        .where(and(
+          eq(lessonProgressTable.userId, row.request.userId),
+          eq(lessonProgressTable.courseId, row.request.courseId),
+          eq(lessonProgressTable.completed, true),
+        ));
+      // Total seconds actually watched across the course
+      const [watched] = await db.select({ total: sql<number>`COALESCE(SUM(${progressTable.watchedSeconds}), 0)` })
+        .from(progressTable)
+        .where(and(eq(progressTable.userId, row.request.userId), eq(progressTable.courseId, row.request.courseId)));
+
+      return {
+        ...row,
+        watchStats: {
+          totalLessons: Number(totalLessons.total),
+          lessonsOpened: Number(opened.total),
+          lessonsCompleted: Number(completed.total),
+          totalWatchedSeconds: Number(watched.total || 0),
+        },
+      };
+    }));
+
+    res.json(withStats);
+  } catch (err: any) {
+    res.status(500).json({ error: "Server error", message: err.message });
+  }
+});
+
+// Approve: refund to wallet, revoke access, reverse teacher earnings
+router.post("/refund-requests/:id/approve", async (req, res) => {
+  try {
+    const adminId = (req as any).user.userId;
+    const id = parseInt(req.params.id);
+    const { adminNotes } = req.body || {};
+    const { refundRequestsTable, walletTransactionsTable } = await import("@workspace/db");
+
+    const [request] = await db.select().from(refundRequestsTable).where(eq(refundRequestsTable.id, id)).limit(1);
+    if (!request) { res.status(404).json({ error: "Request not found" }); return; }
+    if (request.status !== "pending") { res.status(400).json({ error: "Request already reviewed" }); return; }
+
+    const [payment] = await db.select().from(paymentsTable).where(eq(paymentsTable.id, request.paymentId)).limit(1);
+    if (!payment) { res.status(404).json({ error: "Payment not found" }); return; }
+    const [course] = await db.select().from(coursesTable).where(eq(coursesTable.id, request.courseId)).limit(1);
+    const amount = parseFloat(request.amount);
+
+    await db.transaction(async (tx) => {
+      // 1. Credit the student's wallet
+      const [student] = await tx.select().from(usersTable).where(eq(usersTable.id, request.userId)).limit(1);
+      const newBalance = (parseFloat(student.balance as string) || 0) + amount;
+      await tx.update(usersTable)
+        .set({ balance: newBalance.toFixed(2), updatedAt: new Date() })
+        .where(eq(usersTable.id, request.userId));
+      await tx.insert(walletTransactionsTable).values({
+        userId: request.userId,
+        amount: amount.toFixed(2),
+        type: "credit",
+        referenceType: "refund",
+        referenceId: request.id,
+        description: `Refund approved – ${course?.title ?? `course #${request.courseId}`}`,
+      });
+
+      // 2. Mark payment refunded
+      await tx.update(paymentsTable)
+        .set({ status: "refunded", updatedAt: new Date() })
+        .where(eq(paymentsTable.id, payment.id));
+
+      // 3. Revoke access (expire the enrollment immediately)
+      if (request.enrollmentId) {
+        await tx.update(enrollmentsTable)
+          .set({ expiresAt: new Date() })
+          .where(eq(enrollmentsTable.id, request.enrollmentId));
+      }
+
+      // 4. Reverse teacher earnings: negative earnings row + balance deduction
+      const [earning] = await tx.select().from(teacherEarningsTable)
+        .where(eq(teacherEarningsTable.paymentId, payment.id)).limit(1);
+      if (earning) {
+        const net = parseFloat(earning.netAmount);
+        await tx.insert(teacherEarningsTable).values({
+          teacherId: earning.teacherId,
+          paymentId: payment.id,
+          courseId: earning.courseId,
+          grossAmount: (-parseFloat(earning.grossAmount)).toFixed(2),
+          platformFeePercent: earning.platformFeePercent,
+          platformFee: (-parseFloat(earning.platformFee)).toFixed(2),
+          netAmount: (-net).toFixed(2),
+          currency: earning.currency,
+          status: "available",
+        });
+        const [teacher] = await tx.select().from(usersTable).where(eq(usersTable.id, earning.teacherId)).limit(1);
+        if (teacher) {
+          const teacherBalance = (parseFloat(teacher.balance as string) || 0) - net;
+          await tx.update(usersTable)
+            .set({ balance: teacherBalance.toFixed(2), updatedAt: new Date() })
+            .where(eq(usersTable.id, earning.teacherId));
+        }
+      }
+
+      // 5. Mark request approved
+      await tx.update(refundRequestsTable)
+        .set({ status: "approved", adminNotes: adminNotes || null, reviewedBy: adminId, reviewedAt: new Date() })
+        .where(eq(refundRequestsTable.id, id));
+    });
+
+    // Notify the student
+    await db.insert(notificationsTable).values({
+      userId: request.userId,
+      type: "system_alert",
+      title: "Refund Approved",
+      titleAr: "تمت الموافقة على الاسترجاع",
+      message: `Your refund of ${amount.toFixed(2)} LYD was approved and added to your wallet. Course access has been revoked.`,
+      messageAr: `تمت الموافقة على استرجاع ${amount.toFixed(2)} د.ل وأُضيف إلى محفظتك. تم إلغاء الوصول إلى الدورة.`,
+      referenceId: request.courseId,
+    });
+
+    await logAudit({ adminId, action: "refund.approved", targetType: "refund_request", targetId: id, details: { amount }, ip: req.ip });
+    res.json({ success: true });
+  } catch (err: any) {
+    res.status(500).json({ error: "Server error", message: err.message });
+  }
+});
+
+router.post("/refund-requests/:id/reject", async (req, res) => {
+  try {
+    const adminId = (req as any).user.userId;
+    const id = parseInt(req.params.id);
+    const { adminNotes } = req.body || {};
+    const { refundRequestsTable } = await import("@workspace/db");
+
+    const [request] = await db.select().from(refundRequestsTable).where(eq(refundRequestsTable.id, id)).limit(1);
+    if (!request) { res.status(404).json({ error: "Request not found" }); return; }
+    if (request.status !== "pending") { res.status(400).json({ error: "Request already reviewed" }); return; }
+
+    await db.update(refundRequestsTable)
+      .set({ status: "rejected", adminNotes: adminNotes || null, reviewedBy: adminId, reviewedAt: new Date() })
+      .where(eq(refundRequestsTable.id, id));
+
+    await db.insert(notificationsTable).values({
+      userId: request.userId,
+      type: "system_alert",
+      title: "Refund Request Declined",
+      titleAr: "تم رفض طلب الاسترجاع",
+      message: adminNotes ? `Your refund request was declined: ${adminNotes}` : "Your refund request was declined after review.",
+      messageAr: adminNotes ? `تم رفض طلب الاسترجاع: ${adminNotes}` : "تم رفض طلب الاسترجاع بعد المراجعة.",
+      referenceId: request.courseId,
+    });
+
+    await logAudit({ adminId, action: "refund.rejected", targetType: "refund_request", targetId: id, ip: req.ip });
+    res.json({ success: true });
   } catch (err: any) {
     res.status(500).json({ error: "Server error", message: err.message });
   }

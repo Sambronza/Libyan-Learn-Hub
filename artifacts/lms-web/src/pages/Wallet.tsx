@@ -215,6 +215,12 @@ export default function Wallet() {
     queryFn: () => api.get(buildWalletQuery(filterFrom, filterTo)),
   });
 
+  // Referral code (lazily generated server-side)
+  const { data: referralData } = useQuery({
+    queryKey: ["referral-code"],
+    queryFn: () => api.get("/coupons/referral/my-code"),
+  });
+
   // Recharge-only transactions
   const {
     data: rechargeData,
@@ -352,6 +358,30 @@ export default function Wallet() {
                 </form>
               </CardContent>
             </Card>
+
+            {/* Referral code */}
+            {referralData?.code && (
+              <Card>
+                <CardContent className="pt-6">
+                  <p className="text-sm font-bold mb-1">🎁 Invite friends, earn credit</p>
+                  <p className="text-xs text-muted-foreground mb-3">{referralData.message}</p>
+                  <div className="flex gap-2">
+                    <code className="flex-1 bg-muted rounded-lg px-3 py-2 text-center font-mono font-bold tracking-widest">
+                      {referralData.code}
+                    </code>
+                    <Button
+                      variant="outline"
+                      onClick={() => {
+                        navigator.clipboard?.writeText(referralData.code);
+                        toast({ title: "Referral code copied!" });
+                      }}
+                    >
+                      Copy
+                    </Button>
+                  </div>
+                </CardContent>
+              </Card>
+            )}
 
             {/* Quick Stats */}
             {transactions.length > 0 && (

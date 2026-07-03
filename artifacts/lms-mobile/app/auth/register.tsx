@@ -27,6 +27,7 @@ export default function RegisterScreen() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [role, setRole] = useState<Role>("student");
+  const [referralCode, setReferralCode] = useState("");
   const [showPwd, setShowPwd] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
@@ -39,7 +40,7 @@ export default function RegisterScreen() {
     setLoading(true);
     setError("");
     try {
-      await register({ fullName, email: email.trim(), password, role });
+      await register({ fullName, email: email.trim(), password, role, ...(referralCode.trim() ? { referralCode: referralCode.trim().toUpperCase() } : {}) });
       if (role === "student") {
         // Students enroll their face at signup (device/identity security)
         router.replace({ pathname: "/auth/face-capture" as any, params: { mode: "enroll" } });
@@ -147,6 +148,21 @@ export default function RegisterScreen() {
               onChangeText={setPassword}
               secureTextEntry={!showPwd}
               textContentType="newPassword"
+            />
+          </View>
+        </View>
+
+        <View style={styles.field}>
+          <Text style={styles.label}>رمز الإحالة (اختياري)</Text>
+          <View style={styles.inputWrap}>
+            <Feather name="gift" size={18} color={C.textMuted} />
+            <TextInput
+              style={styles.input}
+              placeholder="REF…"
+              placeholderTextColor={C.textMuted}
+              value={referralCode}
+              onChangeText={setReferralCode}
+              autoCapitalize="characters"
             />
           </View>
         </View>

@@ -107,6 +107,16 @@ export default function LessonViewerScreen() {
     queryFn: () => apiFetch(`/courses/${courseId}/lessons`),
   });
 
+  // Certificate courses: no skipping / fast-forward allowed
+  const { data: courseInfo } = useQuery<any>({
+    queryKey: ["course", courseId],
+    queryFn: () => apiFetch(`/courses/${courseId}`),
+    enabled: !!courseId,
+  });
+  const antiSkip = courseInfo?.certificateMode && courseInfo.certificateMode !== "none";
+  // Furthest point reached by real playback (ms)
+  const maxWatchedMsRef = useRef((lesson?.watchedSeconds || 0) * 1000);
+
   const progressMutation = useMutation({
     mutationFn: (data: { isCompleted: boolean; watchedSeconds: number }) =>
       apiFetch(`/progress/${courseId}/${lessonId}`, {
@@ -222,11 +232,29 @@ export default function LessonViewerScreen() {
                     progressUpdateIntervalMillis={10000}
                     onLoad={() => {
                       if (lesson.watchedSeconds && lesson.watchedSeconds > 0) {
+                        maxWatchedMsRef.current = Math.max(maxWatchedMsRef.current, lesson.watchedSeconds * 1000);
                         videoRef.current?.setPositionAsync(lesson.watchedSeconds * 1000);
                       }
                     }}
                     onPlaybackStatusUpdate={(status: any) => {
                       setVideoStatus(status);
+                      // Anti-skip enforcement for certificate courses:
+                      // playback advances the ceiling; seeking past it snaps back.
+                      if (antiSkip && status.isLoaded) {
+                        const pos = status.positionMillis ?? 0;
+                        if (pos > maxWatchedMsRef.current) {
+                          if (pos - maxWatchedMsRef.current <= 12000) {
+                            // Normal playback advance (interval is 10s)
+                            maxWatchedMsRef.current = pos;
+                          } else {
+                            // Jumped ahead — snap back to the watched ceiling
+                            videoRef.current?.setPositionAsync(maxWatchedMsRef.current);
+                          }
+                        }
+                        if (status.rate && status.rate > 1) {
+                          videoRef.current?.setRateAsync(1, true);
+                        }
+                      }
                       if (status.isLoaded) {
                         const isCompleteCheck = status.positionMillis > (lesson.duration * 60 * 1000 * 0.9);
                         if (status.isPlaying) {
