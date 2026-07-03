@@ -42,6 +42,11 @@ export default function Checkout() {
   })();
   const [duration, setDuration] = useState<number>(initialDuration);
 
+  // Coupon
+  const [couponCode, setCouponCode] = useState('');
+  const [coupon, setCoupon] = useState<{ discount: number; finalAmount: number } | null>(null);
+  const [couponError, setCouponError] = useState('');
+
   const { data: item } = useQuery({
     queryKey: [type, id],
     queryFn: async () => {
@@ -72,7 +77,11 @@ export default function Checkout() {
       const res = await fetch(`${API_BASE}/payments/create-session`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-        body: JSON.stringify({ type, itemId: id, method, ...(type === 'course' ? { durationMonths: duration } : {}) }),
+        body: JSON.stringify({
+          type, itemId: id, method,
+          ...(type === 'course' ? { durationMonths: duration } : {}),
+          ...(coupon && couponCode ? { couponCode: couponCode.trim().toUpperCase() } : {}),
+        }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'Payment request failed');
@@ -103,7 +112,30 @@ export default function Checkout() {
     12: item?.priceMonth12 ?? null,
   };
   const hasPlans = isCourse && Object.values(planPrices).some(p => p !== null && p > 0);
-  const price = isCourse && hasPlans ? (planPrices[duration] ?? item?.price ?? 0) : (item?.price ?? 0);
+  const basePrice = isCourse && hasPlans ? (planPrices[duration] ?? item?.price ?? 0) : (item?.price ?? 0);
+  const price = coupon ? coupon.finalAmount : basePrice;
+
+  const applyCoupon = async () => {
+    setCouponError('');
+    setCoupon(null);
+    if (!couponCode.trim()) return;
+    try {
+      const token = localStorage.getItem('lms_token');
+      const res = await fetch(`${API_BASE}/coupons/validate`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ code: couponCode.trim().toUpperCase(), courseId: id, amount: basePrice }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        setCouponError(isAr ? (data.messageAr || data.error) : (data.message || data.error));
+        return;
+      }
+      setCoupon({ discount: data.discount, finalAmount: data.finalAmount });
+    } catch {
+      setCouponError(isAr ? 'تعذر التحقق من الرمز' : 'Could not validate the code');
+    }
+  };
   const title = isAr ? item?.titleAr : item?.title;
   const isFree = (item?.price ?? 0) === 0 && !hasPlans;
   const isRenewal = isCourse && item?.isEnrolled === true;
@@ -211,6 +243,27 @@ export default function Checkout() {
                         );
                       })}
                     </div>
+                  </div>
+                )}
+                {isCourse && !isFree && (
+                  <div className="mb-6">
+                    <div className="flex gap-2">
+                      <input
+                        value={couponCode}
+                        onChange={(e) => { setCouponCode(e.target.value); setCoupon(null); setCouponError(''); }}
+                        placeholder={isAr ? 'رمز الخصم (اختياري)' : 'Coupon code (optional)'}
+                        className="flex-1 h-11 px-4 rounded-xl border border-border bg-card text-sm uppercase"
+                      />
+                      <Button variant="outline" className="h-11 rounded-xl" onClick={applyCoupon}>
+                        {isAr ? 'تطبيق' : 'Apply'}
+                      </Button>
+                    </div>
+                    {coupon && (
+                      <p className="text-xs text-green-600 font-bold mt-2">
+                        {isAr ? `تم تطبيق الخصم: -${coupon.discount} د.ل — السعر الجديد ${coupon.finalAmount} د.ل` : `Discount applied: −${coupon.discount} LYD — new price ${coupon.finalAmount} LYD`}
+                      </p>
+                    )}
+                    {couponError && <p className="text-xs text-destructive mt-2">{couponError}</p>}
                   </div>
                 )}
                 <h2 className="text-xl font-display font-bold text-foreground mb-4">اختر طريقة الدفع</h2>

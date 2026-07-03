@@ -1,4 +1,4 @@
-import { pgTable, serial, text, varchar, boolean, timestamp, pgEnum, numeric, bigint } from "drizzle-orm/pg-core";
+import { pgTable, serial, text, varchar, boolean, timestamp, pgEnum, numeric, bigint, integer } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod/v4";
 
@@ -48,6 +48,12 @@ export const usersTable = pgTable("users", {
   sponsoredUntil: timestamp("sponsored_until"),
   balance: numeric("balance", { precision: 10, scale: 2 }).default("0.00").notNull(),
   passkeyHash: text("passkey_hash"),
+  // Referral program: each user gets a shareable code; referredBy links to the referrer
+  referralCode: varchar("referral_code", { length: 20 }).unique(),
+  referredBy: integer("referred_by"),
+  referralRewarded: boolean("referral_rewarded").notNull().default(false), // both sides credited already
+  // Certificates: only admin-approved teachers can enable certificates on their courses
+  certificatesApproved: boolean("certificates_approved").notNull().default(false),
   // Student device security
   accountBlocked: boolean("account_blocked").notNull().default(false),
   accountBlockedReason: varchar("account_blocked_reason", { length: 50 }), // "face_mismatch" | "admin"

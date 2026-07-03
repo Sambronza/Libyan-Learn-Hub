@@ -48,6 +48,7 @@ const AcademyApply = React.lazy(() => import("@/pages/AcademyApply"));
 const BiometricsSetup = React.lazy(() => import("@/pages/teacher/BiometricsSetup"));
 const TutoringRegistration = React.lazy(() => import("@/pages/teacher/TutoringRegistration"));
 const Wallet = React.lazy(() => import("@/pages/Wallet"));
+const Certificate = React.lazy(() => import("@/pages/Certificate"));
 const Checkout = React.lazy(() => import("@/pages/Checkout"));
 
 const queryClient = new QueryClient({
@@ -152,6 +153,7 @@ function Router() {
         <Route path="/teacher/tutoring-registration" component={TutoringRegistration} />
         <Route path="/admin/dashboard" component={AdminDashboard} />
         <Route path="/wallet" component={Wallet} />
+        <Route path="/certificate/:code" component={Certificate} />
         <Route path="/checkout/:type/:id" component={Checkout} />
         <Route component={NotFound} />
       </Switch>

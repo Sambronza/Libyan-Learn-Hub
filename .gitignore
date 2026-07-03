@@ -48,3 +48,16 @@ Thumbs.db
 .cache/
 .local/
 .env
+
+# Throwaway local files (delete when convenient)
+test_*.html
+test_*.json
+test.json
+token_test.json
+test_db.js
+scratch_*
+*.conf.lock
+19th_of_June.zip
+database_backup*.json
+.ai_context.md
+.antigravity_brain

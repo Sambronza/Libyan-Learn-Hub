@@ -162,6 +162,28 @@ export default function CourseDetailScreen() {
   });
 
   const [selectedDuration, setSelectedDuration] = useState<number>(1);
+  const [couponCode, setCouponCode] = useState("");
+  const [couponApplied, setCouponApplied] = useState<{ discount: number; finalAmount: number } | null>(null);
+
+  const applyCoupon = async () => {
+    if (!couponCode.trim() || !course) return;
+    try {
+      const basePrice =
+        (selectedDuration === 1 ? course.priceMonth1 ?? course.price :
+         selectedDuration === 3 ? course.priceMonth3 :
+         selectedDuration === 6 ? course.priceMonth6 :
+         course.priceMonth12) ?? course.price;
+      const data = await apiFetch("/coupons/validate", {
+        method: "POST",
+        body: JSON.stringify({ code: couponCode.trim().toUpperCase(), courseId: parseInt(id!), amount: basePrice }),
+      });
+      setCouponApplied({ discount: data.discount, finalAmount: data.finalAmount });
+      Alert.alert("تم ✓", `خصم ${data.discount} د.ل — السعر الجديد ${data.finalAmount} د.ل`);
+    } catch (e: any) {
+      setCouponApplied(null);
+      Alert.alert("رمز غير صالح", e.message);
+    }
+  };
 
   const enrollMutation = useMutation({
     mutationFn: async () => {
@@ -172,7 +194,12 @@ export default function CourseDetailScreen() {
         // Paid course -> subscription payment session for the chosen duration
         return apiFetch(`/payments/create-session`, {
           method: "POST",
-          body: JSON.stringify({ type: "course", itemId: parseInt(id!), durationMonths: selectedDuration }),
+          body: JSON.stringify({
+            type: "course",
+            itemId: parseInt(id!),
+            durationMonths: selectedDuration,
+            ...(couponApplied && couponCode ? { couponCode: couponCode.trim().toUpperCase() } : {}),
+          }),
         });
       }
     },
@@ -371,6 +398,11 @@ export default function CourseDetailScreen() {
         </View>
       </ScrollView>
 
+      {/* Certificate claim (certificate courses, enrolled students) */}
+      {course.isEnrolled && (course as any).certificateMode && (course as any).certificateMode !== "none" && (
+        <CertificateBar courseId={parseInt(id!)} apiFetch={apiFetch} apiBase={apiBase} />
+      )}
+
       {/* Subscription duration selector (paid courses) */}
       {course.price > 0 && !course.isEnrolled && (
         <View style={styles.planRow}>
@@ -399,13 +431,30 @@ export default function CourseDetailScreen() {
         </View>
       )}
 
+      {/* Coupon code (paid, not yet enrolled) */}
+      {course.price > 0 && !course.isEnrolled && (
+        <View style={{ flexDirection: "row-reverse", gap: 8, paddingHorizontal: 16, paddingVertical: 6, backgroundColor: C.card }}>
+          <TextInput
+            value={couponCode}
+            onChangeText={(v) => { setCouponCode(v); setCouponApplied(null); }}
+            placeholder="رمز الخصم (اختياري)"
+            placeholderTextColor={C.textMuted}
+            autoCapitalize="characters"
+            style={{ flex: 1, height: 40, borderWidth: 1, borderColor: C.cardBorder, borderRadius: 10, paddingHorizontal: 12, fontFamily: "Inter_400Regular", fontSize: 13, color: C.text, textAlign: "right" }}
+          />
+          <Pressable onPress={applyCoupon} style={{ height: 40, paddingHorizontal: 16, borderRadius: 10, backgroundColor: couponApplied ? "#22c55e" : C.tint, alignItems: "center", justifyContent: "center" }}>
+            <Text style={{ fontFamily: "Inter_700Bold", fontSize: 12, color: "#fff" }}>{couponApplied ? "✓" : "تطبيق"}</Text>
+          </Pressable>
+        </View>
+      )}
+
       {/* Bottom CTA */}
       <View style={[styles.bottomBar, { paddingBottom: bottomPad + 16 }]}>
         <View style={styles.priceArea}>
           <Text style={styles.price}>
             {course.price === 0
               ? "مجاني"
-              : `${(
+              : `${couponApplied?.finalAmount ?? (
                   (selectedDuration === 1 ? course.priceMonth1 ?? course.price :
                    selectedDuration === 3 ? course.priceMonth3 :
                    selectedDuration === 6 ? course.priceMonth6 :
@@ -415,9 +464,42 @@ export default function CourseDetailScreen() {
           {course.price > 0 && <Text style={styles.currency}>{course.currency}</Text>}
         </View>
         {course.isEnrolled ? (
-          <View style={styles.enrolledBadge}>
-            <Feather name="check-circle" size={18} color={C.tint} />
-            <Text style={styles.enrolledText}>مسجّل بالفعل</Text>
+          <View style={{ alignItems: "center", gap: 4 }}>
+            <View style={styles.enrolledBadge}>
+              <Feather name="check-circle" size={18} color={C.tint} />
+              <Text style={styles.enrolledText}>مسجّل بالفعل</Text>
+            </View>
+            {course.price > 0 && (
+              <Pressable
+                onPress={() => {
+                  Alert.alert(
+                    "طلب استرجاع المال",
+                    "هل تريد إرسال طلب استرجاع لهذه الدورة؟ ستتم مراجعته من الإدارة وسيُلغى وصولك للدورة عند الموافقة.",
+                    [
+                      { text: "إلغاء", style: "cancel" },
+                      {
+                        text: "إرسال الطلب",
+                        onPress: async () => {
+                          try {
+                            const data = await apiFetch("/payments/refund-requests", {
+                              method: "POST",
+                              body: JSON.stringify({ courseId: parseInt(id!) }),
+                            });
+                            Alert.alert("تم", data.messageAr || data.message);
+                          } catch (e: any) {
+                            Alert.alert("خطأ", e.message);
+                          }
+                        },
+                      },
+                    ],
+                  );
+                }}
+              >
+                <Text style={{ fontFamily: "Inter_400Regular", fontSize: 11, color: C.textMuted, textDecorationLine: "underline" }}>
+                  طلب استرجاع المال
+                </Text>
+              </Pressable>
+            )}
           </View>
         ) : (
           <Pressable
@@ -619,3 +701,70 @@ const styles = StyleSheet.create({
   reviewStars: { flexDirection: "row-reverse", gap: 2 },
   reviewCommentText: { fontFamily: "Inter_400Regular", fontSize: 13, color: C.textSecondary, textAlign: "right", lineHeight: 20 },
 });
+
+// ─── Certificate claim bar (certificate courses) ──────────────────────────────
+function CertificateBar({ courseId, apiFetch, apiBase }: { courseId: number; apiFetch: any; apiBase: string }) {
+  const [state, setState] = React.useState<any>(null);
+  const [busy, setBusy] = React.useState(false);
+
+  const load = React.useCallback(() => {
+    apiFetch(`/certificates/courses/${courseId}/eligibility`)
+      .then(setState)
+      .catch(() => setState(null));
+  }, [courseId]);
+
+  React.useEffect(load, [load]);
+
+  if (!state?.available) return null;
+
+  const host = apiBase.replace("/api", "");
+
+  const openCertificate = (code: string) => {
+    Linking.openURL(`${host}/certificate/${code}`);
+  };
+
+  const claim = async () => {
+    setBusy(true);
+    try {
+      const data = await apiFetch(`/certificates/courses/${courseId}/issue`, { method: "POST" });
+      if (data?.certificate?.code) {
+        Alert.alert("🎓 مبروك!", "حصلت على شهادة إتمام الدورة.", [
+          { text: "عرض الشهادة", onPress: () => openCertificate(data.certificate.code) },
+          { text: "لاحقًا", style: "cancel" },
+        ]);
+        load();
+      }
+    } catch (e: any) {
+      Alert.alert("غير مؤهل بعد", e.message);
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <View style={{ paddingHorizontal: 16, paddingVertical: 8, backgroundColor: C.card, borderTopWidth: 1, borderTopColor: C.cardBorder }}>
+      {state.issued && state.certificate ? (
+        <Pressable
+          onPress={() => openCertificate(state.certificate.code)}
+          style={{ backgroundColor: "#fef3c7", borderRadius: 12, padding: 12, alignItems: "center" }}
+        >
+          <Text style={{ fontFamily: "Inter_700Bold", fontSize: 13, color: "#b45309" }}>🎓 عرض شهادتك</Text>
+        </Pressable>
+      ) : state.eligible ? (
+        <Pressable
+          onPress={claim}
+          disabled={busy}
+          style={{ backgroundColor: "#f59e0b", borderRadius: 12, padding: 12, alignItems: "center", opacity: busy ? 0.6 : 1 }}
+        >
+          <Text style={{ fontFamily: "Inter_700Bold", fontSize: 13, color: "#fff" }}>
+            {busy ? "..." : "🎓 احصل على شهادتك الآن"}
+          </Text>
+        </Pressable>
+      ) : (
+        <Text style={{ fontFamily: "Inter_400Regular", fontSize: 11, color: C.textMuted, textAlign: "center" }}>
+          🎓 دورة بشهادة — شاهد كل الدروس كاملة{state.mode === "quiz" ? " واجتز الاختبار النهائي" : ""} ({state.watch?.fullyWatched ?? 0}/{state.watch?.totalLessons ?? 0})
+        </Text>
+      )}
+    </View>
+  );
+}

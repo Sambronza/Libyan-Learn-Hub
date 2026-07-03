@@ -145,6 +145,7 @@ router.get("/", async (_req, res) => {
         expertise: t.expertise,
         avatarUrl: t.avatarUrl,
         isVerified: t.isVerified,
+        certificatesApproved: t.certificatesApproved,
         isTutoringEnabled: t.isTutoringEnabled,
         tutoringHourlyRate: parseFloat(t.tutoringHourlyRate || "0"),
         isSponsored: t.isSponsored && t.sponsoredUntil && new Date(t.sponsoredUntil) > new Date(),

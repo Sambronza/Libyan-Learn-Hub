@@ -11,11 +11,12 @@ import {
   notificationsTable,
   sectionsTable,
 } from "@workspace/db";
-import { eq, and, ilike, count, avg, sum, sql, desc } from "drizzle-orm";
+import { eq, and, or, ilike, count, avg, sum, sql, desc } from "drizzle-orm";
 import { requireAuth, requireRole } from "../lib/auth.js";
 import { parseParam } from "../lib/utils.js";
 import { deleteFromCloudinaryByUrl } from "../lib/cloudinary.js";
 import { parsePlanPrices, hasIncompletePlanPrices } from "../lib/subscriptions.js";
+import { searchCondition } from "../lib/search.js";
 
 const router = Router();
 
@@ -45,6 +46,7 @@ function buildCourseResult(course: any, teacher: any, reviewData: any, enrollCou
     lessonCount: Number(lessonData?.lessonCount || 0),
     totalDuration: Number(lessonData?.totalDuration || 0),
     isPublished: course.isPublished,
+    certificateMode: course.certificateMode ?? "none",
     createdAt: course.createdAt,
   };
 }
@@ -67,7 +69,17 @@ router.get("/", async (req, res) => {
     if (level) conditions.push(eq(coursesTable.level, level));
     if (language) conditions.push(eq(coursesTable.language, language));
     if (teacherId) conditions.push(eq(coursesTable.teacherId, parseInt(teacherId)));
-    if (search) conditions.push(ilike(coursesTable.title, `%${search}%`));
+    if (search) {
+      // Arabic-normalized multi-field search: EN/AR titles + descriptions
+      conditions.push(
+        or(
+          searchCondition(coursesTable.title, search),
+          searchCondition(coursesTable.titleAr, search),
+          searchCondition(coursesTable.description, search),
+          searchCondition(coursesTable.descriptionAr, search),
+        )!,
+      );
+    }
 
     const allCourses = await db
       .select()
@@ -355,8 +367,30 @@ router.put("/:courseId", requireAuth, requireRole("teacher", "admin"), async (re
       pricingValues = planPrices.values!;
     }
 
+    // Certificate mode: only certificate-approved teachers may enable it
+    let certificateValues = {};
+    if (req.body.certificateMode !== undefined) {
+      const mode = req.body.certificateMode;
+      if (!["none", "completion", "quiz"].includes(mode)) {
+        res.status(400).json({ error: "Invalid certificateMode" });
+        return;
+      }
+      if (mode !== "none") {
+        const [owner] = await db.select().from(usersTable).where(eq(usersTable.id, course.teacherId)).limit(1);
+        if (!owner?.certificatesApproved && role !== "admin") {
+          res.status(403).json({
+            error: "Not approved for certificates",
+            message: "You must be approved by an administrator before enabling certificates on a course.",
+            messageAr: "يجب اعتمادك من المشرف قبل تفعيل الشهادات في الدورة.",
+          });
+          return;
+        }
+      }
+      certificateValues = { certificateMode: mode };
+    }
+
     const [updated] = await db.update(coursesTable)
-      .set({ title, titleAr, description, descriptionAr, thumbnailUrl, ...pricingValues, level, language, categoryId, updatedAt: new Date() })
+      .set({ title, titleAr, description, descriptionAr, thumbnailUrl, ...pricingValues, ...certificateValues, level, language, categoryId, updatedAt: new Date() })
       .where(eq(coursesTable.id, courseId))
       .returning();
 

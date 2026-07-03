@@ -134,6 +134,8 @@ export default function AdminDashboard() {
             <TabsTrigger value="reports" className="gap-2"><Flag className="w-4 h-4" /> Reports</TabsTrigger>
             <TabsTrigger value="dmca" className="gap-2"><ShieldAlert className="w-4 h-4" /> DMCA</TabsTrigger>
             <TabsTrigger value="device_security" className="gap-2"><ShieldAlert className="w-4 h-4" /> Device Security</TabsTrigger>
+            <TabsTrigger value="refunds" className="gap-2"><Banknote className="w-4 h-4" /> Refunds</TabsTrigger>
+            <TabsTrigger value="analytics" className="gap-2"><DollarSign className="w-4 h-4" /> Analytics</TabsTrigger>
             <TabsTrigger value="academy" className="gap-2 text-amber-600"><School className="w-4 h-4 text-amber-500" /> Academy</TabsTrigger>
             <TabsTrigger value="settings" className="gap-2"><Settings className="w-4 h-4" /> Settings</TabsTrigger>
           </TabsList>
@@ -151,6 +153,8 @@ export default function AdminDashboard() {
           <TabsContent value="reports"><ReportsTab api={api} queryClient={queryClient} toast={toast} /></TabsContent>
           <TabsContent value="dmca"><DMCAComplaintsTab api={api} queryClient={queryClient} toast={toast} /></TabsContent>
           <TabsContent value="device_security"><DeviceSecurityTab api={api} toast={toast} /></TabsContent>
+          <TabsContent value="refunds"><RefundsTab api={api} toast={toast} /></TabsContent>
+          <TabsContent value="analytics"><AnalyticsTab api={api} /></TabsContent>
           <TabsContent value="academy"><AcademyAdminTab api={api} queryClient={queryClient} toast={toast} /></TabsContent>
           <TabsContent value="settings"><SettingsTab api={api} queryClient={queryClient} toast={toast} /></TabsContent>
         </Tabs>
@@ -1028,6 +1032,16 @@ function TeachersManagementTab({ api, queryClient, toast }: any) {
     } catch {}
   };
 
+  const toggleCertificates = async (teacherId: number, current: boolean) => {
+    try {
+      await api.post(`/admin/users/${teacherId}/certificates-approval`, { approved: !current });
+      queryClient.invalidateQueries({ queryKey: ['/api/teachers'] });
+      toast({ title: current ? 'Certificate approval revoked' : 'Teacher approved for certificates 🎓' });
+    } catch (err: any) {
+      toast({ title: err.message || 'Failed', variant: 'destructive' });
+    }
+  };
+
   const payAllTeacher = async (teacherId: number, name: string) => {
     if (!confirm(`Pay all available earnings to ${name}?`)) return;
     try {
@@ -1112,6 +1126,14 @@ function TeachersManagementTab({ api, queryClient, toast }: any) {
                   >
                     <BadgeCheck className="w-3 h-3" />
                     {teacher.isVerified ? 'Verified' : 'Verify'}
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant={teacher.certificatesApproved ? 'outline' : 'secondary'}
+                    className={`gap-1 text-xs ${teacher.certificatesApproved ? 'border-amber-500 text-amber-600' : ''}`}
+                    onClick={() => toggleCertificates(teacher.id, teacher.certificatesApproved)}
+                  >
+                    🎓 {teacher.certificatesApproved ? 'Certificates ✓' : 'Allow Certificates'}
                   </Button>
                   <Button
                     size="sm"
@@ -2693,6 +2715,216 @@ function DeviceSecurityTab({ api, toast }: any) {
           ))}
         </div>
       )}
+    </div>
+  );
+}
+
+// ─── Refunds Tab (admin review with watch statistics) ─────────────────────────
+function RefundsTab({ api, toast }: any) {
+  const [requests, setRequests] = useState<any[]>([]);
+  const [statusFilter, setStatusFilter] = useState('pending');
+  const [loading, setLoading] = useState(true);
+  const [busyId, setBusyId] = useState<number | null>(null);
+
+  const load = () => {
+    setLoading(true);
+    api.get(`/admin/refund-requests?status=${statusFilter}`)
+      .then((data: any) => setRequests(Array.isArray(data) ? data : []))
+      .catch(() => setRequests([]))
+      .finally(() => setLoading(false));
+  };
+
+  useEffect(load, [statusFilter]);
+
+  const review = async (id: number, action: 'approve' | 'reject') => {
+    const adminNotes = window.prompt(action === 'approve' ? 'Optional note for the approval:' : 'Reason for rejection (shown to the student):') || undefined;
+    setBusyId(id);
+    try {
+      await api.post(`/admin/refund-requests/${id}/${action}`, { adminNotes });
+      toast({ title: action === 'approve' ? 'Refund approved — wallet credited, access revoked, teacher earnings reversed.' : 'Refund rejected.' });
+      load();
+    } catch (err: any) {
+      toast({ title: err.message || 'Action failed', variant: 'destructive' });
+    } finally {
+      setBusyId(null);
+    }
+  };
+
+  const fmtWatch = (secs: number) => {
+    const h = Math.floor(secs / 3600), m = Math.round((secs % 3600) / 60);
+    return h > 0 ? `${h}h ${m}m` : `${m}m`;
+  };
+
+  return (
+    <div className="space-y-6">
+      <div className="flex items-center justify-between">
+        <div>
+          <h3 className="text-lg font-display font-bold">Refund Requests</h3>
+          <p className="text-sm text-muted-foreground">
+            Watch statistics show how much of the course the student actually consumed before requesting a refund.
+          </p>
+        </div>
+        <select
+          value={statusFilter}
+          onChange={(e) => setStatusFilter(e.target.value)}
+          className="h-10 px-3 rounded-md border border-input bg-background text-sm"
+        >
+          <option value="pending">Pending</option>
+          <option value="approved">Approved</option>
+          <option value="rejected">Rejected</option>
+        </select>
+      </div>
+
+      {loading ? (
+        <div className="py-16 text-center text-muted-foreground">Loading…</div>
+      ) : requests.length === 0 ? (
+        <div className="py-16 text-center text-muted-foreground bg-card border border-border rounded-2xl">
+          No {statusFilter} refund requests.
+        </div>
+      ) : (
+        <div className="space-y-4">
+          {requests.map(({ request, student, course, watchStats }: any) => {
+            const openedPct = watchStats.totalLessons > 0 ? Math.round((watchStats.lessonsOpened / watchStats.totalLessons) * 100) : 0;
+            const completedPct = watchStats.totalLessons > 0 ? Math.round((watchStats.lessonsCompleted / watchStats.totalLessons) * 100) : 0;
+            return (
+              <div key={request.id} className="bg-card border border-border rounded-2xl p-5 shadow-sm">
+                <div className="flex flex-wrap items-start gap-6">
+                  <div className="flex-1 min-w-[220px]">
+                    <div className="font-bold text-foreground">{student.fullName}</div>
+                    <div className="text-xs text-muted-foreground mb-1">{student.email}</div>
+                    <div className="text-sm text-foreground font-medium">{course.title}</div>
+                    <div className="text-lg font-extrabold text-primary mt-1">{parseFloat(request.amount).toFixed(2)} LYD</div>
+                    {request.reason && (
+                      <div className="text-xs text-muted-foreground mt-2 bg-muted/50 rounded-lg p-2">
+                        “{request.reason}”
+                      </div>
+                    )}
+                    <div className="text-[11px] text-muted-foreground mt-2">
+                      Requested: {request.createdAt ? new Date(request.createdAt).toLocaleString() : '—'}
+                    </div>
+                  </div>
+
+                  {/* Watch statistics */}
+                  <div className="min-w-[220px] bg-muted/40 rounded-xl p-4 text-sm space-y-2">
+                    <div className="text-xs font-bold text-muted-foreground uppercase tracking-wider mb-1">Watch activity</div>
+                    <div className="flex justify-between">
+                      <span className="text-muted-foreground">Lessons opened</span>
+                      <span className="font-bold">{watchStats.lessonsOpened}/{watchStats.totalLessons} ({openedPct}%)</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-muted-foreground">Lessons completed</span>
+                      <span className="font-bold">{watchStats.lessonsCompleted}/{watchStats.totalLessons} ({completedPct}%)</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-muted-foreground">Total watch time</span>
+                      <span className="font-bold">{fmtWatch(watchStats.totalWatchedSeconds)}</span>
+                    </div>
+                    <div className={`text-[11px] font-bold mt-1 ${completedPct > 50 ? 'text-red-600' : completedPct > 20 ? 'text-amber-600' : 'text-green-600'}`}>
+                      {completedPct > 50 ? 'High consumption — refund questionable' : completedPct > 20 ? 'Moderate consumption' : 'Low consumption'}
+                    </div>
+                  </div>
+
+                  {request.status === 'pending' ? (
+                    <div className="flex flex-col gap-2 min-w-[130px]">
+                      <Button size="sm" disabled={busyId === request.id} onClick={() => review(request.id, 'approve')} className="bg-green-600 hover:bg-green-700 text-white">
+                        Approve refund
+                      </Button>
+                      <Button size="sm" variant="destructive" disabled={busyId === request.id} onClick={() => review(request.id, 'reject')}>
+                        Reject
+                      </Button>
+                    </div>
+                  ) : (
+                    <div className="min-w-[130px]">
+                      <span className={`px-3 py-1 rounded-full text-xs font-bold ${request.status === 'approved' ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>
+                        {request.status}
+                      </span>
+                      {request.adminNotes && <div className="text-[11px] text-muted-foreground mt-2">{request.adminNotes}</div>}
+                    </div>
+                  )}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ─── Analytics Tab (weekly time-series, dependency-free bar charts) ───────────
+function AnalyticsTab({ api }: any) {
+  const [data, setData] = useState<any>(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    api.get('/admin/analytics')
+      .then(setData)
+      .catch(() => setData(null))
+      .finally(() => setLoading(false));
+  }, []);
+
+  if (loading) return <div className="py-16 text-center text-muted-foreground">Loading analytics…</div>;
+  if (!data?.series) return <div className="py-16 text-center text-muted-foreground">Could not load analytics.</div>;
+
+  const series: any[] = data.series;
+  const snapshot = data.snapshot || {};
+
+  const BarChart = ({ title, field, color, format }: { title: string; field: string; color: string; format?: (v: number) => string }) => {
+    const max = Math.max(1, ...series.map((s) => s[field] || 0));
+    return (
+      <div className="bg-card border border-border rounded-2xl p-5 shadow-sm">
+        <h4 className="text-sm font-bold text-foreground mb-4">{title}</h4>
+        <div className="flex items-end gap-1.5 h-36">
+          {series.map((s) => {
+            const v = s[field] || 0;
+            return (
+              <div key={s.week + field} className="flex-1 flex flex-col items-center gap-1 group relative">
+                <div
+                  className={`w-full rounded-t-md ${color} transition-all group-hover:opacity-80`}
+                  style={{ height: `${Math.max(2, (v / max) * 100)}%` }}
+                />
+                <div className="absolute -top-6 hidden group-hover:block bg-foreground text-background text-[10px] font-bold px-1.5 py-0.5 rounded whitespace-nowrap z-10">
+                  {format ? format(v) : v}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+        <div className="flex justify-between text-[10px] text-muted-foreground mt-2">
+          <span>{series[0]?.week?.slice(5)}</span>
+          <span>{series[series.length - 1]?.week?.slice(5)}</span>
+        </div>
+      </div>
+    );
+  };
+
+  return (
+    <div className="space-y-6">
+      {/* Subscription snapshot */}
+      <div className="grid grid-cols-3 gap-4">
+        {[
+          { label: 'Active Subscriptions', value: snapshot.active_subscriptions ?? 0, color: 'text-green-600', bg: 'bg-green-100' },
+          { label: 'Expired Subscriptions', value: snapshot.expired_subscriptions ?? 0, color: 'text-red-600', bg: 'bg-red-100' },
+          { label: 'Permanent (free) Enrollments', value: snapshot.permanent_enrollments ?? 0, color: 'text-blue-600', bg: 'bg-blue-100' },
+        ].map((c) => (
+          <div key={c.label} className="bg-card border border-border rounded-2xl p-5 shadow-sm text-center">
+            <div className={`text-3xl font-extrabold ${c.color}`}>{c.value}</div>
+            <div className="text-xs text-muted-foreground mt-1">{c.label}</div>
+          </div>
+        ))}
+      </div>
+
+      {/* Weekly trends (last 12 weeks) */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+        <BarChart title="Weekly Revenue (LYD)" field="revenue" color="bg-primary" format={(v) => `${v.toFixed(0)} LYD`} />
+        <BarChart title="Weekly Enrollments" field="enrollments" color="bg-blue-500" />
+        <BarChart title="Weekly Renewals" field="renewals" color="bg-green-500" />
+        <BarChart title="Weekly Expirations" field="expirations" color="bg-red-400" />
+      </div>
+      <p className="text-xs text-muted-foreground">
+        Renewals vs expirations tells you whether the subscription pricing curve is retaining students — if expirations
+        consistently outpace renewals, consider adjusting plan prices or adding renewal incentives (coupons).
+      </p>
     </div>
   );
 }

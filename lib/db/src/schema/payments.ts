@@ -22,6 +22,8 @@ export const paymentsTable = pgTable("payments", {
   status: paymentStatusEnum("status").notNull().default("pending"),
   reference: varchar("reference", { length: 100 }),
   durationMonths: integer("duration_months"), // Subscription duration purchased (1|3|6|12); null for non-subscription payments
+  couponId: integer("coupon_id"), // applied coupon, if any
+  discountAmount: numeric("discount_amount", { precision: 10, scale: 2 }), // amount saved via coupon
   notes: text("notes"),
   createdAt: timestamp("created_at").notNull().defaultNow(),
   updatedAt: timestamp("updated_at").notNull().defaultNow(),

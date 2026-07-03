@@ -27,6 +27,8 @@ import {
   creditTeacherInTx,
   type SubscriptionDuration,
 } from "../lib/subscriptions.js";
+import { getActiveProvider } from "../lib/payment-providers.js";
+import { validateCoupon, recordCouponRedemption, processReferralBonus } from "../lib/promotions.js";
 
 const router = Router();
 
@@ -86,6 +88,7 @@ router.post("/create-session", requireAuth, async (req, res) => {
     let session = null;
     let liveCourse = null;
     let durationMonths: SubscriptionDuration | null = null;
+    let appliedCoupon: { id: number; discount: number } | null = null;
 
     if (type === "course") {
       [course] = await db.select().from(coursesTable).where(eq(coursesTable.id, itemId)).limit(1);
@@ -125,6 +128,17 @@ router.post("/create-session", requireAuth, async (req, res) => {
         }
         durationMonths = rawDuration;
         amount = planPrice;
+
+        // Optional coupon
+        if (typeof req.body.couponCode === "string" && req.body.couponCode.trim()) {
+          const validation = await validateCoupon(req.body.couponCode, userId, itemId, course.teacherId, amount);
+          if (!validation.ok) {
+            res.status(400).json(validation.error);
+            return;
+          }
+          appliedCoupon = { id: validation.coupon!.id, discount: validation.discount! };
+          amount = validation.finalAmount!;
+        }
       }
       currency = course.currency || "LYD";
     } else if (type === "session") {
@@ -182,11 +196,16 @@ router.post("/create-session", requireAuth, async (req, res) => {
           status: "completed",
           reference: `WALLET-${Date.now()}`,
           durationMonths,
+          couponId: appliedCoupon?.id ?? null,
+          discountAmount: appliedCoupon ? appliedCoupon.discount.toFixed(2) : null,
         }).returning();
 
         // Enroll or credit teacher
         if (type === "course" && course && durationMonths) {
           await applyCourseSubscription(tx, { userId, courseId: itemId, durationMonths, paymentId: payment.id });
+          if (appliedCoupon) {
+            await recordCouponRedemption(tx, { couponId: appliedCoupon.id, userId, paymentId: payment.id, discount: appliedCoupon.discount });
+          }
           await creditTeacherInTx(tx, {
             teacherId: course.teacherId,
             paymentId: payment.id,
@@ -220,6 +239,8 @@ router.post("/create-session", requireAuth, async (req, res) => {
           });
         }
       });
+      // Referral bonus on first completed purchase (best-effort, outside the tx)
+      processReferralBonus(userId).catch(() => {});
       return void res.json({ url: "/dashboard?success=true" });
     }
 
@@ -235,13 +256,16 @@ router.post("/create-session", requireAuth, async (req, res) => {
       status: "pending",
       reference: `SESS-${Date.now()}`,
       durationMonths,
+      couponId: appliedCoupon?.id ?? null,
+      discountAmount: appliedCoupon ? appliedCoupon.discount.toFixed(2) : null,
     }).returning();
 
-    // In a real integration (Stripe/Sadad), this URL is returned from the provider's API.
-    // Here we generate our local simulation URL.
-    const checkoutUrl = `/api/payments/mock-gateway?paymentId=${payment.id}`;
-    
-    res.json({ url: checkoutUrl });
+    // Route through the active payment provider (mock until the real
+    // Visa-online gateway credentials arrive — see lib/payment-providers.ts).
+    const provider = getActiveProvider();
+    const checkout = await provider.createCheckout(payment);
+
+    res.json({ url: checkout.url });
   } catch (err: any) {
     res.status(500).json({ error: "Server error", message: err.message });
   }
@@ -285,8 +309,9 @@ router.post("/upgrade-plan", requireAuth, async (req, res) => {
       reference: `UPGRADE-${targetTier}`,
     }).returning();
 
-    const checkoutUrl = `/api/payments/mock-gateway?paymentId=${payment.id}`;
-    res.json({ url: checkoutUrl, amount: difference });
+    const provider = getActiveProvider();
+    const checkout = await provider.createCheckout(payment);
+    res.json({ url: checkout.url, amount: difference });
   } catch (err: any) {
     res.status(500).json({ error: "Server error", message: err.message });
   }
@@ -374,6 +399,14 @@ router.get("/callback", requireAuth, async (req, res) => {
             durationMonths: payment.durationMonths,
             paymentId,
           });
+          if (payment.couponId && payment.discountAmount) {
+            await recordCouponRedemption(tx, {
+              couponId: payment.couponId,
+              userId: payment.userId,
+              paymentId,
+              discount: parseFloat(payment.discountAmount),
+            });
+          }
         } else {
           // Legacy/permanent enrollment (payments created before subscriptions)
           const alreadyEnrolled = await tx.select().from(enrollmentsTable)
@@ -415,10 +448,94 @@ router.get("/callback", requireAuth, async (req, res) => {
       }
     });
 
+    // Referral bonus on first completed purchase (best-effort)
+    if (!alreadyProcessed) {
+      processReferralBonus(payment.userId).catch(() => {});
+    }
+
     // Redirect to frontend success page
     res.redirect('/dashboard?success=true');
   } catch (err: any) {
     res.status(500).send("Server Error");
+  }
+});
+
+// ─── REFUND REQUESTS (student side) ───────────────────────────────────────────
+
+router.post("/refund-requests", requireAuth, async (req, res) => {
+  try {
+    const { userId } = (req as any).user;
+    const { courseId, reason } = req.body;
+    if (!courseId) { res.status(400).json({ error: "courseId is required" }); return; }
+
+    const { refundRequestsTable } = await import("@workspace/db");
+
+    const [enrollment] = await db.select().from(enrollmentsTable)
+      .where(and(eq(enrollmentsTable.courseId, courseId), eq(enrollmentsTable.userId, userId)))
+      .limit(1);
+    if (!enrollment) { res.status(404).json({ error: "You are not enrolled in this course" }); return; }
+    if (!enrollment.lastPaymentId) {
+      res.status(400).json({
+        error: "No refundable payment",
+        message: "This enrollment has no associated payment (free course).",
+        messageAr: "لا يوجد دفع مرتبط بهذا التسجيل (دورة مجانية).",
+      });
+      return;
+    }
+
+    const [payment] = await db.select().from(paymentsTable)
+      .where(eq(paymentsTable.id, enrollment.lastPaymentId)).limit(1);
+    if (!payment || payment.status !== "completed") {
+      res.status(400).json({ error: "No completed payment found for this enrollment" });
+      return;
+    }
+
+    // One pending request per course at a time
+    const [existing] = await db.select().from(refundRequestsTable)
+      .where(and(
+        eq(refundRequestsTable.userId, userId),
+        eq(refundRequestsTable.courseId, courseId),
+        eq(refundRequestsTable.status, "pending"),
+      )).limit(1);
+    if (existing) {
+      res.status(400).json({
+        error: "Refund already requested",
+        message: "You already have a pending refund request for this course.",
+        messageAr: "لديك بالفعل طلب استرجاع قيد المراجعة لهذه الدورة.",
+      });
+      return;
+    }
+
+    const [request] = await db.insert(refundRequestsTable).values({
+      userId,
+      courseId,
+      enrollmentId: enrollment.id,
+      paymentId: payment.id,
+      amount: payment.amount,
+      reason: reason || null,
+    }).returning();
+
+    res.status(201).json({
+      success: true,
+      request,
+      message: "Refund request submitted. An administrator will review it.",
+      messageAr: "تم إرسال طلب الاسترجاع. سيقوم المشرف بمراجعته.",
+    });
+  } catch (err: any) {
+    res.status(500).json({ error: "Server error", message: err.message });
+  }
+});
+
+router.get("/refund-requests/my", requireAuth, async (req, res) => {
+  try {
+    const { userId } = (req as any).user;
+    const { refundRequestsTable } = await import("@workspace/db");
+    const requests = await db.select().from(refundRequestsTable)
+      .where(eq(refundRequestsTable.userId, userId))
+      .orderBy(desc(refundRequestsTable.createdAt));
+    res.json(requests);
+  } catch (err: any) {
+    res.status(500).json({ error: "Server error", message: err.message });
   }
 });
 

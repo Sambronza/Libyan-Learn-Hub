@@ -33,7 +33,7 @@ export default function EditCourse() {
       title: '', titleAr: '', description: '', descriptionAr: '',
       price: 0, priceMonth3: 0, priceMonth6: 0, priceMonth12: 0,
       categoryId: '', level: 'beginner', language: 'ar',
-      thumbnailUrl: ''
+      thumbnailUrl: '', certificateMode: 'none'
     }
   });
 
@@ -52,6 +52,7 @@ export default function EditCourse() {
           priceMonth3: course.priceMonth3 ?? 0,
           priceMonth6: course.priceMonth6 ?? 0,
           priceMonth12: course.priceMonth12 ?? 0,
+          certificateMode: course.certificateMode || 'none',
           categoryId: String(course.categoryId),
           level: course.level,
           language: course.language,
@@ -162,6 +163,27 @@ export default function EditCourse() {
                 <Input type="number" min="0" step="0.5" {...courseForm.register('price', { valueAsNumber: true })} placeholder="0 = Free" className="h-11" />
               </div>
             </div>
+            {/* Certificate settings — only admin-approved teachers can enable */}
+            <div>
+              <label className="text-sm font-medium mb-1.5 block">Completion Certificate</label>
+              {(user as any)?.certificatesApproved ? (
+                <>
+                  <select {...courseForm.register('certificateMode')} className="w-full h-11 px-3 rounded-md border border-input bg-background text-sm">
+                    <option value="none">No certificate</option>
+                    <option value="completion">On full completion (all lessons watched, no skipping)</option>
+                    <option value="quiz">On completion + passing the final quiz</option>
+                  </select>
+                  <p className="text-xs text-muted-foreground mt-1">
+                    Certificate courses disable skipping/fast-forward in the player; students must watch every lesson fully.
+                  </p>
+                </>
+              ) : (
+                <div className="text-xs text-muted-foreground bg-muted/50 rounded-lg p-3">
+                  🎓 Certificates are available to approved teachers only. Contact the administration to get approved.
+                </div>
+              )}
+            </div>
+
             {(courseForm.watch('price') || 0) > 0 && (
               <div>
                 <p className="text-xs text-muted-foreground mb-2">

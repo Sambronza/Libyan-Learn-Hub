@@ -241,7 +241,15 @@ export default function Learn() {
                       startAt={lesson.watchedSeconds || 0}
                       onProgress={handleVideoProgress}
                       onEnded={handleEnded}
+                      antiSkip={(course as any)?.certificateMode && (course as any).certificateMode !== 'none'}
                     />
+                    {(course as any)?.certificateMode && (course as any).certificateMode !== 'none' && (
+                      <p className="text-xs text-muted-foreground mt-2 text-center">
+                        {language === 'ar'
+                          ? '🎓 دورة بشهادة — يجب مشاهدة الدروس كاملة بدون تخطي أو تسريع'
+                          : '🎓 Certificate course — lessons must be watched fully, no skipping or fast-forward'}
+                      </p>
+                    )}
                   </div>
                   <div className="mt-8 bg-card p-6 rounded-2xl border border-border shadow-sm">
                     <h3 className="font-display font-bold text-2xl mb-4">{language === 'ar' ? lesson.titleAr : lesson.title}</h3>
@@ -378,6 +386,9 @@ export default function Learn() {
             <div className="text-xs text-muted-foreground text-end">
               {Math.round(course.userProgress || 0)}% {language === 'ar' ? 'مكتمل' : 'Complete'}
             </div>
+            {(course as any)?.certificateMode && (course as any).certificateMode !== 'none' && (
+              <CertificateClaim courseId={courseId} language={language} />
+            )}
           </div>
 
           <div className="flex-1 overflow-y-auto p-2 space-y-1">
@@ -460,6 +471,77 @@ export default function Learn() {
             : 'You\'ve watched a few lessons — what do you think so far?'
         }
       />
+    </div>
+  );
+}
+
+// ─── Certificate claim widget (certificate courses only) ─────────────────────
+function CertificateClaim({ courseId, language }: { courseId: number; language: string }) {
+  const isAr = language === 'ar';
+  const [state, setState] = React.useState<any>(null);
+  const [busy, setBusy] = React.useState(false);
+
+  const load = React.useCallback(() => {
+    const token = localStorage.getItem('lms_token');
+    fetch(`/api/certificates/courses/${courseId}/eligibility`, {
+      headers: token ? { Authorization: `Bearer ${token}` } : {},
+    })
+      .then((r) => r.json())
+      .then(setState)
+      .catch(() => setState(null));
+  }, [courseId]);
+
+  React.useEffect(load, [load]);
+
+  if (!state?.available) return null;
+
+  if (state.issued && state.certificate) {
+    return (
+      <a
+        href={`${import.meta.env.BASE_URL.replace(/\/$/, '')}/certificate/${state.certificate.code}`}
+        className="mt-3 flex items-center justify-center gap-2 w-full py-2 rounded-xl bg-amber-500/10 border border-amber-500/40 text-amber-600 text-xs font-bold hover:bg-amber-500/20 transition-colors"
+      >
+        🎓 {isAr ? 'عرض شهادتك' : 'View your certificate'}
+      </a>
+    );
+  }
+
+  const claim = async () => {
+    setBusy(true);
+    try {
+      const token = localStorage.getItem('lms_token');
+      const res = await fetch(`/api/certificates/courses/${courseId}/issue`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', ...(token ? { Authorization: `Bearer ${token}` } : {}) },
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        alert(isAr ? (data.messageAr || data.error) : (data.message || data.error));
+      } else {
+        load();
+      }
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <div className="mt-3">
+      {state.eligible ? (
+        <button
+          onClick={claim}
+          disabled={busy}
+          className="w-full py-2 rounded-xl bg-gradient-to-r from-amber-500 to-amber-600 text-white text-xs font-bold shadow hover:opacity-90 transition-opacity disabled:opacity-50"
+        >
+          🎓 {busy ? '…' : isAr ? 'احصل على شهادتك الآن' : 'Claim your certificate'}
+        </button>
+      ) : (
+        <div className="text-[11px] text-muted-foreground text-center bg-muted/40 rounded-lg py-2 px-2">
+          {isAr
+            ? `🎓 شهادة متاحة — شاهد كل الدروس كاملة${state.mode === 'quiz' ? ' واجتز الاختبار النهائي' : ''} (${state.watch?.fullyWatched ?? 0}/${state.watch?.totalLessons ?? 0})`
+            : `🎓 Certificate available — watch all lessons fully${state.mode === 'quiz' ? ' and pass the final quiz' : ''} (${state.watch?.fullyWatched ?? 0}/${state.watch?.totalLessons ?? 0})`}
+        </div>
+      )}
     </div>
   );
 }

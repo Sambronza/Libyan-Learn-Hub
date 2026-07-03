@@ -35,6 +35,8 @@ import biometricsRouter from "./biometrics.js";
 import walletRouter from "./wallet.js";
 import prepaidCardsRouter from "./prepaid-cards.js";
 import feedbackRouter from "./feedback.js";
+import certificatesRouter from "./certificates.js";
+import couponsRouter from "./coupons.js";
 
 const router: IRouter = Router();
 
@@ -78,5 +80,9 @@ router.use("/wallet", walletRouter);
 router.use("/prepaid-cards", prepaidCardsRouter);
 // Unified Feedback System
 router.use("/feedback", feedbackRouter);
+// Certificates
+router.use("/certificates", certificatesRouter);
+// Coupons & referrals
+router.use("/coupons", couponsRouter);
 
 export default router;

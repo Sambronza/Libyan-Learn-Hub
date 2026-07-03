@@ -54,6 +54,7 @@ interface RegisterData {
   fullName: string;
   fullNameAr?: string;
   role: "student" | "teacher";
+  referralCode?: string;
 }
 
 const AuthContext = createContext<AuthContextType | null>(null);

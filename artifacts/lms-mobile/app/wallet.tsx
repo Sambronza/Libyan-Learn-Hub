@@ -88,6 +88,13 @@ export default function WalletScreen() {
   const balance = parseFloat(walletData?.balance ?? "0").toFixed(2);
   const transactions: any[] = walletData?.transactions ?? [];
 
+  // Referral code (lazily generated server-side)
+  const { data: referralData } = useQuery<any>({
+    queryKey: ["referral-code"],
+    queryFn: () => apiFetch("/coupons/referral/my-code"),
+    enabled: !!user,
+  });
+
   return (
     <View style={[styles.container, { paddingTop: topPad }]}>
       {/* Header */}
@@ -120,6 +127,29 @@ export default function WalletScreen() {
             </>
           )}
         </View>
+
+        {/* Referral code */}
+        {referralData?.code && (
+          <View style={styles.card}>
+            <View style={styles.cardHeader}>
+              <Feather name="gift" size={18} color={C.tint} />
+              <Text style={styles.cardTitle}>{t("ادعُ أصدقاءك واربح رصيدًا", "Invite friends, earn credit")}</Text>
+            </View>
+            <Text style={{ fontFamily: "Inter_400Regular", fontSize: 12, color: C.textSecondary, textAlign: "right", marginBottom: 10 }}>
+              {language === "ar" ? referralData.messageAr : referralData.message}
+            </Text>
+            <Pressable
+              onPress={async () => {
+                const { Share } = await import("react-native");
+                Share.share({ message: t(`رمز الإحالة الخاص بي في EduLibya: ${referralData.code}`, `My EduLibya referral code: ${referralData.code}`) });
+              }}
+              style={{ backgroundColor: C.backgroundSecondary, borderRadius: 12, padding: 12, alignItems: "center" }}
+            >
+              <Text style={{ fontFamily: "Inter_700Bold", fontSize: 18, letterSpacing: 3, color: C.tint }}>{referralData.code}</Text>
+              <Text style={{ fontFamily: "Inter_400Regular", fontSize: 11, color: C.textMuted, marginTop: 4 }}>{t("اضغط للمشاركة", "Tap to share")}</Text>
+            </Pressable>
+          </View>
+        )}
 
         {/* Redeem Code */}
         <View style={styles.card}>

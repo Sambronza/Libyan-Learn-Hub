@@ -31,6 +31,7 @@ const registerSchema = z.object({
   phoneNumber: z.string().min(9, 'Enter a valid phone number').regex(/^[0-9+\s\-()]+$/, 'Invalid phone number'),
   password: z.string().min(6, 'Password must be at least 6 characters'),
   role: z.enum(['student', 'teacher']),
+  referralCode: z.string().optional(),
   agreedToCommission: z.boolean().optional(),
   agreedToTerms: z.boolean().refine(val => val === true, {
     message: "You must agree to the Terms & Conditions",
@@ -125,7 +126,7 @@ export default function Auth() {
 
   const registerForm = useForm({
     resolver: zodResolver(registerSchema),
-    defaultValues: { fullName: '', email: '', phoneNumber: '', password: '', role: 'student' as 'student' | 'teacher', agreedToCommission: false, agreedToTerms: false }
+    defaultValues: { fullName: '', email: '', phoneNumber: '', password: '', role: 'student' as 'student' | 'teacher', referralCode: '', agreedToCommission: false, agreedToTerms: false }
   });
 
   const { mutate: loginMutate, isPending: isLoggingIn } = useLogin({
@@ -841,6 +842,13 @@ Any disputes shall be resolved in the courts of Tripoli, Libya, unless arbitrati
                   <label className="text-sm font-medium mb-1.5 block">Password</label>
                   <Input {...registerForm.register('password')} type="password" placeholder="Create a strong password (min 6 chars)" className="h-12 bg-muted/50 border-transparent focus:bg-background" />
                   {registerForm.formState.errors.password && <p className="mt-1 text-sm text-destructive">{registerForm.formState.errors.password.message}</p>}
+                </div>
+                <div>
+                  <label className="text-sm font-medium mb-1.5 block">{isRtl ? 'رمز الإحالة (اختياري)' : 'Referral code (optional)'}</label>
+                  <Input {...registerForm.register('referralCode')} placeholder="REF…" className="h-12 bg-muted/50 border-transparent focus:bg-background uppercase" />
+                  <p className="text-[11px] text-muted-foreground mt-1">
+                    {isRtl ? 'أدخل رمز صديقك — تحصلان معًا على رصيد محفظة عند أول عملية شراء.' : "Enter a friend's code — you both get wallet credit on your first purchase."}
+                  </p>
                 </div>
 
                 {registerForm.watch('role') === 'teacher' && (

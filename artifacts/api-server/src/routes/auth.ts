@@ -132,6 +132,19 @@ router.post("/register", authLimiter, async (req, res) => {
       }).returning();
     }
     
+    // ── Referral capture: link the new account to its referrer ───────────
+    if (typeof req.body.referralCode === "string" && req.body.referralCode.trim() && !existing) {
+      try {
+        const [referrer] = await db.select().from(usersTable)
+          .where(eq(usersTable.referralCode, req.body.referralCode.trim().toUpperCase())).limit(1);
+        if (referrer && referrer.id !== user.id) {
+          await db.update(usersTable).set({ referredBy: referrer.id }).where(eq(usersTable.id, user.id));
+        }
+      } catch (err) {
+        console.error("Referral capture failed (non-fatal):", err);
+      }
+    }
+
     // ── Student device binding + face enrollment (signup) ────────────────
     let deviceId: number | undefined;
     if (user.role === "student") {
@@ -457,6 +470,7 @@ router.get("/me", requireAuth, async (req, res) => {
     balance: user.balance ?? "0",
     hasPasskey: !!user.passkeyHash,
     biometricsVerified: user.biometricsVerified,
+    certificatesApproved: user.certificatesApproved,
     isTutoringEnabled: user.isTutoringEnabled,
     tutoringHourlyRate: user.tutoringHourlyRate ?? "0",
     tutoringSubjects: user.tutoringSubjects ?? null,

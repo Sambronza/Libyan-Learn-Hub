@@ -94,15 +94,27 @@ router.post("/:courseId/:lessonId", requireAuth, async (req, res) => {
       .where(and(eq(progressTable.lessonId, lessonId), eq(progressTable.userId, userId)))
       .limit(1);
 
+    // Anti-skip guard: watched time can only grow, and never beyond the lesson
+    // duration. Certificates rely on this value, so decreases (or absurd jumps
+    // past the video length) are clamped server-side.
+    let safeWatched = Math.max(0, Math.floor(Number(watchedSeconds) || 0));
+    const [lessonRow] = await db.select().from(lessonsTable).where(eq(lessonsTable.id, lessonId)).limit(1);
+    if (lessonRow?.duration && lessonRow.duration > 0) {
+      safeWatched = Math.min(safeWatched, lessonRow.duration);
+    }
+    if (existing.length > 0) {
+      safeWatched = Math.max(safeWatched, existing[0].watchedSeconds ?? 0);
+    }
+
     let prog;
     if (existing.length > 0) {
       [prog] = await db.update(progressTable)
-        .set({ isCompleted, watchedSeconds, updatedAt: new Date() })
+        .set({ isCompleted, watchedSeconds: safeWatched, updatedAt: new Date() })
         .where(and(eq(progressTable.lessonId, lessonId), eq(progressTable.userId, userId)))
         .returning();
     } else {
       [prog] = await db.insert(progressTable)
-        .values({ lessonId, courseId, userId, isCompleted, watchedSeconds })
+        .values({ lessonId, courseId, userId, isCompleted, watchedSeconds: safeWatched })
         .returning();
     }
 
