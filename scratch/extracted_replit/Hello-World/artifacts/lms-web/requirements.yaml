@@ -1,0 +1,22 @@
+packages:
+  "framer-motion": "For smooth page transitions and micro-interactions"
+  "react-hook-form": "For robust form state management"
+  "@hookform/resolvers": "For Zod validation integration with forms"
+  "zod": "For client-side validation schemas"
+  "date-fns": "For formatting dates in live sessions and reviews"
+  "clsx": "For dynamic class name merging"
+  "tailwind-merge": "For merging tailwind classes safely"
+  "react-player": "For standard video playback before applying custom protection overlays"
+
+images:
+  - path: "artifacts/lms-web/public/images/hero-bg.png"
+    description: "A beautiful, warm, modern abstract background with soft teal and amber gradients, conveying learning and growth, subtle geometric educational shapes"
+    aspect_ratio: "16:9"
+  - path: "artifacts/lms-web/public/images/pattern-overlay.png"
+    description: "Subtle dotted grid pattern for background texture, low opacity, warm tint"
+    aspect_ratio: "16:9"
+
+notes:
+  - "The API hooks are imported directly from @workspace/api-client-react as per instructions."
+  - "Since the generated API client customFetch doesn't automatically handle auth tokens, we monkey-patch window.fetch in App.tsx to inject the Authorization header from localStorage. This ensures all generated hooks work seamlessly with auth."
+  - "Tailwind logical properties (ms-, pe-, text-start) are used to support automatic RTL/LTR flipping."

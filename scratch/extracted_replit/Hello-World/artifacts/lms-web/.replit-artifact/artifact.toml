@@ -1,0 +1,31 @@
+kind = "web"
+previewPath = "/"
+title = "Libyan E-Learning Platform"
+version = "1.0.0"
+id = "artifacts/lms-web"
+router = "path"
+
+[[integratedSkills]]
+name = "react-vite"
+version = "1.0.0"
+
+[[services]]
+name = "web"
+paths = [ "/" ]
+localPort = 21957
+
+[services.development]
+run = "pnpm --filter @workspace/lms-web run dev"
+
+[services.production]
+build = [ "pnpm", "--filter", "@workspace/lms-web", "run", "build" ]
+publicDir = "artifacts/lms-web/dist/public"
+serve = "static"
+
+[[services.production.rewrites]]
+from = "/*"
+to = "/index.html"
+
+[services.env]
+PORT = "21957"
+BASE_PATH = "/"

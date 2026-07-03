@@ -1,0 +1,1406 @@
+openapi: 3.1.0
+info:
+  title: Api
+  version: 1.0.0
+  description: Libyan E-Learning Platform API
+servers:
+  - url: /api
+    description: Base API path
+tags:
+  - name: health
+    description: Health operations
+  - name: auth
+    description: Authentication
+  - name: users
+    description: User management
+  - name: courses
+    description: Course management
+  - name: lessons
+    description: Lesson management
+  - name: enrollments
+    description: Course enrollments
+  - name: live-sessions
+    description: Live session management
+  - name: categories
+    description: Course categories
+  - name: reviews
+    description: Course reviews
+  - name: progress
+    description: Student progress tracking
+
+paths:
+  /healthz:
+    get:
+      operationId: healthCheck
+      tags: [health]
+      summary: Health check
+      responses:
+        "200":
+          description: Healthy
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HealthStatus"
+
+  /auth/register:
+    post:
+      operationId: register
+      tags: [auth]
+      summary: Register a new user
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RegisterRequest"
+      responses:
+        "201":
+          description: User registered successfully
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AuthResponse"
+        "400":
+          description: Validation error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /auth/login:
+    post:
+      operationId: login
+      tags: [auth]
+      summary: Login user
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/LoginRequest"
+      responses:
+        "200":
+          description: Login successful
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AuthResponse"
+        "401":
+          description: Invalid credentials
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /auth/logout:
+    post:
+      operationId: logout
+      tags: [auth]
+      summary: Logout user
+      responses:
+        "200":
+          description: Logged out
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SuccessResponse"
+
+  /auth/me:
+    get:
+      operationId: getCurrentUser
+      tags: [auth]
+      summary: Get current authenticated user
+      responses:
+        "200":
+          description: Current user
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/User"
+        "401":
+          description: Not authenticated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /categories:
+    get:
+      operationId: getCategories
+      tags: [categories]
+      summary: List all categories
+      responses:
+        "200":
+          description: List of categories
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Category"
+
+  /courses:
+    get:
+      operationId: getCourses
+      tags: [courses]
+      summary: List courses with optional filters
+      parameters:
+        - name: categoryId
+          in: query
+          schema:
+            type: integer
+        - name: search
+          in: query
+          schema:
+            type: string
+        - name: level
+          in: query
+          schema:
+            type: string
+            enum: [beginner, intermediate, advanced]
+        - name: language
+          in: query
+          schema:
+            type: string
+            enum: [ar, en]
+        - name: teacherId
+          in: query
+          schema:
+            type: integer
+        - name: page
+          in: query
+          schema:
+            type: integer
+            default: 1
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            default: 12
+      responses:
+        "200":
+          description: List of courses
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CoursesResponse"
+
+    post:
+      operationId: createCourse
+      tags: [courses]
+      summary: Create a new course (teacher only)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateCourseRequest"
+      responses:
+        "201":
+          description: Course created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Course"
+
+  /courses/{courseId}:
+    get:
+      operationId: getCourse
+      tags: [courses]
+      summary: Get course details
+      parameters:
+        - name: courseId
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Course details
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CourseDetail"
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+    put:
+      operationId: updateCourse
+      tags: [courses]
+      summary: Update course (teacher only)
+      parameters:
+        - name: courseId
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateCourseRequest"
+      responses:
+        "200":
+          description: Updated course
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Course"
+
+    delete:
+      operationId: deleteCourse
+      tags: [courses]
+      summary: Delete course (teacher only)
+      parameters:
+        - name: courseId
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Course deleted
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SuccessResponse"
+
+  /courses/{courseId}/lessons:
+    get:
+      operationId: getCourseLessons
+      tags: [lessons]
+      summary: Get lessons for a course
+      parameters:
+        - name: courseId
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: List of lessons
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Lesson"
+
+    post:
+      operationId: createLesson
+      tags: [lessons]
+      summary: Create a lesson in a course (teacher only)
+      parameters:
+        - name: courseId
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateLessonRequest"
+      responses:
+        "201":
+          description: Lesson created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Lesson"
+
+  /courses/{courseId}/lessons/{lessonId}:
+    get:
+      operationId: getLesson
+      tags: [lessons]
+      summary: Get lesson details (enrolled students/teacher only)
+      parameters:
+        - name: courseId
+          in: path
+          required: true
+          schema:
+            type: integer
+        - name: lessonId
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Lesson details
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LessonDetail"
+
+    put:
+      operationId: updateLesson
+      tags: [lessons]
+      summary: Update lesson (teacher only)
+      parameters:
+        - name: courseId
+          in: path
+          required: true
+          schema:
+            type: integer
+        - name: lessonId
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateLessonRequest"
+      responses:
+        "200":
+          description: Updated lesson
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Lesson"
+
+    delete:
+      operationId: deleteLesson
+      tags: [lessons]
+      summary: Delete lesson (teacher only)
+      parameters:
+        - name: courseId
+          in: path
+          required: true
+          schema:
+            type: integer
+        - name: lessonId
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Lesson deleted
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SuccessResponse"
+
+  /courses/{courseId}/enroll:
+    post:
+      operationId: enrollCourse
+      tags: [enrollments]
+      summary: Enroll in a course
+      parameters:
+        - name: courseId
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "201":
+          description: Enrolled successfully
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Enrollment"
+
+  /courses/{courseId}/reviews:
+    get:
+      operationId: getCourseReviews
+      tags: [reviews]
+      summary: Get reviews for a course
+      parameters:
+        - name: courseId
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: List of reviews
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Review"
+
+    post:
+      operationId: createReview
+      tags: [reviews]
+      summary: Create a review for a course
+      parameters:
+        - name: courseId
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateReviewRequest"
+      responses:
+        "201":
+          description: Review created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Review"
+
+  /enrollments:
+    get:
+      operationId: getMyEnrollments
+      tags: [enrollments]
+      summary: Get current user's enrollments
+      responses:
+        "200":
+          description: List of enrollments
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/EnrollmentWithCourse"
+
+  /progress/{courseId}/{lessonId}:
+    post:
+      operationId: updateProgress
+      tags: [progress]
+      summary: Mark lesson as complete / update progress
+      parameters:
+        - name: courseId
+          in: path
+          required: true
+          schema:
+            type: integer
+        - name: lessonId
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateProgressRequest"
+      responses:
+        "200":
+          description: Progress updated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Progress"
+
+  /live-sessions:
+    get:
+      operationId: getLiveSessions
+      tags: [live-sessions]
+      summary: List live sessions
+      parameters:
+        - name: courseId
+          in: query
+          schema:
+            type: integer
+        - name: upcoming
+          in: query
+          schema:
+            type: boolean
+      responses:
+        "200":
+          description: List of live sessions
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/LiveSession"
+
+    post:
+      operationId: createLiveSession
+      tags: [live-sessions]
+      summary: Create a live session (teacher only)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateLiveSessionRequest"
+      responses:
+        "201":
+          description: Live session created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LiveSession"
+
+  /live-sessions/{sessionId}:
+    get:
+      operationId: getLiveSession
+      tags: [live-sessions]
+      summary: Get live session details
+      parameters:
+        - name: sessionId
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Live session
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LiveSession"
+
+  /live-sessions/{sessionId}/join:
+    post:
+      operationId: joinLiveSession
+      tags: [live-sessions]
+      summary: Join a live session (get access token/link)
+      parameters:
+        - name: sessionId
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Join info
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/JoinSessionResponse"
+
+  /teachers:
+    get:
+      operationId: getTeachers
+      tags: [users]
+      summary: List all teachers
+      responses:
+        "200":
+          description: List of teachers
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/TeacherProfile"
+
+  /teachers/{teacherId}:
+    get:
+      operationId: getTeacher
+      tags: [users]
+      summary: Get teacher profile
+      parameters:
+        - name: teacherId
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Teacher profile
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TeacherProfile"
+
+  /users/profile:
+    put:
+      operationId: updateProfile
+      tags: [users]
+      summary: Update current user profile
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateProfileRequest"
+      responses:
+        "200":
+          description: Updated user
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/User"
+
+  /teacher/courses:
+    get:
+      operationId: getTeacherCourses
+      tags: [courses]
+      summary: Get teacher's own courses
+      responses:
+        "200":
+          description: List of teacher's courses
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/CourseWithStats"
+
+  /teacher/students:
+    get:
+      operationId: getTeacherStudents
+      tags: [users]
+      summary: Get students enrolled in teacher's courses
+      responses:
+        "200":
+          description: List of enrolled students
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/StudentEnrollment"
+
+components:
+  schemas:
+    HealthStatus:
+      type: object
+      properties:
+        status:
+          type: string
+      required:
+        - status
+
+    ErrorResponse:
+      type: object
+      properties:
+        error:
+          type: string
+        message:
+          type: string
+      required:
+        - error
+
+    SuccessResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+        message:
+          type: string
+      required:
+        - success
+
+    RegisterRequest:
+      type: object
+      properties:
+        email:
+          type: string
+          format: email
+        password:
+          type: string
+          minLength: 6
+        fullName:
+          type: string
+        fullNameAr:
+          type: string
+        phoneNumber:
+          type: string
+        role:
+          type: string
+          enum: [student, teacher]
+        language:
+          type: string
+          enum: [ar, en]
+          default: ar
+        passkey:
+          type: string
+          nullable: true
+        tier:
+          type: string
+          nullable: true
+        agreedToCommission:
+          type: boolean
+          nullable: true
+      required:
+        - email
+        - password
+        - fullName
+        - role
+
+    LoginRequest:
+      type: object
+      properties:
+        email:
+          type: string
+          format: email
+        password:
+          type: string
+      required:
+        - email
+        - password
+
+    AuthResponse:
+      type: object
+      properties:
+        user:
+          $ref: "#/components/schemas/User"
+        token:
+          type: string
+      required:
+        - user
+        - token
+
+    User:
+      type: object
+      properties:
+        id:
+          type: integer
+        email:
+          type: string
+        fullName:
+          type: string
+        fullNameAr:
+          type: string
+        role:
+          type: string
+          enum: [student, teacher, admin]
+        avatarUrl:
+          type: string
+          nullable: true
+        bio:
+          type: string
+          nullable: true
+        bioAr:
+          type: string
+          nullable: true
+        language:
+          type: string
+          enum: [ar, en]
+        hasPasskey:
+          type: boolean
+        biometricsVerified:
+          type: boolean
+        phoneVerified:
+          type: boolean
+        emailVerified:
+          type: boolean
+        balance:
+          type: string
+        createdAt:
+          type: string
+          format: date-time
+      required:
+        - id
+        - email
+        - fullName
+        - role
+        - language
+        - createdAt
+
+    UpdateProfileRequest:
+      type: object
+      properties:
+        fullName:
+          type: string
+        fullNameAr:
+          type: string
+        bio:
+          type: string
+        bioAr:
+          type: string
+        avatarUrl:
+          type: string
+        language:
+          type: string
+          enum: [ar, en]
+
+    Category:
+      type: object
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+        nameAr:
+          type: string
+        icon:
+          type: string
+          nullable: true
+        courseCount:
+          type: integer
+      required:
+        - id
+        - name
+        - nameAr
+        - courseCount
+
+    Course:
+      type: object
+      properties:
+        id:
+          type: integer
+        title:
+          type: string
+        titleAr:
+          type: string
+        description:
+          type: string
+        descriptionAr:
+          type: string
+        thumbnailUrl:
+          type: string
+          nullable: true
+        price:
+          type: number
+        currency:
+          type: string
+          default: LYD
+        level:
+          type: string
+          enum: [beginner, intermediate, advanced]
+        language:
+          type: string
+          enum: [ar, en]
+        categoryId:
+          type: integer
+        teacherId:
+          type: integer
+        teacherName:
+          type: string
+        teacherAvatar:
+          type: string
+          nullable: true
+        rating:
+          type: number
+        reviewCount:
+          type: integer
+        enrollmentCount:
+          type: integer
+        lessonCount:
+          type: integer
+        totalDuration:
+          type: integer
+          description: Total duration in minutes
+        isPublished:
+          type: boolean
+        createdAt:
+          type: string
+          format: date-time
+      required:
+        - id
+        - title
+        - titleAr
+        - description
+        - descriptionAr
+        - price
+        - currency
+        - level
+        - language
+        - categoryId
+        - teacherId
+        - teacherName
+        - rating
+        - reviewCount
+        - enrollmentCount
+        - lessonCount
+        - totalDuration
+        - isPublished
+        - createdAt
+
+    CourseDetail:
+      allOf:
+        - $ref: "#/components/schemas/Course"
+        - type: object
+          properties:
+            lessons:
+              type: array
+              items:
+                $ref: "#/components/schemas/LessonSummary"
+            category:
+              $ref: "#/components/schemas/Category"
+            teacher:
+              $ref: "#/components/schemas/TeacherProfile"
+            isEnrolled:
+              type: boolean
+            userProgress:
+              type: number
+              nullable: true
+          required:
+            - lessons
+            - isEnrolled
+
+    CoursesResponse:
+      type: object
+      properties:
+        courses:
+          type: array
+          items:
+            $ref: "#/components/schemas/Course"
+        total:
+          type: integer
+        page:
+          type: integer
+        limit:
+          type: integer
+        totalPages:
+          type: integer
+      required:
+        - courses
+        - total
+        - page
+        - limit
+        - totalPages
+
+    CourseWithStats:
+      allOf:
+        - $ref: "#/components/schemas/Course"
+        - type: object
+          properties:
+            totalRevenue:
+              type: number
+            completionRate:
+              type: number
+
+    CreateCourseRequest:
+      type: object
+      properties:
+        title:
+          type: string
+        titleAr:
+          type: string
+        description:
+          type: string
+        descriptionAr:
+          type: string
+        thumbnailUrl:
+          type: string
+        price:
+          type: number
+        level:
+          type: string
+          enum: [beginner, intermediate, advanced]
+        language:
+          type: string
+          enum: [ar, en]
+        categoryId:
+          type: integer
+      required:
+        - title
+        - titleAr
+        - description
+        - descriptionAr
+        - price
+        - level
+        - language
+        - categoryId
+
+    UpdateCourseRequest:
+      type: object
+      properties:
+        title:
+          type: string
+        titleAr:
+          type: string
+        description:
+          type: string
+        descriptionAr:
+          type: string
+        thumbnailUrl:
+          type: string
+        price:
+          type: number
+        level:
+          type: string
+          enum: [beginner, intermediate, advanced]
+        language:
+          type: string
+          enum: [ar, en]
+        categoryId:
+          type: integer
+        isPublished:
+          type: boolean
+
+    LessonSummary:
+      type: object
+      properties:
+        id:
+          type: integer
+        title:
+          type: string
+        titleAr:
+          type: string
+        duration:
+          type: integer
+          description: Duration in minutes
+        order:
+          type: integer
+        isFree:
+          type: boolean
+        type:
+          type: string
+          enum: [video, text, quiz]
+      required:
+        - id
+        - title
+        - titleAr
+        - duration
+        - order
+        - isFree
+        - type
+
+    Lesson:
+      allOf:
+        - $ref: "#/components/schemas/LessonSummary"
+        - type: object
+          properties:
+            courseId:
+              type: integer
+            videoUrl:
+              type: string
+              nullable: true
+            content:
+              type: string
+              nullable: true
+            contentAr:
+              type: string
+              nullable: true
+            createdAt:
+              type: string
+              format: date-time
+          required:
+            - courseId
+            - createdAt
+
+    LessonDetail:
+      allOf:
+        - $ref: "#/components/schemas/Lesson"
+        - type: object
+          properties:
+            isCompleted:
+              type: boolean
+            watchedSeconds:
+              type: integer
+          required:
+            - isCompleted
+            - watchedSeconds
+
+    CreateLessonRequest:
+      type: object
+      properties:
+        title:
+          type: string
+        titleAr:
+          type: string
+        videoUrl:
+          type: string
+        content:
+          type: string
+        contentAr:
+          type: string
+        duration:
+          type: integer
+        order:
+          type: integer
+        isFree:
+          type: boolean
+        type:
+          type: string
+          enum: [video, text, quiz]
+      required:
+        - title
+        - titleAr
+        - duration
+        - order
+        - type
+
+    UpdateLessonRequest:
+      type: object
+      properties:
+        title:
+          type: string
+        titleAr:
+          type: string
+        videoUrl:
+          type: string
+        content:
+          type: string
+        contentAr:
+          type: string
+        duration:
+          type: integer
+        order:
+          type: integer
+        isFree:
+          type: boolean
+
+    Enrollment:
+      type: object
+      properties:
+        id:
+          type: integer
+        courseId:
+          type: integer
+        userId:
+          type: integer
+        enrolledAt:
+          type: string
+          format: date-time
+        progress:
+          type: number
+        completedAt:
+          type: string
+          format: date-time
+          nullable: true
+      required:
+        - id
+        - courseId
+        - userId
+        - enrolledAt
+        - progress
+
+    EnrollmentWithCourse:
+      allOf:
+        - $ref: "#/components/schemas/Enrollment"
+        - type: object
+          properties:
+            course:
+              $ref: "#/components/schemas/Course"
+          required:
+            - course
+
+    StudentEnrollment:
+      type: object
+      properties:
+        studentId:
+          type: integer
+        studentName:
+          type: string
+        studentEmail:
+          type: string
+        courseId:
+          type: integer
+        courseTitle:
+          type: string
+        enrolledAt:
+          type: string
+          format: date-time
+        progress:
+          type: number
+      required:
+        - studentId
+        - studentName
+        - studentEmail
+        - courseId
+        - courseTitle
+        - enrolledAt
+        - progress
+
+    Review:
+      type: object
+      properties:
+        id:
+          type: integer
+        courseId:
+          type: integer
+        userId:
+          type: integer
+        userName:
+          type: string
+        userAvatar:
+          type: string
+          nullable: true
+        rating:
+          type: integer
+          minimum: 1
+          maximum: 5
+        comment:
+          type: string
+          nullable: true
+        createdAt:
+          type: string
+          format: date-time
+      required:
+        - id
+        - courseId
+        - userId
+        - userName
+        - rating
+        - createdAt
+
+    CreateReviewRequest:
+      type: object
+      properties:
+        rating:
+          type: integer
+          minimum: 1
+          maximum: 5
+        comment:
+          type: string
+      required:
+        - rating
+
+    Progress:
+      type: object
+      properties:
+        lessonId:
+          type: integer
+        courseId:
+          type: integer
+        userId:
+          type: integer
+        isCompleted:
+          type: boolean
+        watchedSeconds:
+          type: integer
+        updatedAt:
+          type: string
+          format: date-time
+      required:
+        - lessonId
+        - courseId
+        - userId
+        - isCompleted
+        - watchedSeconds
+        - updatedAt
+
+    UpdateProgressRequest:
+      type: object
+      properties:
+        isCompleted:
+          type: boolean
+        watchedSeconds:
+          type: integer
+      required:
+        - isCompleted
+        - watchedSeconds
+
+    LiveSession:
+      type: object
+      properties:
+        id:
+          type: integer
+        courseId:
+          type: integer
+          nullable: true
+        teacherId:
+          type: integer
+        teacherName:
+          type: string
+        title:
+          type: string
+        titleAr:
+          type: string
+        description:
+          type: string
+          nullable: true
+        scheduledAt:
+          type: string
+          format: date-time
+        durationMinutes:
+          type: integer
+        maxParticipants:
+          type: integer
+        meetingUrl:
+          type: string
+          nullable: true
+        status:
+          type: string
+          enum: [scheduled, live, ended, cancelled]
+        participantCount:
+          type: integer
+        createdAt:
+          type: string
+          format: date-time
+      required:
+        - id
+        - teacherId
+        - teacherName
+        - title
+        - titleAr
+        - scheduledAt
+        - durationMinutes
+        - maxParticipants
+        - status
+        - participantCount
+        - createdAt
+
+    CreateLiveSessionRequest:
+      type: object
+      properties:
+        courseId:
+          type: integer
+        title:
+          type: string
+        titleAr:
+          type: string
+        description:
+          type: string
+        scheduledAt:
+          type: string
+          format: date-time
+        durationMinutes:
+          type: integer
+        maxParticipants:
+          type: integer
+        meetingUrl:
+          type: string
+      required:
+        - title
+        - titleAr
+        - scheduledAt
+        - durationMinutes
+        - maxParticipants
+
+    JoinSessionResponse:
+      type: object
+      properties:
+        sessionId:
+          type: integer
+        meetingUrl:
+          type: string
+        accessToken:
+          type: string
+          nullable: true
+        message:
+          type: string
+      required:
+        - sessionId
+        - meetingUrl
+
+    TeacherProfile:
+      type: object
+      properties:
+        id:
+          type: integer
+        fullName:
+          type: string
+        fullNameAr:
+          type: string
+        avatarUrl:
+          type: string
+          nullable: true
+        bio:
+          type: string
+          nullable: true
+        bioAr:
+          type: string
+          nullable: true
+        courseCount:
+          type: integer
+        studentCount:
+          type: integer
+        rating:
+          type: number
+        expertise:
+          type: string
+          nullable: true
+      required:
+        - id
+        - fullName
+        - fullNameAr
+        - courseCount
+        - studentCount
+        - rating

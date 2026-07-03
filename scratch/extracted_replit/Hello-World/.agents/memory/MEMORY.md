@@ -1,0 +1,2 @@
+- [Expo Router URL format](expo-router-urls.md) — tab group screens use flat URLs (/academy not /(tabs)/academy) in web mode
+- [Expo tab badge crash](expo-tab-badge.md) — tabBarBadge with emoji causes blank screen in Expo web; remove or use plain strings only

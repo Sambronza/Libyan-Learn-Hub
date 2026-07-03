@@ -1,0 +1,176 @@
+@import url('https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800&family=Tajawal:wght@400;500;700;800&display=swap');
+@import "tailwindcss";
+@import "tw-animate-css";
+@plugin "@tailwindcss/typography";
+
+@custom-variant dark (&:is(.dark *));
+
+@theme inline {
+  --color-background: hsl(var(--background));
+  --color-foreground: hsl(var(--foreground));
+  --color-border: hsl(var(--border));
+  --color-input: hsl(var(--input));
+  --color-ring: hsl(var(--ring));
+
+  --color-card: hsl(var(--card));
+  --color-card-foreground: hsl(var(--card-foreground));
+  
+  --color-primary: hsl(var(--primary));
+  --color-primary-foreground: hsl(var(--primary-foreground));
+  
+  --color-secondary: hsl(var(--secondary));
+  --color-secondary-foreground: hsl(var(--secondary-foreground));
+  
+  --color-muted: hsl(var(--muted));
+  --color-muted-foreground: hsl(var(--muted-foreground));
+  
+  --color-accent: hsl(var(--accent));
+  --color-accent-foreground: hsl(var(--accent-foreground));
+  
+  --color-destructive: hsl(var(--destructive));
+  --color-destructive-foreground: hsl(var(--destructive-foreground));
+
+  /* Outfit for Latin characters, falling back to Tajawal for Arabic */
+  --font-sans: 'Outfit', 'Tajawal', sans-serif;
+  --font-display: 'Outfit', 'Tajawal', sans-serif;
+
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 4px);
+  --radius-2xl: calc(var(--radius) + 8px);
+  --radius-3xl: calc(var(--radius) + 12px);
+}
+
+:root {
+  /* Sleek Modern Light Theme */
+  --background: 210 20% 98%;      /* Very light cool gray */
+  --foreground: 222 47% 11%;      /* Deep space blue */
+  
+  --card: 0 0% 100%;              /* Pure white */
+  --card-foreground: 222 47% 11%;
+  
+  --popover: 0 0% 100%;
+  --popover-foreground: 222 47% 11%;
+  
+  --primary: 250 89% 65%;         /* Vibrant Violet */
+  --primary-foreground: 0 0% 100%;
+  
+  --secondary: 191 97% 40%;       /* Neon Cyan */
+  --secondary-foreground: 222 47% 11%;
+  
+  --muted: 210 40% 96.1%;
+  --muted-foreground: 215.4 16.3% 46.9%;
+  
+  --accent: 250 89% 90%;
+  --accent-foreground: 250 89% 65%;
+  
+  --destructive: 348 100% 61%;
+  --destructive-foreground: 0 0% 100%;
+
+  --border: 214.3 31.8% 91.4%;
+  --input: 214.3 31.8% 91.4%;
+  --ring: 250 89% 65%;
+  
+  --radius: 1rem; /* 16px - softer rounded corners */
+}
+
+.dark {
+  /* Midnight & Neon Premium Dark Theme */
+  --background: 222 47% 6%;       /* Extremely deep midnight blue */
+  --foreground: 210 40% 98%;      /* Bright text */
+  
+  --card: 222 47% 8%;             /* Slightly lighter than background */
+  --card-foreground: 210 40% 98%;
+  
+  --popover: 222 47% 8%;
+  --popover-foreground: 210 40% 98%;
+  
+  --primary: 250 89% 65%;         /* Vibrant Violet */
+  --primary-foreground: 210 40% 98%;
+  
+  --secondary: 191 97% 40%;       /* Neon Cyan */
+  --secondary-foreground: 222 47% 11%;
+  
+  --muted: 217.2 32.6% 17.5%;
+  --muted-foreground: 215 20.2% 65.1%;
+  
+  --accent: 217.2 32.6% 17.5%;
+  --accent-foreground: 210 40% 98%;
+  
+  --destructive: 348 100% 61%;
+  --destructive-foreground: 210 40% 98%;
+  
+  --border: 217.2 32.6% 17.5%;
+  --input: 217.2 32.6% 17.5%;
+  --ring: 250 89% 65%;
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+  body {
+    @apply bg-background text-foreground font-sans antialiased selection:bg-primary/20 selection:text-primary;
+    transition: background-color 0.4s ease, color 0.4s ease; /* Smoother theme transition */
+  }
+  
+  /* Force pointer cursor on all interactive elements globally */
+  button, 
+  [role="button"],
+  select,
+  input[type="submit"],
+  input[type="reset"],
+  input[type="button"],
+  label[for] {
+    cursor: pointer;
+  }
+
+  /* Ensure disabled buttons show the default cursor */
+  button:disabled,
+  [role="button"]:disabled,
+  [disabled] {
+    cursor: default;
+  }
+
+  h1, h2, h3, h4, h5, h6 {
+    @apply font-display tracking-tight font-bold;
+    line-height: 1.2;
+  }
+  
+  /* Arabic-specific line-height and spacing polish */
+  [lang="ar"] h1, [lang="ar"] h2, [lang="ar"] h3, 
+  [lang="ar"] h4, [lang="ar"] h5, [lang="ar"] h6 {
+    line-height: 1.4;
+    letter-spacing: 0;
+  }
+}
+
+@layer utilities {
+  .glass-panel {
+    @apply bg-white/60 dark:bg-slate-900/50 backdrop-blur-2xl border border-white/40 dark:border-white/10 shadow-[0_8px_32px_rgba(0,0,0,0.08)] dark:shadow-[0_8px_32px_rgba(0,0,0,0.4)];
+  }
+  
+  .glass-card {
+    @apply bg-white/80 dark:bg-slate-900/60 backdrop-blur-md border border-white/50 dark:border-white/5 shadow-lg relative overflow-hidden;
+  }
+  
+  .glass-card::before {
+    content: '';
+    @apply absolute inset-0 bg-gradient-to-br from-white/20 to-transparent dark:from-white/5 opacity-50 pointer-events-none;
+  }
+  
+  .text-gradient {
+    @apply bg-clip-text text-transparent bg-gradient-to-r from-primary to-secondary;
+  }
+
+  .primary-glow {
+    @apply shadow-[0_0_24px_rgba(124,58,237,0.35)] dark:shadow-[0_0_35px_rgba(124,58,237,0.5)];
+  }
+
+  .protection-overlay {
+    user-select: none;
+    -webkit-user-select: none;
+    -webkit-touch-callout: none;
+  }
+}
