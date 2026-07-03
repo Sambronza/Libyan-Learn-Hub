@@ -11,6 +11,8 @@ export const notificationTypeEnum = pgEnum("notification_type", [
   "tutoring_request_accepted",
   "tutoring_teacher_joined",
   "course_submitted",
+  "course_approved",
+  "course_rejected",
   "subscription_expiring",
   "subscription_expired",
   "device_switch_review",
