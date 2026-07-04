@@ -22,6 +22,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '
 import { Textarea } from '@/components/ui/textarea';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Skeleton, StatCardSkeleton, CourseCardSkeleton } from '@/components/ui/skeleton';
+import ScheduleLiveCourseModal from '@/components/ScheduleLiveCourseModal';
 
 export default function TeacherDashboard() {
   const { t } = useLanguage();
@@ -37,6 +38,7 @@ export default function TeacherDashboard() {
   const [isCancelling, setIsCancelling] = React.useState(false);
   const [activeTab, setActiveTab] = React.useState("courses");
   const [expandedCourses, setExpandedCourses] = React.useState<Set<number>>(new Set());
+  const [showScheduleModal, setShowScheduleModal] = React.useState(false);
 
   React.useEffect(() => {
     if (!authLoading && !isAuthenticated) setLocation('/login');
@@ -527,22 +529,29 @@ export default function TeacherDashboard() {
             <div className="space-y-4">
               <div className="flex justify-between items-center">
                 <h2 className="text-xl font-display font-bold">My Live Sessions</h2>
-                <Link href={user?.biometricsVerified ? "/teacher/sessions/new" : "/teacher/biometrics-setup"}>
-                  <Button className="gap-2">
-                    <Plus className="w-4 h-4" /> Schedule Session
-                  </Button>
-                </Link>
+                <Button
+                  className="gap-2"
+                  onClick={() => {
+                    if (!user?.biometricsVerified) { setLocation('/teacher/biometrics-setup'); return; }
+                    setShowScheduleModal(true);
+                  }}
+                >
+                  <Plus className="w-4 h-4" /> Schedule Live Course
+                </Button>
               </div>
               {mySessions.length === 0 ? (
                 <div className="text-center py-24 bg-card rounded-3xl border border-dashed border-border">
                   <Radio className="w-16 h-16 text-muted-foreground mx-auto mb-4 opacity-20" />
                   <h3 className="text-xl font-bold">No live sessions scheduled</h3>
                   <p className="text-muted-foreground mt-2 mb-6">Schedule a live session to interact with your students in real-time.</p>
-                  <Link href={user?.biometricsVerified ? "/teacher/sessions/new" : "/teacher/biometrics-setup"}>
-                    <Button>
-                      <Plus className="w-4 h-4 mr-2" /> Schedule First Session
-                    </Button>
-                  </Link>
+                  <Button
+                    onClick={() => {
+                      if (!user?.biometricsVerified) { setLocation('/teacher/biometrics-setup'); return; }
+                      setShowScheduleModal(true);
+                    }}
+                  >
+                    <Plus className="w-4 h-4 mr-2" /> Schedule First Session
+                  </Button>
                 </div>
               ) : (
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -608,6 +617,9 @@ export default function TeacherDashboard() {
               )}
             </div>
           </TabsContent>
+
+      {/* ScheduleLiveCourseModal — shared by both schedule buttons in this dashboard */}
+      <ScheduleLiveCourseModal open={showScheduleModal} onClose={() => setShowScheduleModal(false)} />
 
           {/* STUDENTS TAB */}
           <TabsContent value="students">
