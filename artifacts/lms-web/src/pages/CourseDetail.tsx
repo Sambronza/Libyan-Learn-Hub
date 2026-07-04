@@ -56,10 +56,6 @@ export default function CourseDetail() {
     }
   });
 
-  // Subscription plan selection — MUST live above the early returns below
-  // (hooks after a conditional return crash with React error #310)
-  const [selectedDuration, setSelectedDuration] = useState<number>(1);
-
   const submitReport = async (data: any) => {
     if (!course) return;
     try {
