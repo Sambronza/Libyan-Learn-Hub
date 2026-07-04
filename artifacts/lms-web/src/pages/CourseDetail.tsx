@@ -36,6 +36,7 @@ export default function CourseDetail() {
   const { data: course, isLoading, isError, refetch } = useGetCourse(courseId, { query: { queryKey: ['/api/courses', courseId], enabled: !!courseId } });
   
   const [previewLessonId, setPreviewLessonId] = useState<number | null>(null);
+  const [selectedDuration, setSelectedDuration] = useState<number>(1);
   const previewLesson = previewLessonId && course ? course.lessons.find((l: any) => l.id === previewLessonId) : null;
   
   const { data: reviews = [] } = useQuery({
@@ -132,8 +133,6 @@ export default function CourseDetail() {
     if (h > 0) return `${h}h ${m}m`;
     return s > 0 ? `${m}m ${s}s` : `${m}m`;
   };
-
-  const [selectedDuration, setSelectedDuration] = useState<number>(1);
 
   const handleEnroll = () => {
     if (!isAuthenticated) {
