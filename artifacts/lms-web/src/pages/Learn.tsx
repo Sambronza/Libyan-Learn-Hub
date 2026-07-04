@@ -231,11 +231,11 @@ export default function Learn() {
             <div className="max-w-5xl mx-auto w-full p-4 sm:p-6 lg:p-8 flex-1">
 
               {/* ── Video Lesson ─────────────────────────────────── */}
-              {lesson.type === 'video' && (lesson.videoUrl || lesson.videoFilePath) ? (
+              {lesson.type === 'video' && ((lesson as any).hasVideo || lesson.videoUrl || lesson.videoFilePath) ? (
                 <>
                   <div className="mb-8">
                     <ProtectedPlayer
-                      url={(lesson.videoUrl || lesson.videoFilePath)!}
+                      url={lesson.videoUrl || lesson.videoFilePath || ''}
                       courseId={courseId}
                       lessonId={lesson.id}
                       startAt={lesson.watchedSeconds || 0}
@@ -264,41 +264,29 @@ export default function Learn() {
                 <div className="bg-card rounded-2xl p-8 shadow-sm border border-border min-h-[50vh] flex flex-col">
                   <h2 className="font-display text-3xl mb-6 mt-0">{language === 'ar' ? lesson.titleAr : lesson.title}</h2>
 
-                  {lesson.documentFilePath && (() => {
-                    const docUrl = lesson.documentFilePath!;
+                  {((lesson as any).secureDocUrl || lesson.documentFilePath) && (() => {
+                    // CONTENT PROTECTION: documents are served through the
+                    // tokenized secure-doc proxy (raw URL never exposed);
+                    // viewing is inline-only — no download button.
+                    const docUrl = (lesson as any).secureDocUrl || lesson.documentFilePath!;
                     const docName = lesson.documentFileName || 'document';
                     const fileExt = docName.split('.').pop()?.toLowerCase() || '';
-                    const isFilePdf = fileExt === 'pdf' || isPdf(docUrl);
+                    const isFilePdf = fileExt === 'pdf' || isPdf(docName);
 
                     return (
                       <div className="mb-8 w-full flex-1 flex flex-col">
                         {isFilePdf ? (
-                          /* PDF: use Google Docs Viewer to bypass Cloudinary CORS/content-type issues */
-                          <div className="w-full flex-1 flex flex-col gap-3">
-                            <div className="w-full flex-1 rounded-xl overflow-hidden border border-border" style={{ minHeight: '65vh' }}>
-                              <iframe
-                                src={`https://docs.google.com/viewer?url=${encodeURIComponent(docUrl)}&embedded=true`}
-                                className="w-full h-full"
-                                style={{ minHeight: '65vh' }}
-                                title={docName}
-                                allow="fullscreen"
-                              />
-                            </div>
-                            {/* Also offer a direct download for PDFs */}
-                            <div className="flex justify-end">
-                              <Button
-                                variant="outline"
-                                size="sm"
-                                className="gap-2"
-                                onClick={() => handleDownloadDocument(docUrl, docName)}
-                              >
-                                <Download className="w-4 h-4" />
-                                {language === 'ar' ? 'تنزيل الـ PDF' : 'Download PDF'}
-                              </Button>
-                            </div>
+                          <div className="w-full flex-1 rounded-xl overflow-hidden border border-border" style={{ minHeight: '65vh' }}>
+                            <iframe
+                              src={docUrl}
+                              className="w-full h-full"
+                              style={{ minHeight: '65vh' }}
+                              title={docName}
+                              allow="fullscreen"
+                            />
                           </div>
                         ) : (
-                          /* Non-PDF document: show download card */
+                          /* Non-PDF document: open inline via the secure proxy */
                           <div className="bg-muted p-8 rounded-xl flex flex-col sm:flex-row items-center justify-between border border-border gap-6 text-center sm:text-start">
                             <div className="flex flex-col sm:flex-row items-center gap-4">
                               <div className="w-16 h-16 bg-primary/10 rounded-2xl flex items-center justify-center text-4xl shrink-0">
@@ -307,17 +295,16 @@ export default function Learn() {
                               <div>
                                 <h3 className="font-bold text-lg">{docName}</h3>
                                 <p className="text-sm text-muted-foreground mt-1">
-                                  {language === 'ar' ? 'انقر لتنزيل الملف وعرضه' : 'Click to download and view the file'}
+                                  {language === 'ar' ? 'مادة محمية — للعرض داخل المنصة' : 'Protected material — view inside the platform'}
                                 </p>
                               </div>
                             </div>
                             <Button
                               size="lg"
                               className="gap-2 shrink-0"
-                              onClick={() => handleDownloadDocument(docUrl, docName)}
+                              onClick={() => window.open(docUrl, '_blank', 'noopener')}
                             >
-                              <Download className="w-5 h-5" />
-                              {language === 'ar' ? 'تنزيل' : 'Download'}
+                              {language === 'ar' ? 'عرض الملف' : 'View file'}
                             </Button>
                           </div>
                         )}
