@@ -18,6 +18,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useApi } from "@/hooks/useApi";
 import { ReportModal } from "@/components/ReportModal";
 import { OfflineDownloader, OfflineVideo } from "@/utils/OfflineDownloader";
+import { usePreventScreenCapture } from "expo-screen-capture";
 
 const C = Colors.light;
 
@@ -43,6 +44,9 @@ interface CourseLesson {
 }
 
 export default function LessonViewerScreen() {
+  // CONTENT PROTECTION: blocks screenshots and blacks out screen recordings
+  // (FLAG_SECURE on Android, capture prevention on iOS) while a lesson is open.
+  usePreventScreenCapture();
   const { courseId, lessonId } = useLocalSearchParams<{ courseId: string; lessonId: string }>();
   const insets = useSafeAreaInsets();
   const { user, apiBase } = useAuth();
@@ -64,6 +68,9 @@ export default function LessonViewerScreen() {
 
   React.useEffect(() => {
     if (!lessonId || !courseId) return;
+    // Offline copies play ONLY for a signed-in user (files themselves live in
+    // the app's private sandbox — inaccessible outside the app).
+    if (!user) { setLocalVideoUri(null); return; }
     OfflineDownloader.getOfflineVideos().then(vids => {
       const local = vids.find(v => v.id === `${courseId}_${lessonId}`);
       if (local) {
@@ -72,7 +79,7 @@ export default function LessonViewerScreen() {
         setLocalVideoUri(null);
       }
     });
-  }, [courseId, lessonId]);
+  }, [courseId, lessonId, user]);
 
   React.useEffect(() => {
     if (localVideoUri) {
@@ -80,7 +87,7 @@ export default function LessonViewerScreen() {
       return;
     }
 
-    if (lesson?.videoUrl && user && courseId && lessonId) {
+    if ((lesson?.videoUrl || (lesson as any)?.hasVideo) && user && courseId && lessonId) {
       apiFetch(`/video/generate-token`, {
         method: "POST",
         body: JSON.stringify({ courseId: parseInt(courseId), lessonId: parseInt(lessonId) }),
@@ -93,14 +100,14 @@ export default function LessonViewerScreen() {
       })
       .catch((e: any) => {
         console.log("Failed to load secure video", e);
-        setSecureUrl(lesson.videoUrl || null); // fallback if mock
+        setSecureUrl(lesson?.videoUrl || null); // fallback if mock
       });
     } else if (lesson?.videoUrl) {
       setSecureUrl(lesson.videoUrl);
     } else {
       setSecureUrl(null);
     }
-  }, [lesson?.videoUrl, user, courseId, lessonId, apiBase, localVideoUri]);
+  }, [lesson?.videoUrl, (lesson as any)?.hasVideo, user, courseId, lessonId, apiBase, localVideoUri]);
 
   const { data: courseLessons } = useQuery<CourseLesson[]>({
     queryKey: ["course-lessons", courseId],
@@ -214,7 +221,7 @@ export default function LessonViewerScreen() {
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 100 }}>
         {/* Video player */}
         <View style={styles.videoSection}>
-          {lesson.videoUrl ? (
+          {(lesson.videoUrl || (lesson as any).hasVideo) ? (
             <View style={styles.videoWrap}>
               {/* Content protection overlay to prevent right-click save */}
               <View style={styles.videoProtect} pointerEvents="none">

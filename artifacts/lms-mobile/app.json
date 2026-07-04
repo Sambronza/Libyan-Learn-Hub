@@ -1,6 +1,6 @@
 {
   "expo": {
-    "name": "EduLibya Mobile",
+    "name": "EduLibya",
     "slug": "learn2",
     "version": "1.0.0",
     "orientation": "portrait",
@@ -21,7 +21,16 @@
       }
     },
     "android": {
-      "package": "com.essamku.learn"
+      "package": "com.essamku.learn",
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/images/icon.png",
+        "backgroundColor": "#ffffff"
+      },
+      "permissions": [
+        "CAMERA",
+        "RECORD_AUDIO"
+      ],
+      "blockedPermissions": []
     },
     "web": {
       "favicon": "./assets/images/icon.png"
@@ -34,7 +43,13 @@
         }
       ],
       "expo-font",
-      "expo-web-browser"
+      "expo-web-browser",
+      [
+        "expo-camera",
+        {
+          "cameraPermission": "EduLibya uses the camera for face identity verification and account security. | يستخدم التطبيق الكاميرا للتحقق من هوية الوجه وأمان الحساب."
+        }
+      ]
     ],
     "experiments": {
       "typedRoutes": true,

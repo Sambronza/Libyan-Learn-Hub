@@ -58,19 +58,13 @@ router.post("/generate-token", async (req, res) => {
     // The sp_hd streaming profile generates a master playlist; hls.js handles
     // quality selection in the browser. Falls back to secure-stream proxy for
     // external videoUrl lessons.
-    let playbackUrl: string;
-    let isHls = false;
-
-    if (lesson.videoFilePath) {
-      // FORCE MP4: Cloudinary's HLS transcoder corrupts the media timestamps for very short videos,
-      // causing the player to freeze even if the playlist is valid. 
-      // We must serve the original .mp4 file to bypass the broken conversion.
-      playbackUrl = lesson.videoFilePath.replace('/sp_hd/', '/').replace('/f_m3u8/', '/').replace('.m3u8', '.mp4');
-      isHls = false;
-    } else {
-      // External videoUrl — proxy through secure-stream
-      playbackUrl = `/api/video/secure-stream/${lessonId}?token=${playbackToken}`;
-    }
+    // CONTENT PROTECTION: never expose the raw storage URL to the client.
+    // Encrypted lessons play via AES-128 HLS (playlist + tokenized key
+    // endpoint); everything else streams through the secure proxy.
+    const playbackUrl = lesson.hlsEncrypted
+      ? `/api/video/hls-playlist/${lessonId}?token=${playbackToken}`
+      : `/api/video/secure-stream/${lessonId}?token=${playbackToken}`;
+    const isHls = !!lesson.hlsEncrypted;
 
     res.json({ 
       token: playbackToken, 
@@ -104,12 +98,13 @@ router.get("/secure-stream/:lessonId", async (req, res) => {
     const [lesson] = await db.select().from(lessonsTable).where(eq(lessonsTable.id, lessonId)).limit(1);
     if (!lesson) return res.status(404).send("Video not found");
 
-    // If lesson has a Cloudinary-hosted video, redirect to it
-    if (lesson.videoFilePath) {
-      return res.redirect(lesson.videoFilePath);
-    }
-
-    if (!lesson.videoUrl) return res.status(404).send("Video not found");
+    // Resolve the actual source: Cloudinary upload (force plain MP4 — the HLS
+    // transcode corrupts timestamps on short videos) or an external URL.
+    // Never redirect: redirecting would expose the raw URL to the client.
+    const sourceUrl = lesson.videoFilePath
+      ? lesson.videoFilePath.replace('/sp_hd/', '/').replace('/f_m3u8/', '/').replace('.m3u8', '.mp4')
+      : lesson.videoUrl;
+    if (!sourceUrl) return res.status(404).send("Video not found");
 
     // Block caching to enhance DRM simulation
     res.setHeader("Cache-Control", "no-store, no-cache, must-revalidate, proxy-revalidate");
@@ -118,7 +113,7 @@ router.get("/secure-stream/:lessonId", async (req, res) => {
     res.setHeader("Content-Disposition", "inline"); // Play inline, don't trigger download
 
     // Proxy the video chunk by chunk
-    const url = new URL(lesson.videoUrl);
+    const url = new URL(sourceUrl);
     const client = url.protocol === "https:" ? https : http;
 
     const options = {
@@ -128,7 +123,7 @@ router.get("/secure-stream/:lessonId", async (req, res) => {
       }
     };
 
-    client.get(lesson.videoUrl, options, (remoteRes) => {
+    client.get(sourceUrl, options, (remoteRes) => {
       const statusCode = remoteRes.statusCode || 200;
       // Copy essential headers like Content-Type, Content-Length, Content-Range, Accept-Ranges
       const headersToCopy = ['content-type', 'content-length', 'content-range', 'accept-ranges'];
@@ -144,9 +139,119 @@ router.get("/secure-stream/:lessonId", async (req, res) => {
       console.error("Video proxy error:", err);
       res.status(500).send("Error streaming secure video");
     });
-
+    return;
   } catch (err: any) {
-    res.status(500).send("Server Error");
+    return void res.status(500).send("Server Error");
+  }
+});
+
+// ── AES-128 HLS endpoints (encrypted lessons) ────────────────────────────────
+
+/** Serves the m3u8 playlist with the key URI bound to the caller's token. */
+router.get("/hls-playlist/:lessonId", async (req, res) => {
+  try {
+    const lessonId = parseInt(req.params.lessonId);
+    const token = req.query.token as string;
+    if (!token) return void res.status(401).send("No playback token provided");
+
+    let payload: any;
+    try {
+      payload = jwt.verify(token, JWT_SECRET);
+    } catch {
+      return void res.status(401).send("Invalid or expired playback token");
+    }
+    if (payload.lessonId !== lessonId || payload.action !== "playback") {
+      return void res.status(403).send("Token mismatch or invalid action");
+    }
+
+    const [lesson] = await db.select().from(lessonsTable).where(eq(lessonsTable.id, lessonId)).limit(1);
+    if (!lesson?.hlsEncrypted || !lesson.hlsPlaylist) return void res.status(404).send("Playlist not found");
+
+    // Absolute key URI so native players (expo-av / Safari) can fetch it
+    const proto = (req.headers["x-forwarded-proto"] as string) || req.protocol || "https";
+    const host = req.get("host");
+    const keyUri = `${proto}://${host}/api/video/hls-key/${lessonId}?token=${encodeURIComponent(token)}`;
+
+    res.setHeader("Content-Type", "application/vnd.apple.mpegurl");
+    res.setHeader("Cache-Control", "no-store");
+    return void res.send(lesson.hlsPlaylist.replace("__KEY_URI__", keyUri));
+  } catch {
+    return void res.status(500).send("Server Error");
+  }
+});
+
+/** Serves the 16-byte AES key — the ONLY way the key ever leaves the server. */
+router.get("/hls-key/:lessonId", async (req, res) => {
+  try {
+    const lessonId = parseInt(req.params.lessonId);
+    const token = req.query.token as string;
+    if (!token) return void res.status(401).send("No token");
+
+    let payload: any;
+    try {
+      payload = jwt.verify(token, JWT_SECRET);
+    } catch {
+      return void res.status(401).send("Invalid or expired token");
+    }
+    if (payload.lessonId !== lessonId || payload.action !== "playback") {
+      return void res.status(403).send("Token mismatch");
+    }
+
+    const [lesson] = await db.select().from(lessonsTable).where(eq(lessonsTable.id, lessonId)).limit(1);
+    if (!lesson?.hlsKeyHex) return void res.status(404).send("Key not found");
+
+    res.setHeader("Content-Type", "application/octet-stream");
+    res.setHeader("Cache-Control", "no-store");
+    return void res.send(Buffer.from(lesson.hlsKeyHex, "hex"));
+  } catch {
+    return void res.status(500).send("Server Error");
+  }
+});
+
+// 3. Tokenized document proxy — lesson documents (PDFs etc.) are teacher
+// material too; the raw Cloudinary URL is never exposed to students.
+router.get("/secure-doc/:lessonId", async (req, res) => {
+  try {
+    const lessonId = parseInt(req.params.lessonId);
+    const token = req.query.token as string;
+    if (!token) return res.status(401).send("No document token provided");
+
+    let payload: any;
+    try {
+      payload = jwt.verify(token, JWT_SECRET);
+    } catch {
+      return res.status(401).send("Invalid or expired document token");
+    }
+    if (payload.lessonId !== lessonId || payload.action !== "document") {
+      return res.status(403).send("Token mismatch or invalid action");
+    }
+
+    const [lesson] = await db.select().from(lessonsTable).where(eq(lessonsTable.id, lessonId)).limit(1);
+    if (!lesson?.documentFilePath) return res.status(404).send("Document not found");
+
+    res.setHeader("Cache-Control", "no-store, no-cache, must-revalidate");
+    res.setHeader("Content-Disposition", "inline"); // view in browser, don't force download
+
+    const url = new URL(lesson.documentFilePath);
+    const client = url.protocol === "https:" ? https : http;
+    client.get(lesson.documentFilePath, { headers: { "User-Agent": "Libyan-Learn-Hub-Proxy" } }, (remoteRes) => {
+      const headers: Record<string, string | string[]> = {};
+      for (const h of ["content-type", "content-length"]) {
+        if (remoteRes.headers[h]) headers[h] = remoteRes.headers[h]!;
+      }
+      // Cloudinary raw files sometimes come back without a useful content type
+      if (!headers["content-type"] && (lesson.documentFileName || "").toLowerCase().endsWith(".pdf")) {
+        headers["content-type"] = "application/pdf";
+      }
+      res.writeHead(remoteRes.statusCode || 200, headers);
+      remoteRes.pipe(res);
+    }).on("error", (err) => {
+      console.error("Document proxy error:", err);
+      res.status(500).send("Error streaming document");
+    });
+    return;
+  } catch (err: any) {
+    return void res.status(500).send("Server Error");
   }
 });
 
