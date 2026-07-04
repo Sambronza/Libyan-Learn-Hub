@@ -3,13 +3,14 @@ import { Button } from '@/components/ui/button';
 import { Link } from 'wouter';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { useGetCourses, useGetCategories } from '@workspace/api-client-react';
-import { BookOpen, Star, ArrowRight, ArrowLeft, PlayCircle, Zap, TrendingUp, ChevronRight, GraduationCap, Sparkles, CheckCircle2, MonitorPlay, Globe } from 'lucide-react';
+import { BookOpen, Star, ArrowRight, ArrowLeft, PlayCircle, Zap, TrendingUp, ChevronRight, GraduationCap, Sparkles, CheckCircle2, MonitorPlay, Globe, LayoutDashboard, ShieldCheck } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { useSEO } from '@/hooks/useSEO';
 import { useApi } from '@/hooks/useApi';
 import { useQuery } from '@tanstack/react-query';
 import { PageContainer } from '@/components/layout/PageContainer';
 import { Blob } from '@/components/ui/Blob';
+import { useAuth } from '@/contexts/AuthContext';
 
 const fadeUp = (delay = 0) => ({
   initial: { opacity: 0, y: 32 },
@@ -20,6 +21,28 @@ const fadeUp = (delay = 0) => ({
 export default function Home() {
   const { t, language } = useLanguage();
   const isRtl = language === 'ar';
+  const { user, isAuthenticated } = useAuth();
+
+  // Resolve the correct dashboard link and label based on the user's role
+  const dashboardLink = (() => {
+    if (!isAuthenticated) return '/register';
+    if (user?.role === 'teacher') return '/teacher/dashboard';
+    if (user?.role === 'admin') return '/admin';
+    return '/dashboard';
+  })();
+
+  const dashboardLabel = (() => {
+    if (!isAuthenticated) return isRtl ? 'تعلّم / علّم معنا' : 'Learn/Teach With Us';
+    if (user?.role === 'teacher') return isRtl ? 'لوحة المعلم' : 'Teacher Dashboard';
+    if (user?.role === 'admin') return isRtl ? 'لوحة الإدارة' : 'Admin Panel';
+    return isRtl ? 'لوحة التحكم' : 'My Dashboard';
+  })();
+
+  const DashboardIcon = isAuthenticated
+    ? user?.role === 'admin'
+      ? ShieldCheck
+      : LayoutDashboard
+    : null;
 
   const { data: coursesData, isLoading: loadingCourses } = useGetCourses({ limit: 6 });
   const { data: categoriesData } = useGetCategories();
@@ -111,10 +134,27 @@ export default function Home() {
                     <Arrow className="w-5 h-5 shrink-0" />
                   </Button>
                 </Link>
-                <Link href="/register" className="w-full sm:w-auto">
-                  <Button size="lg" variant="outline" className="w-full sm:w-auto h-14 px-8 text-base font-medium rounded-2xl border-2 gap-2 hover:bg-primary/5 flex items-center justify-center">
-                    {isRtl ? 'تعلّم / علّم معنا' : 'Learn/Teach With Us'}
-                  </Button>
+                <Link href={dashboardLink} className="w-full sm:w-auto">
+                  <motion.div
+                    whileHover={{ scale: 1.03 }}
+                    whileTap={{ scale: 0.97 }}
+                    transition={{ type: 'spring', stiffness: 300, damping: 20 }}
+                    className="w-full sm:w-auto"
+                  >
+                    <Button
+                      size="lg"
+                      variant={isAuthenticated ? 'default' : 'outline'}
+                      className={
+                        isAuthenticated
+                          ? 'w-full sm:w-auto h-14 px-8 text-base font-bold rounded-2xl gap-2 flex items-center justify-center bg-gradient-to-r from-violet-600 to-primary hover:from-violet-500 hover:to-primary/90 shadow-lg shadow-primary/20 border-0 text-white'
+                          : 'w-full sm:w-auto h-14 px-8 text-base font-medium rounded-2xl border-2 gap-2 hover:bg-primary/5 flex items-center justify-center'
+                      }
+                    >
+                      {DashboardIcon && <DashboardIcon className="w-5 h-5 shrink-0" />}
+                      {dashboardLabel}
+                      {isAuthenticated && <Arrow className="w-4 h-4 shrink-0 opacity-70" />}
+                    </Button>
+                  </motion.div>
                 </Link>
               </motion.div>
 
