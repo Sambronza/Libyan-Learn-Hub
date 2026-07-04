@@ -276,14 +276,27 @@ export default function Learn() {
                     return (
                       <div className="mb-8 w-full flex-1 flex flex-col">
                         {isFilePdf ? (
-                          <div className="w-full flex-1 rounded-xl overflow-hidden border border-border" style={{ minHeight: '65vh' }}>
-                            <iframe
-                              src={docUrl}
-                              className="w-full h-full"
-                              style={{ minHeight: '65vh' }}
-                              title={docName}
-                              allow="fullscreen"
-                            />
+                          <div className="w-full flex-1 flex flex-col gap-3">
+                            <div className="w-full flex-1 rounded-xl overflow-hidden border border-border" style={{ minHeight: '65vh' }}>
+                              <iframe
+                                src={docUrl}
+                                className="w-full h-full"
+                                style={{ minHeight: '65vh' }}
+                                title={docName}
+                                allow="fullscreen"
+                              />
+                            </div>
+                            {/* Fallback for browsers whose built-in PDF viewer is disabled */}
+                            <p className="text-xs text-muted-foreground text-center">
+                              {language === 'ar' ? 'لا يظهر الملف؟ ' : "Can't see the file? "}
+                              <button
+                                type="button"
+                                className="text-primary font-medium underline underline-offset-2"
+                                onClick={() => window.open(docUrl, '_blank', 'noopener')}
+                              >
+                                {language === 'ar' ? 'افتحه في تبويب جديد' : 'Open it in a new tab'}
+                              </button>
+                            </p>
                           </div>
                         ) : (
                           /* Non-PDF document: open inline via the secure proxy */

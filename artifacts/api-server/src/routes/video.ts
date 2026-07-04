@@ -232,23 +232,53 @@ router.get("/secure-doc/:lessonId", async (req, res) => {
     res.setHeader("Cache-Control", "no-store, no-cache, must-revalidate");
     res.setHeader("Content-Disposition", "inline"); // view in browser, don't force download
 
-    const url = new URL(lesson.documentFilePath);
-    const client = url.protocol === "https:" ? https : http;
-    client.get(lesson.documentFilePath, { headers: { "User-Agent": "Libyan-Learn-Hub-Proxy" } }, (remoteRes) => {
-      const headers: Record<string, string | string[]> = {};
-      for (const h of ["content-type", "content-length"]) {
-        if (remoteRes.headers[h]) headers[h] = remoteRes.headers[h]!;
-      }
-      // Cloudinary raw files sometimes come back without a useful content type
-      if (!headers["content-type"] && (lesson.documentFileName || "").toLowerCase().endsWith(".pdf")) {
-        headers["content-type"] = "application/pdf";
-      }
-      res.writeHead(remoteRes.statusCode || 200, headers);
-      remoteRes.pipe(res);
-    }).on("error", (err) => {
-      console.error("Document proxy error:", err);
-      res.status(500).send("Error streaming document");
-    });
+    const isPdfDoc = (lesson.documentFileName || "").toLowerCase().endsWith(".pdf");
+
+    // Stream the document from storage. Chrome's built-in PDF viewer (PDFium)
+    // loads PDFs via HTTP Range requests (it reads the cross-reference table at
+    // the end of the file), so we MUST forward the incoming Range header and
+    // relay the upstream Accept-Ranges / Content-Range headers and 206 status.
+    // Serving a plain 200 without range support makes the viewer fail with
+    // "Failed to load PDF document". Cloudinary raw delivery may also redirect,
+    // so follow up to a few redirects.
+    const fetchDoc = (target: string, redirectsLeft: number): void => {
+      const url = new URL(target);
+      const client = url.protocol === "https:" ? https : http;
+      const options = {
+        headers: {
+          Range: (req.headers.range as string) || "bytes=0-",
+          "User-Agent": (req.headers["user-agent"] as string) || "Libyan-Learn-Hub-Proxy",
+        },
+      };
+      client.get(target, options, (remoteRes) => {
+        const statusCode = remoteRes.statusCode || 200;
+
+        // Follow redirects (3xx) without exposing the raw storage URL to the client.
+        if (statusCode >= 300 && statusCode < 400 && remoteRes.headers.location && redirectsLeft > 0) {
+          remoteRes.resume(); // drain
+          const next = new URL(remoteRes.headers.location, target).toString();
+          return fetchDoc(next, redirectsLeft - 1);
+        }
+
+        const headers: Record<string, string | string[]> = {};
+        for (const h of ["content-type", "content-length", "content-range", "accept-ranges"]) {
+          if (remoteRes.headers[h]) headers[h] = remoteRes.headers[h]!;
+        }
+        // Cloudinary raw files are often delivered as application/octet-stream,
+        // which stops the browser from rendering them inline as a PDF. Force the
+        // correct type for .pdf documents so the viewer activates.
+        if (isPdfDoc) headers["content-type"] = "application/pdf";
+        if (!headers["accept-ranges"]) headers["accept-ranges"] = "bytes";
+
+        res.writeHead(statusCode, headers);
+        remoteRes.pipe(res);
+      }).on("error", (err) => {
+        console.error("Document proxy error:", err);
+        if (!res.headersSent) res.status(500).send("Error streaming document");
+      });
+    };
+
+    fetchDoc(lesson.documentFilePath, 3);
     return;
   } catch (err: any) {
     return void res.status(500).send("Server Error");
