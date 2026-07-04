@@ -152,12 +152,17 @@ router.post(
         // request limit for videos longer than ~30 seconds.
       });
 
-      // Check resolution (Cloudinary returns width/height)
+      // Check resolution (Cloudinary returns width/height).
+      // Orientation-aware: landscape 1280×720 AND portrait 720×1280 (phone
+      // recordings) both count as HD — compare the short/long sides.
       if (result.width && result.height) {
-        if (result.width < 1280 || result.height < 720) {
+        const short = Math.min(result.width, result.height);
+        const long = Math.max(result.width, result.height);
+        if (short < 720 || long < 1280) {
           await cloudinary.uploader.destroy(result.public_id, { resource_type: "video" });
           res.status(400).json({
             error: "Video resolution must be at least HD (1280×720)",
+            errorAr: "يجب أن تكون دقة الفيديو HD على الأقل (1280×720)",
             actualWidth: result.width,
             actualHeight: result.height,
           });
