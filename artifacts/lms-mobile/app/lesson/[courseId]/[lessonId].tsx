@@ -68,6 +68,9 @@ export default function LessonViewerScreen() {
 
   React.useEffect(() => {
     if (!lessonId || !courseId) return;
+    // Offline copies play ONLY for a signed-in user (files themselves live in
+    // the app's private sandbox — inaccessible outside the app).
+    if (!user) { setLocalVideoUri(null); return; }
     OfflineDownloader.getOfflineVideos().then(vids => {
       const local = vids.find(v => v.id === `${courseId}_${lessonId}`);
       if (local) {
@@ -76,7 +79,7 @@ export default function LessonViewerScreen() {
         setLocalVideoUri(null);
       }
     });
-  }, [courseId, lessonId]);
+  }, [courseId, lessonId, user]);
 
   React.useEffect(() => {
     if (localVideoUri) {

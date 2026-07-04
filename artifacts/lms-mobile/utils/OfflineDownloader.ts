@@ -72,7 +72,27 @@ export class OfflineDownloader {
       }
 
       if (!targetVariantUrl) {
-        throw new Error("Could not parse HLS playlist");
+        // Not an HLS playlist — legacy MP4 lesson served via the secure proxy.
+        // Download it as a single protected file inside the app sandbox.
+        const mp4Path = videoDir + 'video.bin';
+        const dl = FileSystem.createDownloadResumable(url, mp4Path, {}, (p2) => {
+          if (progressCallback && p2.totalBytesExpectedToWrite > 0) {
+            progressCallback(p2.totalBytesWritten / p2.totalBytesExpectedToWrite);
+          }
+        });
+        const resMp4 = await dl.downloadAsync();
+        if (!resMp4) throw new Error("Download failed");
+        const info = await FileSystem.getInfoAsync(mp4Path);
+        const existingMp4 = await this.getOfflineVideos();
+        existingMp4.push({
+          id: videoId,
+          localPlaylistPath: mp4Path,
+          courseId, lessonId, title,
+          sizeBytes: (info as any).size || 0,
+          downloadedAt: new Date().toISOString(),
+        });
+        await this.saveOfflineVideos(existingMp4);
+        return mp4Path;
       }
 
       // 3. Download the variant playlist and process EXT-X-KEY if present
