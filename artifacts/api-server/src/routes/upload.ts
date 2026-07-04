@@ -153,16 +153,19 @@ router.post(
       });
 
       // Check resolution (Cloudinary returns width/height).
-      // Orientation-aware: landscape 1280×720 AND portrait 720×1280 (phone
-      // recordings) both count as HD — compare the short/long sides.
+      // Intent: "HD sharpness", regardless of aspect ratio or orientation.
+      //  - long side must reach HD width (>= 1280): covers landscape 1280×720,
+      //    portrait phone videos 720×1280, AND widescreen/cinematic exports
+      //    like 1280×676 or 1280×536 whose height is naturally below 720.
+      //  - short side floor (>= 480) only blocks genuinely low-quality files.
       if (result.width && result.height) {
         const short = Math.min(result.width, result.height);
         const long = Math.max(result.width, result.height);
-        if (short < 720 || long < 1280) {
+        if (long < 1280 || short < 480) {
           await cloudinary.uploader.destroy(result.public_id, { resource_type: "video" });
           res.status(400).json({
-            error: "Video resolution must be at least HD (1280×720)",
-            errorAr: "يجب أن تكون دقة الفيديو HD على الأقل (1280×720)",
+            error: "Video quality is too low — minimum HD width (1280px) is required",
+            errorAr: "جودة الفيديو منخفضة — الحد الأدنى هو عرض HD بدقة 1280 بكسل",
             actualWidth: result.width,
             actualHeight: result.height,
           });
