@@ -17,6 +17,7 @@ import { parseParam } from "../lib/utils.js";
 import { deleteFromCloudinaryByUrl } from "../lib/cloudinary.js";
 import { parsePlanPrices, hasIncompletePlanPrices } from "../lib/subscriptions.js";
 import { searchCondition } from "../lib/search.js";
+import { enqueueHlsEncryption } from "../lib/hls.js";
 
 const router = Router();
 
@@ -202,6 +203,11 @@ router.post("/bulk", requireAuth, requireRole("teacher", "admin"), async (req, r
       order: idx,
     }));
     const insertedLessons = await db.insert(lessonsTable).values(lessonRows).returning();
+
+    // Content protection: encrypt uploaded videos into AES-128 HLS in the background
+    for (const l of insertedLessons) {
+      if (l.videoFilePath) enqueueHlsEncryption(l.id);
+    }
 
     // 4. Notify all admins about the new pending course
     const admins = await db.select().from(usersTable).where(eq(usersTable.role, "admin"));
@@ -509,6 +515,25 @@ router.delete("/:courseId", requireAuth, requireRole("teacher", "admin"), async 
 router.get("/:courseId/lessons", async (req, res) => {
   try {
     const courseId = parseInt(req.params.courseId);
+
+    // CONTENT PROTECTION: raw storage URLs are only included for the course's
+    // own teacher or an admin. Students/anonymous users get metadata only —
+    // playback goes through the tokenized secure-stream proxy.
+    let isOwnerOrAdmin = false;
+    const authHeader = req.headers.authorization;
+    if (authHeader?.startsWith("Bearer ")) {
+      try {
+        const { verifyToken } = await import("../lib/auth.js");
+        const payload = verifyToken(authHeader.slice(7));
+        if (payload.role === "admin") {
+          isOwnerOrAdmin = true;
+        } else {
+          const [course] = await db.select().from(coursesTable).where(eq(coursesTable.id, courseId)).limit(1);
+          isOwnerOrAdmin = course?.teacherId === payload.userId;
+        }
+      } catch {}
+    }
+
     const lessons = await db.select().from(lessonsTable).where(eq(lessonsTable.courseId, courseId)).orderBy(lessonsTable.order);
     res.json(lessons.map(l => ({
       id: l.id,
@@ -519,13 +544,13 @@ router.get("/:courseId/lessons", async (req, res) => {
       isFree: l.isFree,
       type: l.type,
       courseId: l.courseId,
-      videoUrl: l.videoUrl,
-      videoFilePath: l.videoFilePath,
-      documentFilePath: l.documentFilePath,
+      hasVideo: !!(l.videoUrl || l.videoFilePath),
+      hasDocument: !!l.documentFilePath,
       documentFileName: l.documentFileName,
       content: l.content,
       contentAr: l.contentAr,
       createdAt: l.createdAt,
+      ...(isOwnerOrAdmin ? { videoUrl: l.videoUrl, videoFilePath: l.videoFilePath, documentFilePath: l.documentFilePath } : {}),
     })));
   } catch (err: any) {
     res.status(500).json({ error: "Server error", message: err.message });
@@ -546,6 +571,10 @@ router.post("/:courseId/lessons", requireAuth, requireRole("teacher", "admin"), 
       bookName: bookName || null, bookNameAr: bookNameAr || null, schoolYear: schoolYear || null,
       chapter: chapter || null, pageNumber: pageNumber || null, subjectTags: subjectTags || null
     }).returning();
+
+    // Content protection: encrypt uploaded video into AES-128 HLS in the background
+    if (lesson.videoFilePath) enqueueHlsEncryption(lesson.id);
+
     res.status(201).json({ ...lesson, courseId: lesson.courseId });
   } catch (err: any) {
     res.status(400).json({ error: "Failed to create lesson", message: err.message });
@@ -577,6 +606,20 @@ router.get("/:courseId/lessons/:lessonId", requireAuth, async (req, res) => {
       .where(and(eq(progressTable.lessonId, lessonId), eq(progressTable.userId, userId)))
       .limit(1);
 
+    // Raw storage URLs only for the course teacher / admin
+    const { role } = (req as any).user;
+    const [ownCourse] = await db.select().from(coursesTable).where(eq(coursesTable.id, courseId)).limit(1);
+    const isOwnerOrAdmin = role === "admin" || ownCourse?.teacherId === userId;
+
+    // Documents are served through a short-lived tokenized proxy (no raw URL)
+    let secureDocUrl: string | null = null;
+    if (lesson.documentFilePath) {
+      const jwt = (await import("jsonwebtoken")).default;
+      const SECRET = process.env.JWT_SECRET || "default_super_secret_jwt_key_for_dev_only";
+      const docToken = jwt.sign({ userId, lessonId, action: "document" }, SECRET, { expiresIn: "6h" });
+      secureDocUrl = `/api/video/secure-doc/${lessonId}?token=${docToken}`;
+    }
+
     res.json({
       id: lesson.id,
       title: lesson.title,
@@ -586,15 +629,16 @@ router.get("/:courseId/lessons/:lessonId", requireAuth, async (req, res) => {
       isFree: lesson.isFree,
       type: lesson.type,
       courseId: lesson.courseId,
-      videoUrl: lesson.videoUrl,
-      videoFilePath: lesson.videoFilePath,
-      documentFilePath: lesson.documentFilePath,
+      hasVideo: !!(lesson.videoUrl || lesson.videoFilePath),
+      hasDocument: !!lesson.documentFilePath,
+      secureDocUrl,
       documentFileName: lesson.documentFileName,
       content: lesson.content,
       contentAr: lesson.contentAr,
       createdAt: lesson.createdAt,
       isCompleted: prog?.isCompleted || false,
       watchedSeconds: prog?.watchedSeconds || 0,
+      ...(isOwnerOrAdmin ? { videoUrl: lesson.videoUrl, videoFilePath: lesson.videoFilePath, documentFilePath: lesson.documentFilePath } : {}),
     });
   } catch (err: any) {
     res.status(500).json({ error: "Server error", message: err.message });

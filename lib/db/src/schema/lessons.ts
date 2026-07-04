@@ -23,6 +23,12 @@ export const lessonsTable = pgTable("lessons", {
   contentAr: text("content_ar"),
   notes: text("notes"),
   notesAr: text("notes_ar"),
+  // AES-128 HLS encryption (content protection): when hlsEncrypted, playback
+  // uses the stored playlist template + a key served only via the tokenized
+  // key endpoint. The key NEVER leaves the database except through that endpoint.
+  hlsEncrypted: boolean("hls_encrypted").notNull().default(false),
+  hlsKeyHex: varchar("hls_key_hex", { length: 64 }),
+  hlsPlaylist: text("hls_playlist"), // m3u8 template with __KEY_URI__ placeholder + absolute segment URLs
   duration: integer("duration").notNull().default(0),
   order: integer("order").notNull().default(0),
   isFree: boolean("is_free").notNull().default(false),

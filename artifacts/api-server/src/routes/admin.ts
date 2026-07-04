@@ -1128,6 +1128,35 @@ router.post("/tutoring-reviews/:id/partial-approve", async (req, res) => {
   }
 });
 
+// ─── HLS ENCRYPTION (content protection backfill) ────────────────────────────
+
+// Queue all not-yet-encrypted video lessons for AES-128 HLS encryption
+router.post("/hls/encrypt-all", async (req, res) => {
+  try {
+    const { enqueueHlsEncryption, hlsQueueStatus } = await import("../lib/hls.js");
+    const { isNotNull } = await import("drizzle-orm");
+    const pending = await db.select({ id: lessonsTable.id }).from(lessonsTable)
+      .where(and(eq(lessonsTable.hlsEncrypted, false), isNotNull(lessonsTable.videoFilePath)));
+    for (const l of pending) enqueueHlsEncryption(l.id);
+    res.json({ queued: pending.length, status: hlsQueueStatus() });
+  } catch (err: any) {
+    res.status(500).json({ error: "Server error", message: err.message });
+  }
+});
+
+router.get("/hls/status", async (_req, res) => {
+  try {
+    const { hlsQueueStatus } = await import("../lib/hls.js");
+    const [counts] = await db.select({
+      encrypted: sql<number>`COUNT(*) FILTER (WHERE ${lessonsTable.hlsEncrypted} = true)`,
+      unencrypted: sql<number>`COUNT(*) FILTER (WHERE ${lessonsTable.hlsEncrypted} = false AND ${lessonsTable.videoFilePath} IS NOT NULL)`,
+    }).from(lessonsTable);
+    res.json({ ...hlsQueueStatus(), encrypted: Number(counts.encrypted), unencrypted: Number(counts.unencrypted) });
+  } catch (err: any) {
+    res.status(500).json({ error: "Server error", message: err.message });
+  }
+});
+
 // ─── TEACHER CERTIFICATE APPROVAL ─────────────────────────────────────────────
 
 router.post("/users/:userId/certificates-approval", async (req, res) => {

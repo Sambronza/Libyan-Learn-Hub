@@ -11,7 +11,8 @@ import { useApi } from '@/hooks/useApi';
 import { Skeleton, StatCardSkeleton, CourseCardSkeleton } from '@/components/ui/skeleton';
 
 export default function Dashboard() {
-  const { t } = useLanguage();
+  const { t, language } = useLanguage();
+  const isAr = language === 'ar';
   const { user, isAuthenticated, isLoading: authLoading } = useAuth();
   const [, setLocation] = useLocation();
   const api = useApi();
@@ -237,7 +238,7 @@ export default function Dashboard() {
         {/* My Courses */}
         <section>
           <div className="flex justify-between items-center mb-6">
-            <h2 className="text-xl font-display font-bold">My Courses</h2>
+            <h2 className="text-xl font-display font-bold">{isAr ? 'دوراتي' : 'My Courses'}</h2>
             <Link href="/courses">
               <Button variant="outline" size="sm">Browse More Courses →</Button>
             </Link>
@@ -253,7 +254,7 @@ export default function Dashboard() {
               <h3 className="text-xl font-bold">No courses yet</h3>
               <p className="text-muted-foreground mt-2 mb-6">Explore our catalog and start learning today.</p>
               <Link href="/courses">
-                <Button>Browse Courses</Button>
+                <Button>{isAr ? 'تصفّح الدورات' : 'Browse Courses'}</Button>
               </Link>
             </div>
           ) : (
@@ -283,15 +284,15 @@ export default function Dashboard() {
                     {/* Subscription status badge */}
                     {isExpired ? (
                       <div className="absolute top-2 end-2 bg-destructive text-white text-[11px] font-bold px-2.5 py-1 rounded-full shadow">
-                        Subscription expired
+                        {isAr ? 'انتهى الاشتراك' : 'Subscription expired'}
                       </div>
                     ) : expiringSoon ? (
                       <div className="absolute top-2 end-2 bg-amber-500 text-white text-[11px] font-bold px-2.5 py-1 rounded-full shadow">
-                        {daysLeft === 0 ? 'Expires today' : `Expires in ${daysLeft}d`}
+                        {daysLeft === 0 ? (isAr ? 'ينتهي اليوم' : 'Expires today') : (isAr ? `ينتهي خلال ${daysLeft} يوم` : `Expires in ${daysLeft}d`)}
                       </div>
                     ) : expiresAt ? (
                       <div className="absolute top-2 end-2 bg-black/60 text-white text-[11px] font-medium px-2.5 py-1 rounded-full backdrop-blur-sm">
-                        {daysLeft}d left
+                        {isAr ? `متبقٍ ${daysLeft} يوم` : `${daysLeft}d left`}
                       </div>
                     ) : null}
                   </div>
@@ -300,7 +301,7 @@ export default function Dashboard() {
                     <p className="text-xs text-muted-foreground mb-3">{enrollment.course?.teacherName}</p>
                     <div className="mt-auto">
                       <div className="flex justify-between text-xs text-muted-foreground mb-1.5">
-                        <span>Progress</span>
+                        <span>{isAr ? 'التقدم' : 'Progress'}</span>
                         <span className="font-medium">{Math.round(enrollment.progress)}%</span>
                       </div>
                       <div className="w-full bg-muted rounded-full h-2 mb-4">
@@ -312,20 +313,24 @@ export default function Dashboard() {
                       {isExpired ? (
                         <Link href={`/checkout/course/${enrollment.courseId}?duration=${enrollment.subscriptionMonths || 1}`}>
                           <Button className="w-full" variant="destructive">
-                            Renew Subscription
+                            {isAr ? 'تجديد الاشتراك' : 'Renew Subscription'}
                           </Button>
                         </Link>
                       ) : (
                         <div className="space-y-2">
                           <Link href={`/courses/${enrollment.courseId}/learn`}>
                             <Button className="w-full" variant={enrollment.progress > 0 ? 'default' : 'outline'}>
-                              {enrollment.progress >= 100 ? 'Review Course' : enrollment.progress > 0 ? 'Continue Learning →' : 'Start Course →'}
+                              {enrollment.progress >= 100
+                                ? (isAr ? 'مراجعة الدورة' : 'Review Course')
+                                : enrollment.progress > 0
+                                  ? (isAr ? '← متابعة التعلم' : 'Continue Learning →')
+                                  : (isAr ? '← ابدأ الدورة' : 'Start Course →')}
                             </Button>
                           </Link>
                           {expiringSoon && (
                             <Link href={`/checkout/course/${enrollment.courseId}?duration=${enrollment.subscriptionMonths || 1}`}>
                               <Button className="w-full" variant="outline" size="sm">
-                                Renew now — keep your access
+                                {isAr ? 'جدّد الآن — حافظ على وصولك' : 'Renew now — keep your access'}
                               </Button>
                             </Link>
                           )}
@@ -344,9 +349,9 @@ export default function Dashboard() {
         {upcomingSessions.length > 0 && (
           <section>
             <div className="flex justify-between items-center mb-6">
-              <h2 className="text-xl font-display font-bold">Upcoming Live Sessions</h2>
+              <h2 className="text-xl font-display font-bold">{isAr ? 'الجلسات المباشرة القادمة' : 'Upcoming Live Sessions'}</h2>
               <Link href="/live-sessions">
-                <Button variant="outline" size="sm">View All Sessions →</Button>
+                <Button variant="outline" size="sm">{isAr ? '← عرض كل الجلسات' : 'View All Sessions →'}</Button>
               </Link>
             </div>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">

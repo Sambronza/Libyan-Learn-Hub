@@ -25,6 +25,7 @@
     "@workspace/api-client-react": "workspace:*",
     "babel-plugin-react-compiler": "^19.0.0-beta-e993439-20250117",
     "babel-preset-expo": "~12.0.4",
+    "eas-cli": "^20.5.1",
     "expo": "~54.0.27",
     "expo-blur": "~15.0.8",
     "expo-constants": "~18.0.11",
@@ -66,6 +67,7 @@
     "expo-document-picker": "^55.0.9",
     "expo-file-system": "^55.0.11",
     "expo-notifications": "^56.0.14",
+    "expo-screen-capture": "~8.0.9",
     "lucide-react-native": "^1.17.0",
     "react-compiler-runtime": "^19.0.0-beta-e993439-20250117",
     "react-native-webview": "^13.16.1"

@@ -71,7 +71,14 @@ export default function Certificate() {
           <div className="absolute top-0 left-0 w-40 h-40 bg-amber-100 rounded-full blur-3xl -translate-x-1/2 -translate-y-1/2 opacity-60" />
           <div className="absolute bottom-0 right-0 w-40 h-40 bg-amber-100 rounded-full blur-3xl translate-x-1/2 translate-y-1/2 opacity-60" />
 
-          <Award className="w-16 h-16 text-amber-600 mx-auto mb-4" />
+          {/* Platform logo */}
+          <img
+            src="/images/logo.png"
+            alt="EduLibya"
+            className="h-16 mx-auto mb-3 object-contain select-none"
+            draggable={false}
+          />
+          <Award className="w-10 h-10 text-amber-600 mx-auto mb-3" />
           <div className="text-xs tracking-[0.3em] uppercase text-slate-500 mb-1">Libyan Learn Hub — EduLibya</div>
           <h1 className="font-display text-3xl sm:text-4xl font-extrabold text-slate-900 mb-1">
             {isAr ? 'شهادة إتمام دورة' : 'Certificate of Completion'}
