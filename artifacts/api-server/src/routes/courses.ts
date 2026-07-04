@@ -17,6 +17,7 @@ import { parseParam } from "../lib/utils.js";
 import { deleteFromCloudinaryByUrl } from "../lib/cloudinary.js";
 import { parsePlanPrices, hasIncompletePlanPrices } from "../lib/subscriptions.js";
 import { searchCondition } from "../lib/search.js";
+import { enqueueHlsEncryption } from "../lib/hls.js";
 
 const router = Router();
 
@@ -202,6 +203,11 @@ router.post("/bulk", requireAuth, requireRole("teacher", "admin"), async (req, r
       order: idx,
     }));
     const insertedLessons = await db.insert(lessonsTable).values(lessonRows).returning();
+
+    // Content protection: encrypt uploaded videos into AES-128 HLS in the background
+    for (const l of insertedLessons) {
+      if (l.videoFilePath) enqueueHlsEncryption(l.id);
+    }
 
     // 4. Notify all admins about the new pending course
     const admins = await db.select().from(usersTable).where(eq(usersTable.role, "admin"));
@@ -565,6 +571,10 @@ router.post("/:courseId/lessons", requireAuth, requireRole("teacher", "admin"), 
       bookName: bookName || null, bookNameAr: bookNameAr || null, schoolYear: schoolYear || null,
       chapter: chapter || null, pageNumber: pageNumber || null, subjectTags: subjectTags || null
     }).returning();
+
+    // Content protection: encrypt uploaded video into AES-128 HLS in the background
+    if (lesson.videoFilePath) enqueueHlsEncryption(lesson.id);
+
     res.status(201).json({ ...lesson, courseId: lesson.courseId });
   } catch (err: any) {
     res.status(400).json({ error: "Failed to create lesson", message: err.message });

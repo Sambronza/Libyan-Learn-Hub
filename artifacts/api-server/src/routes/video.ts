@@ -59,10 +59,12 @@ router.post("/generate-token", async (req, res) => {
     // quality selection in the browser. Falls back to secure-stream proxy for
     // external videoUrl lessons.
     // CONTENT PROTECTION: never expose the raw storage URL to the client.
-    // All playback goes through the tokenized secure-stream proxy, so the
-    // Cloudinary URL can't be copied from dev tools and shared/downloaded.
-    const playbackUrl = `/api/video/secure-stream/${lessonId}?token=${playbackToken}`;
-    const isHls = false;
+    // Encrypted lessons play via AES-128 HLS (playlist + tokenized key
+    // endpoint); everything else streams through the secure proxy.
+    const playbackUrl = lesson.hlsEncrypted
+      ? `/api/video/hls-playlist/${lessonId}?token=${playbackToken}`
+      : `/api/video/secure-stream/${lessonId}?token=${playbackToken}`;
+    const isHls = !!lesson.hlsEncrypted;
 
     res.json({ 
       token: playbackToken, 
@@ -139,6 +141,69 @@ router.get("/secure-stream/:lessonId", async (req, res) => {
     });
     return;
   } catch (err: any) {
+    return void res.status(500).send("Server Error");
+  }
+});
+
+// ── AES-128 HLS endpoints (encrypted lessons) ────────────────────────────────
+
+/** Serves the m3u8 playlist with the key URI bound to the caller's token. */
+router.get("/hls-playlist/:lessonId", async (req, res) => {
+  try {
+    const lessonId = parseInt(req.params.lessonId);
+    const token = req.query.token as string;
+    if (!token) return void res.status(401).send("No playback token provided");
+
+    let payload: any;
+    try {
+      payload = jwt.verify(token, JWT_SECRET);
+    } catch {
+      return void res.status(401).send("Invalid or expired playback token");
+    }
+    if (payload.lessonId !== lessonId || payload.action !== "playback") {
+      return void res.status(403).send("Token mismatch or invalid action");
+    }
+
+    const [lesson] = await db.select().from(lessonsTable).where(eq(lessonsTable.id, lessonId)).limit(1);
+    if (!lesson?.hlsEncrypted || !lesson.hlsPlaylist) return void res.status(404).send("Playlist not found");
+
+    // Absolute key URI so native players (expo-av / Safari) can fetch it
+    const proto = (req.headers["x-forwarded-proto"] as string) || req.protocol || "https";
+    const host = req.get("host");
+    const keyUri = `${proto}://${host}/api/video/hls-key/${lessonId}?token=${encodeURIComponent(token)}`;
+
+    res.setHeader("Content-Type", "application/vnd.apple.mpegurl");
+    res.setHeader("Cache-Control", "no-store");
+    return void res.send(lesson.hlsPlaylist.replace("__KEY_URI__", keyUri));
+  } catch {
+    return void res.status(500).send("Server Error");
+  }
+});
+
+/** Serves the 16-byte AES key — the ONLY way the key ever leaves the server. */
+router.get("/hls-key/:lessonId", async (req, res) => {
+  try {
+    const lessonId = parseInt(req.params.lessonId);
+    const token = req.query.token as string;
+    if (!token) return void res.status(401).send("No token");
+
+    let payload: any;
+    try {
+      payload = jwt.verify(token, JWT_SECRET);
+    } catch {
+      return void res.status(401).send("Invalid or expired token");
+    }
+    if (payload.lessonId !== lessonId || payload.action !== "playback") {
+      return void res.status(403).send("Token mismatch");
+    }
+
+    const [lesson] = await db.select().from(lessonsTable).where(eq(lessonsTable.id, lessonId)).limit(1);
+    if (!lesson?.hlsKeyHex) return void res.status(404).send("Key not found");
+
+    res.setHeader("Content-Type", "application/octet-stream");
+    res.setHeader("Cache-Control", "no-store");
+    return void res.send(Buffer.from(lesson.hlsKeyHex, "hex"));
+  } catch {
     return void res.status(500).send("Server Error");
   }
 });
