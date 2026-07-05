@@ -25,7 +25,7 @@ import { Skeleton, StatCardSkeleton, CourseCardSkeleton } from '@/components/ui/
 import ScheduleLiveCourseModal from '@/components/ScheduleLiveCourseModal';
 
 export default function TeacherDashboard() {
-  const { t } = useLanguage();
+  const { t, language } = useLanguage();
   const { user, isAuthenticated, isLoading: authLoading } = useAuth();
   const [, setLocation] = useLocation();
   const queryClient = useQueryClient();

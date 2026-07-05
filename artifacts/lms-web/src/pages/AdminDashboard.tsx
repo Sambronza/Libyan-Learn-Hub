@@ -7,7 +7,7 @@ import {
   TrendingUp, GraduationCap, Presentation, Shield, Globe, Lock,
   DollarSign, BarChart2, Clock, Plus, RefreshCw, Eye, Radio,
   AlertCircle, BadgeCheck, Flag, Filter, PlusCircle, Tag, Edit2, ShieldAlert, School, Settings, Banknote, Ticket,
-  Video, Search, PlayCircle
+  Video, Search, PlayCircle, FileText
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';

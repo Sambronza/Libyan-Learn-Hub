@@ -3,8 +3,9 @@ import { db } from "@workspace/db";
 import {
   usersTable, coursesTable, enrollmentsTable, reviewsTable, lessonsTable,
   profileAnalyticsTable, studentEndorsementsTable,
+  liveSessionsTable, liveSessionCoursesTable, tutoringRequestsTable,
 } from "@workspace/db";
-import { eq, count, avg, and, sql, desc } from "drizzle-orm";
+import { eq, count, avg, and, sql, desc, gte, or, lte } from "drizzle-orm";
 import { requireAuth, requireRole } from "../lib/auth.js";
 import { parseParam } from "../lib/utils.js";
 import multer from "multer";
@@ -160,6 +161,155 @@ router.get("/:slug", async (req, res) => {
         price: parseFloat(c.price),
         level: c.level,
       })),
+    });
+  } catch (err: any) {
+    res.status(500).json({ error: "Server error", message: err.message });
+  }
+});
+
+// ── Public: Get teacher activities (sessions, tutoring, badges) ───────────────────
+router.get("/activities/:slug", async (req, res) => {
+  try {
+    const { slug } = req.params;
+    const isId = /^\d+$/.test(slug);
+    const condition = isId
+      ? eq(usersTable.id, parseInt(slug))
+      : eq(usersTable.profileSlug, slug);
+
+    const [teacher] = await db.select({ id: usersTable.id, fullName: usersTable.fullName, studentCount: sql<number>`0` })
+      .from(usersTable)
+      .where(and(condition, eq(usersTable.role, "teacher")))
+      .limit(1);
+
+    if (!teacher) { res.status(404).json({ error: "Teacher not found" }); return; }
+
+    const now = new Date();
+    const twoWeeksAgo = new Date(now.getTime() - 14 * 24 * 60 * 60 * 1000);
+
+    // Upcoming + live sessions (next 30 days)
+    const upcomingSessions = await db
+      .select({
+        id: liveSessionsTable.id,
+        title: liveSessionsTable.title,
+        titleAr: liveSessionsTable.titleAr,
+        scheduledAt: liveSessionsTable.scheduledAt,
+        durationMinutes: liveSessionsTable.durationMinutes,
+        status: liveSessionsTable.status,
+        price: liveSessionsTable.price,
+        maxParticipants: liveSessionsTable.maxParticipants,
+        meetingUrl: liveSessionsTable.meetingUrl,
+        liveSessionCourseId: liveSessionsTable.liveSessionCourseId,
+      })
+      .from(liveSessionsTable)
+      .where(
+        and(
+          eq(liveSessionsTable.teacherId, teacher.id),
+          or(
+            eq(liveSessionsTable.status, "scheduled"),
+            eq(liveSessionsTable.status, "live"),
+          ),
+        )
+      )
+      .orderBy(liveSessionsTable.scheduledAt)
+      .limit(10);
+
+    // Recently ended sessions (last 14 days)
+    const recentSessions = await db
+      .select({
+        id: liveSessionsTable.id,
+        title: liveSessionsTable.title,
+        titleAr: liveSessionsTable.titleAr,
+        scheduledAt: liveSessionsTable.scheduledAt,
+        durationMinutes: liveSessionsTable.durationMinutes,
+        status: liveSessionsTable.status,
+        recordingUrl: liveSessionsTable.recordingUrl,
+        liveSessionCourseId: liveSessionsTable.liveSessionCourseId,
+      })
+      .from(liveSessionsTable)
+      .where(
+        and(
+          eq(liveSessionsTable.teacherId, teacher.id),
+          eq(liveSessionsTable.status, "ended"),
+          gte(liveSessionsTable.scheduledAt, twoWeeksAgo),
+        )
+      )
+      .orderBy(desc(liveSessionsTable.scheduledAt))
+      .limit(5);
+
+    // Active tutoring requests for this teacher (accepted, upcoming)
+    const upcomingTutoring = await db
+      .select({
+        id: tutoringRequestsTable.id,
+        subject: tutoringRequestsTable.subject,
+        preferredAt: tutoringRequestsTable.preferredAt,
+        durationMinutes: tutoringRequestsTable.durationMinutes,
+        status: tutoringRequestsTable.status,
+      })
+      .from(tutoringRequestsTable)
+      .where(
+        and(
+          eq(tutoringRequestsTable.teacherId, teacher.id),
+          eq(tutoringRequestsTable.status, "accepted"),
+          gte(tutoringRequestsTable.preferredAt, now),
+        )
+      )
+      .orderBy(tutoringRequestsTable.preferredAt)
+      .limit(5);
+
+    // Live session courses by this teacher
+    const liveCourses = await db
+      .select()
+      .from(liveSessionCoursesTable)
+      .where(eq(liveSessionCoursesTable.teacherId, teacher.id))
+      .orderBy(desc(liveSessionCoursesTable.createdAt))
+      .limit(5);
+
+    // Stats for badges
+    const [totalSessionsRow] = await db
+      .select({ total: count() })
+      .from(liveSessionsTable)
+      .where(and(
+        eq(liveSessionsTable.teacherId, teacher.id),
+        eq(liveSessionsTable.status, "ended"),
+      ));
+
+    const [reviewData] = await db
+      .select({ avg: avg(reviewsTable.rating), cnt: count() })
+      .from(reviewsTable)
+      .where(sql`${reviewsTable.courseId} IN (SELECT id FROM courses WHERE teacher_id = ${teacher.id})`);
+
+    const [studentCountRow] = await db
+      .select({ total: count() })
+      .from(enrollmentsTable)
+      .where(sql`${enrollmentsTable.courseId} IN (SELECT id FROM courses WHERE teacher_id = ${teacher.id})`);
+
+    const totalSessions = Number(totalSessionsRow?.total ?? 0);
+    const avgRating = parseFloat(reviewData?.avg ?? "0");
+    const reviewCount = Number(reviewData?.cnt ?? 0);
+    const studentCount = Number(studentCountRow?.total ?? 0);
+
+    // Compute achievement badges
+    const badges: { key: string; label: string; labelAr: string; color: string }[] = [];
+    if (avgRating >= 4.8 && reviewCount >= 5)
+      badges.push({ key: "top_rated", label: "Top Rated", labelAr: "معلم متميز", color: "amber" });
+    if (totalSessions >= 100)
+      badges.push({ key: "100_sessions", label: "100+ Sessions", labelAr: "+100 جلسة", color: "violet" });
+    else if (totalSessions >= 50)
+      badges.push({ key: "50_sessions", label: "50+ Sessions", labelAr: "+50 جلسة", color: "blue" });
+    else if (totalSessions >= 10)
+      badges.push({ key: "10_sessions", label: "10+ Sessions", labelAr: "+10 جلسات", color: "teal" });
+    if (studentCount >= 500)
+      badges.push({ key: "500_students", label: "500+ Students", labelAr: "+500 طالب", color: "green" });
+    else if (studentCount >= 100)
+      badges.push({ key: "100_students", label: "100+ Students", labelAr: "+100 طالب", color: "green" });
+
+    res.json({
+      upcomingSessions,
+      recentSessions,
+      upcomingTutoring,
+      liveCourses,
+      badges,
+      stats: { totalSessions, avgRating, reviewCount, studentCount },
     });
   } catch (err: any) {
     res.status(500).json({ error: "Server error", message: err.message });
