@@ -126,10 +126,17 @@ router.get("/students", requireAuth, requireRole("teacher", "admin"), async (req
   }
 });
 
-// Public: list all teachers with stats
+// Public: list all teachers with stats — only show fully approved teachers
 router.get("/", async (_req, res) => {
   try {
-    const teachers = await db.select().from(usersTable).where(eq(usersTable.role, "teacher"));
+    const teachers = await db.select().from(usersTable).where(
+      and(
+        eq(usersTable.role, "teacher"),
+        eq(usersTable.teacherApprovalStatus, "approved"),
+        eq(usersTable.onboardingCompleted, true),
+      )
+    );
+
     const result = await Promise.all(teachers.map(async (t) => {
       const [cc] = await db.select({ total: count() }).from(coursesTable).where(and(eq(coursesTable.teacherId, t.id), eq(coursesTable.isPublished, true)));
       const [sc] = await db.select({ total: count() }).from(enrollmentsTable)

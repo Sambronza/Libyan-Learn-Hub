@@ -303,6 +303,80 @@ export default function TeacherDashboard() {
             </div>
           )}
 
+          {/* ── Teacher Approval Status Banner ─────────────────────────────── */}
+          {(() => {
+            const status = (user as any)?.teacherApprovalStatus;
+            const reason = (user as any)?.teacherRejectionReason;
+            if (!status || status === 'approved') return null;
+
+            if (status === 'pending_review') return (
+              <div className="mt-4 bg-amber-50 dark:bg-amber-950/20 border border-amber-300 dark:border-amber-700 rounded-xl p-4 flex items-start gap-4">
+                <Clock className="w-6 h-6 text-amber-600 shrink-0 mt-0.5" />
+                <div className="flex-1">
+                  <h3 className="font-bold text-amber-800 dark:text-amber-200 mb-1">
+                    {language === 'ar' ? '⏳ حسابك قيد المراجعة' : '⏳ Account Under Review'}
+                  </h3>
+                  <p className="text-amber-700 dark:text-amber-300 text-sm">
+                    {language === 'ar'
+                      ? 'تم استلام طلبك وهو قيد المراجعة من قِبل فريق الإدارة. ستتلقى إشعاراً عبر البريد الإلكتروني بمجرد اتخاذ القرار.'
+                      : 'Your registration is being reviewed by our admin team. You\'ll receive an email notification once a decision is made.'}
+                  </p>
+                </div>
+              </div>
+            );
+
+            if (status === 'rejected') return (
+              <div className="mt-4 bg-red-50 dark:bg-red-950/20 border border-red-300 dark:border-red-700 rounded-xl p-4 flex items-start gap-4">
+                <XCircle className="w-6 h-6 text-red-600 shrink-0 mt-0.5" />
+                <div className="flex-1">
+                  <h3 className="font-bold text-red-800 dark:text-red-200 mb-1">
+                    {language === 'ar' ? '❌ تم رفض طلب التسجيل' : '❌ Registration Rejected'}
+                  </h3>
+                  {reason && (
+                    <div className="bg-red-100 dark:bg-red-900/30 rounded-lg p-3 mb-3 text-sm text-red-800 dark:text-red-300">
+                      <span className="font-semibold">{language === 'ar' ? 'السبب: ' : 'Reason: '}</span>{reason}
+                    </div>
+                  )}
+                  <p className="text-red-700 dark:text-red-300 text-sm mb-3">
+                    {language === 'ar'
+                      ? 'يمكنك تصحيح المعلومات وإعادة تقديم جميع الوثائق المطلوبة.'
+                      : 'Please correct the issues and resubmit all required documents.'}
+                  </p>
+                  <Link href="/teacher/onboarding">
+                    <Button variant="destructive" size="sm" className="gap-2">
+                      {language === 'ar' ? '🔄 إعادة التقديم' : '🔄 Resubmit Application'}
+                    </Button>
+                  </Link>
+                </div>
+              </div>
+            );
+
+            if (status === 'not_submitted') return (
+              <div className="mt-4 bg-blue-50 dark:bg-blue-950/20 border border-blue-300 dark:border-blue-700 rounded-xl p-4 flex items-start gap-4">
+                <GraduationCap className="w-6 h-6 text-blue-600 shrink-0 mt-0.5" />
+                <div className="flex-1">
+                  <h3 className="font-bold text-blue-800 dark:text-blue-200 mb-1">
+                    {language === 'ar' ? 'أكمل إعداد حسابك' : 'Complete Your Account Setup'}
+                  </h3>
+                  <p className="text-blue-700 dark:text-blue-300 text-sm mb-3">
+                    {language === 'ar'
+                      ? 'لم تكمل تسجيلك بعد. ارفع وثائقك الأكاديمية للحصول على الموافقة.'
+                      : 'Your registration is incomplete. Please upload your academic documents to get approved.'}
+                  </p>
+                  <Link href="/teacher/onboarding">
+                    <Button size="sm" className="gap-2">
+                      {language === 'ar' ? 'إكمال التسجيل' : 'Complete Registration'}
+                    </Button>
+                  </Link>
+                </div>
+              </div>
+            );
+
+            return null;
+          })()}
+
+
+
           {/* Stats row */}
           {isLoading ? (
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mt-8">

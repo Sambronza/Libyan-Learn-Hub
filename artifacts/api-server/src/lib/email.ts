@@ -213,3 +213,82 @@ export function buildTeacherJoinedEmail(opts: {
     html: brandWrap(body),
   };
 }
+
+// ─── Email: Teacher registration approved ────────────────────────────────────
+export function buildTeacherApprovedEmail(opts: {
+  teacherName: string;
+  teacherEmail: string;
+}): { subject: string; text: string; html: string } {
+  const appUrl = process.env.APP_URL || "https://eduonline.net.ly";
+  const dashboardUrl = `${appUrl}/teacher/dashboard`;
+
+  const body = `
+    <h2 style="${styles.h2}">🎉 تهانينا! تم اعتماد حسابك كمعلم</h2>
+    <p style="${styles.p}">مرحباً <strong style="color:#e2e8f0;">${opts.teacherName}</strong>،</p>
+    <p style="${styles.p}">
+      يسعدنا إبلاغك بأن طلب تسجيلك كمعلم على منصة <strong style="color:#a78bfa;">Libyan Learn Hub</strong> قد تمت الموافقة عليه.
+      يمكنك الآن البدء في إنشاء دوراتك وإضافة محتواك التعليمي.
+    </p>
+    <p style="font-size:14px;color:#94a3b8;margin:0 0 24px;">
+      <em>Congratulations! Your teacher account on <strong style="color:#a78bfa;">Libyan Learn Hub</strong> has been <strong style="color:#4ade80;">approved</strong>. You can now create courses and schedule live sessions.</em>
+    </p>
+    <div style="${styles.card}">
+      <div style="${styles.label}">ما الذي يمكنك فعله الآن / What you can do now</div>
+      <ul style="margin:12px 0 0;padding:0 0 0 20px;color:#94a3b8;font-size:14px;line-height:2;">
+        <li>إنشاء دورات تعليمية ورفع محتوى / Create courses and upload content</li>
+        <li>جدولة جلسات مباشرة / Schedule live sessions</li>
+        <li>إدارة طلاب مسجلين / Manage enrolled students</li>
+        <li>تلقي المدفوعات / Receive payments</li>
+      </ul>
+    </div>
+    <p style="text-align:center;margin:32px 0 0;">
+      <a href="${dashboardUrl}" style="${styles.btn}">🚀 اذهب إلى لوحة التحكم / Go to Dashboard</a>
+    </p>
+  `;
+
+  return {
+    subject: `✅ تم اعتماد حسابك كمعلم | Your teacher account is approved`,
+    text: `Congratulations ${opts.teacherName}!\n\nYour teacher account on Libyan Learn Hub has been approved. You can now create courses and start teaching.\n\nDashboard: ${dashboardUrl}`,
+    html: brandWrap(body),
+  };
+}
+
+// ─── Email: Teacher registration rejected ────────────────────────────────────
+export function buildTeacherRejectedEmail(opts: {
+  teacherName: string;
+  reason: string;
+}): { subject: string; text: string; html: string } {
+  const appUrl = process.env.APP_URL || "https://eduonline.net.ly";
+  const dashboardUrl = `${appUrl}/teacher/dashboard`;
+
+  const body = `
+    <h2 style="${styles.h2}">❌ لم يتم قبول طلب التسجيل</h2>
+    <p style="${styles.p}">مرحباً <strong style="color:#e2e8f0;">${opts.teacherName}</strong>،</p>
+    <p style="${styles.p}">
+      شكراً لتقديمك طلب التسجيل كمعلم على منصتنا. بعد مراجعة الطلب والوثائق المرفقة، نأسف لإبلاغك بأنه لم يتم قبول طلبك في الوقت الحالي.
+    </p>
+    <p style="font-size:14px;color:#94a3b8;margin:0 0 24px;">
+      <em>Thank you for applying to teach on Libyan Learn Hub. Unfortunately, your registration was <strong style="color:#f87171;">not approved</strong> at this time.</em>
+    </p>
+    <div style="background:#2d1515;border:1px solid #7f1d1d;border-radius:12px;padding:20px 24px;margin:24px 0;">
+      <div style="${styles.label};color:#f87171;">سبب الرفض / Rejection Reason</div>
+      <p style="margin:8px 0 0;font-size:15px;color:#fca5a5;line-height:1.7;">${opts.reason}</p>
+    </div>
+    <p style="${styles.p}">
+      يمكنك تصحيح المعلومات أو الوثائق المطلوبة وإعادة تقديم طلبك من خلال لوحة التحكم.
+    </p>
+    <p style="font-size:14px;color:#94a3b8;margin:0 0 24px;">
+      <em>You may correct the required information or documents and resubmit your application from your dashboard.</em>
+    </p>
+    <p style="text-align:center;margin:32px 0 0;">
+      <a href="${dashboardUrl}" style="${styles.btn}">🔄 إعادة التقديم / Resubmit Application</a>
+    </p>
+  `;
+
+  return {
+    subject: `❌ طلب تسجيل المعلم | Teacher registration update`,
+    text: `Hello ${opts.teacherName},\n\nUnfortunately your teacher registration was not approved.\n\nReason: ${opts.reason}\n\nYou can resubmit from your dashboard: ${dashboardUrl}`,
+    html: brandWrap(body),
+  };
+}
+

@@ -478,6 +478,10 @@ router.get("/me", requireAuth, async (req, res) => {
     commissionAgreed: user.commissionAgreed,
     tutoringSuspendedUntil: user.tutoringSuspendedUntil ?? null,
     createdAt: user.createdAt,
+    // Teacher registration / approval workflow
+    onboardingCompleted: user.onboardingCompleted,
+    teacherApprovalStatus: user.teacherApprovalStatus ?? "not_submitted",
+    teacherRejectionReason: user.teacherRejectionReason ?? null,
   });
 });
 

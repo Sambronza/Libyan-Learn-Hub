@@ -31,6 +31,7 @@ export default function AdminDashboard() {
   const searchParams = new URLSearchParams(location.split('?')[1] || '');
   const defaultTab = searchParams.get('tab') || 'users';
   const [activeTab, setActiveTab] = useState(defaultTab);
+  const [teacherRegPendingCount, setTeacherRegPendingCount] = useState(0);
 
   useEffect(() => {
     if (!authLoading && !isAuthenticated) setLocation('/login');
@@ -124,6 +125,14 @@ export default function AdminDashboard() {
                 </span>
               )}
             </TabsTrigger>
+            <TabsTrigger value="teacher_reg_approvals" className="gap-2 relative">
+              <GraduationCap className="w-4 h-4" /> Teacher Registrations
+              {teacherRegPendingCount > 0 && (
+                <span className="absolute -top-2 -right-2 bg-amber-500 text-white text-[10px] font-bold px-1.5 py-0.5 rounded-full animate-pulse">
+                  {teacherRegPendingCount}
+                </span>
+              )}
+            </TabsTrigger>
             <TabsTrigger value="tutoring_reviews" className="gap-2"><Presentation className="w-4 h-4" /> Tutoring Reviews</TabsTrigger>
             <TabsTrigger value="courses" className="gap-2"><BookOpen className="w-4 h-4" /> Courses</TabsTrigger>
             <TabsTrigger value="categories" className="gap-2"><Tag className="w-4 h-4" /> Categories</TabsTrigger>
@@ -143,6 +152,7 @@ export default function AdminDashboard() {
           <TabsContent value="users"><UsersTab api={api} queryClient={queryClient} toast={toast} stats={stats} user={user} /></TabsContent>
           <TabsContent value="teachers"><TeachersManagementTab api={api} queryClient={queryClient} toast={toast} /></TabsContent>
           <TabsContent value="approvals"><PendingApprovalsTab api={api} queryClient={queryClient} toast={toast} initialPendingCourses={pendingCourses} /></TabsContent>
+          <TabsContent value="teacher_reg_approvals"><TeacherRegistrationApprovalsTab api={api} toast={toast} onCountChange={setTeacherRegPendingCount} /></TabsContent>
           <TabsContent value="tutoring_reviews"><TutoringReviewsTab api={api} queryClient={queryClient} toast={toast} /></TabsContent>
           <TabsContent value="courses"><CoursesTab api={api} queryClient={queryClient} toast={toast} /></TabsContent>
           <TabsContent value="categories"><CategoriesTab api={api} queryClient={queryClient} toast={toast} /></TabsContent>
@@ -2925,6 +2935,163 @@ function AnalyticsTab({ api }: any) {
         Renewals vs expirations tells you whether the subscription pricing curve is retaining students — if expirations
         consistently outpace renewals, consider adjusting plan prices or adding renewal incentives (coupons).
       </p>
+    </div>
+  );
+}
+// ─── Teacher Registration Approvals Tab ──────────────────────────────────────
+function TeacherRegistrationApprovalsTab({ api, toast, onCountChange }: any) {
+  const [teachers, setTeachers] = React.useState<any[]>([]);
+  const [loading, setLoading] = React.useState(true);
+  const [rejectTarget, setRejectTarget] = React.useState<any>(null);
+  const [rejectReason, setRejectReason] = React.useState('');
+  const [processing, setProcessing] = React.useState(false);
+
+  const load = React.useCallback(async () => {
+    setLoading(true);
+    try {
+      const data = await api.get('/teacher-profile/approvals');
+      setTeachers(data || []);
+      onCountChange?.((data || []).length);
+    } catch (e: any) {
+      toast({ title: 'Failed to load', description: e.message, variant: 'destructive' });
+    } finally { setLoading(false); }
+  }, [api, toast, onCountChange]);
+
+  React.useEffect(() => { load(); }, [load]);
+
+  const approve = async (teacher: any) => {
+    setProcessing(true);
+    try {
+      await api.post(`/teacher-profile/approvals/${teacher.id}/approve`, {});
+      toast({ title: `✅ ${teacher.fullName} approved!` });
+      await load();
+    } catch (e: any) {
+      toast({ title: 'Error', description: e.message, variant: 'destructive' });
+    } finally { setProcessing(false); }
+  };
+
+  const reject = async () => {
+    if (!rejectTarget || !rejectReason.trim()) return;
+    setProcessing(true);
+    try {
+      await api.post(`/teacher-profile/approvals/${rejectTarget.id}/reject`, { reason: rejectReason.trim() });
+      toast({ title: `❌ ${rejectTarget.fullName} rejected` });
+      setRejectTarget(null);
+      setRejectReason('');
+      await load();
+    } catch (e: any) {
+      toast({ title: 'Error', description: e.message, variant: 'destructive' });
+    } finally { setProcessing(false); }
+  };
+
+  if (loading) return <div className="text-center py-20 text-muted-foreground">Loading pending teacher registrations...</div>;
+
+  return (
+    <div className="space-y-6">
+      <div className="flex items-center justify-between">
+        <div>
+          <h2 className="text-xl font-bold">Teacher Registration Applications</h2>
+          <p className="text-muted-foreground text-sm">{teachers.length} pending review</p>
+        </div>
+        <Button variant="outline" size="sm" onClick={load}>Refresh</Button>
+      </div>
+
+      {teachers.length === 0 ? (
+        <div className="text-center py-24 bg-card rounded-2xl border border-dashed border-border">
+          <CheckCircle className="w-12 h-12 text-green-500 mx-auto mb-4" />
+          <h3 className="text-lg font-bold">All caught up!</h3>
+          <p className="text-muted-foreground text-sm">No pending teacher registrations.</p>
+        </div>
+      ) : (
+        <div className="space-y-4">
+          {teachers.map((t: any) => (
+            <div key={t.id} className="bg-card rounded-2xl border border-border p-6 shadow-sm">
+              <div className="flex flex-col md:flex-row gap-6">
+                {/* Avatar & Info */}
+                <div className="flex items-start gap-4 flex-1">
+                  <div className="w-14 h-14 rounded-2xl bg-primary/10 flex items-center justify-center text-2xl font-bold text-primary shrink-0">
+                    {t.avatarUrl ? <img src={t.avatarUrl} className="w-14 h-14 rounded-2xl object-cover" alt={t.fullName} /> : t.fullName?.charAt(0)}
+                  </div>
+                  <div>
+                    <h3 className="font-bold text-lg">{t.fullName}</h3>
+                    <p className="text-sm text-muted-foreground">{t.email}</p>
+                    <p className="text-xs text-muted-foreground mt-1">
+                      Applied: {new Date(t.createdAt).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })}
+                    </p>
+                  </div>
+                </div>
+
+                {/* Documents */}
+                <div className="flex flex-col gap-2 md:w-72">
+                  <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-1">Documents</p>
+                  {t.qualificationUrl ? (
+                    <a href={t.qualificationUrl} target="_blank" rel="noopener noreferrer"
+                       className="flex items-center gap-2 text-sm text-primary hover:underline">
+                      <GraduationCap className="w-4 h-4" /> Academic Qualification
+                    </a>
+                  ) : <p className="text-sm text-destructive">⚠ No qualification uploaded</p>}
+
+                  {t.cvUrl ? (
+                    <a href={t.cvUrl} target="_blank" rel="noopener noreferrer"
+                       className="flex items-center gap-2 text-sm text-primary hover:underline">
+                      <FileText className="w-4 h-4" /> CV / Resume
+                    </a>
+                  ) : <p className="text-sm text-muted-foreground">— No CV</p>}
+
+                  {t.experienceLetterUrl && (
+                    <a href={t.experienceLetterUrl} target="_blank" rel="noopener noreferrer"
+                       className="flex items-center gap-2 text-sm text-primary hover:underline">
+                      <FileText className="w-4 h-4" /> Experience Letter
+                    </a>
+                  )}
+                </div>
+
+                {/* Actions */}
+                <div className="flex md:flex-col gap-3 md:w-36 justify-end md:justify-start">
+                  <Button
+                    className="gap-2 bg-green-600 hover:bg-green-700 text-white"
+                    disabled={processing}
+                    onClick={() => approve(t)}
+                  >
+                    <CheckCircle className="w-4 h-4" /> Approve
+                  </Button>
+                  <Button
+                    variant="destructive"
+                    className="gap-2"
+                    disabled={processing}
+                    onClick={() => { setRejectTarget(t); setRejectReason(''); }}
+                  >
+                    <XCircle className="w-4 h-4" /> Reject
+                  </Button>
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* Rejection Reason Modal */}
+      {rejectTarget && (
+        <div className="fixed inset-0 z-50 bg-black/60 flex items-center justify-center p-4" onClick={() => setRejectTarget(null)}>
+          <div className="bg-card rounded-2xl border border-border p-6 max-w-md w-full shadow-xl" onClick={e => e.stopPropagation()}>
+            <h3 className="font-bold text-lg mb-2">Reject {rejectTarget.fullName}</h3>
+            <p className="text-muted-foreground text-sm mb-4">Provide a clear reason — it will be emailed to the teacher.</p>
+            <textarea
+              className="w-full border border-border rounded-xl p-3 text-sm bg-background resize-none focus:outline-none focus:ring-2 focus:ring-primary"
+              rows={4}
+              placeholder="e.g. The uploaded qualification document is unclear or illegible. Please resubmit a higher quality image."
+              value={rejectReason}
+              onChange={e => setRejectReason(e.target.value)}
+            />
+            <div className="flex gap-3 mt-4">
+              <Button variant="outline" className="flex-1" onClick={() => setRejectTarget(null)}>Cancel</Button>
+              <Button variant="destructive" className="flex-1" disabled={!rejectReason.trim() || processing} onClick={reject}>
+                {processing ? 'Rejecting...' : 'Confirm Rejection'}
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

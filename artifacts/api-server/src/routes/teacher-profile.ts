@@ -10,6 +10,7 @@ import { parseParam } from "../lib/utils.js";
 import multer from "multer";
 import { v2 as cloudinary } from "cloudinary";
 import { Readable } from "stream";
+import { sendEmail, buildTeacherApprovedEmail, buildTeacherRejectedEmail } from "../lib/email.js";
 
 const router = Router();
 
@@ -32,9 +33,13 @@ const docUpload = multer({
       "application/pdf",
       "application/msword",
       "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+      // Also accept images for qualifications/certificates
+      "image/jpeg",
+      "image/png",
+      "image/webp",
     ];
     if (allowed.includes(file.mimetype)) cb(null, true);
-    else cb(new Error("Only PDF and Word documents are allowed"));
+    else cb(new Error("Only PDF, Word documents, and images (JPEG/PNG/WebP) are allowed"));
   },
 });
 
@@ -257,15 +262,68 @@ router.post("/copyright-agree", requireAuth, requireRole("teacher", "admin"), as
   }
 });
 
-// ── Teacher: Complete onboarding ─────────────────────────────────
+// ── Teacher: Upload academic qualification (required) ────────────────────────
+router.post("/qualification", requireAuth, requireRole("teacher", "admin"),
+  docUpload.single("qualification"),
+  async (req, res): Promise<any> => {
+    try {
+      const { userId } = (req as any).user;
+      if (!req.file) return res.status(400).json({ error: "Qualification file is required" });
+
+      const result = await uploadToCloudinary(req.file.buffer, {
+        folder: "teacher-qualifications",
+        resource_type: "raw",
+        public_id: `qualification-${userId}-${Date.now()}`,
+      });
+
+      await db.update(usersTable).set({
+        qualificationUrl: result.secure_url,
+        updatedAt: new Date(),
+      }).where(eq(usersTable.id, userId));
+
+      res.json({ success: true, url: result.secure_url });
+    } catch (err: any) {
+      res.status(500).json({ error: "Upload failed", message: err.message });
+    }
+  }
+);
+
+// ── Teacher: Upload experience letter (optional) ──────────────────────────────
+router.post("/experience-letter", requireAuth, requireRole("teacher", "admin"),
+  docUpload.single("experienceLetter"),
+  async (req, res): Promise<any> => {
+    try {
+      const { userId } = (req as any).user;
+      if (!req.file) return res.status(400).json({ error: "File is required" });
+
+      const result = await uploadToCloudinary(req.file.buffer, {
+        folder: "teacher-experience-letters",
+        resource_type: "raw",
+        public_id: `experience-${userId}-${Date.now()}`,
+      });
+
+      await db.update(usersTable).set({
+        experienceLetterUrl: result.secure_url,
+        updatedAt: new Date(),
+      }).where(eq(usersTable.id, userId));
+
+      res.json({ success: true, url: result.secure_url });
+    } catch (err: any) {
+      res.status(500).json({ error: "Upload failed", message: err.message });
+    }
+  }
+);
+
+// ── Teacher: Complete onboarding → set pending_review ────────────────────────
 router.post("/complete-onboarding", requireAuth, requireRole("teacher", "admin"), async (req, res) => {
   try {
     const { userId } = (req as any).user;
-    // Verify all steps are done
     const [teacher] = await db.select().from(usersTable).where(eq(usersTable.id, userId)).limit(1);
     if (!teacher) { res.status(404).json({ error: "User not found" }); return; }
     if (!teacher.copyrightAgreedAt) { res.status(400).json({ error: "Copyright agreement required" }); return; }
     if (!teacher.facePhotoUrl) { res.status(400).json({ error: "Face photo required" }); return; }
+    if (!teacher.qualificationUrl) { res.status(400).json({ error: "Academic qualification document is required" }); return; }
+    if (!teacher.cvUrl) { res.status(400).json({ error: "CV is required" }); return; }
 
     // Auto-generate slug if not existing
     let slug = teacher.profileSlug;
@@ -273,11 +331,111 @@ router.post("/complete-onboarding", requireAuth, requireRole("teacher", "admin")
 
     await db.update(usersTable).set({
       onboardingCompleted: true,
+      teacherApprovalStatus: "pending_review",
+      teacherRejectionReason: null,
       profileSlug: slug,
       updatedAt: new Date(),
     }).where(eq(usersTable.id, userId));
 
-    res.json({ success: true, profileSlug: slug });
+    // Notify all admins by email
+    const admins = await db
+      .select({ email: usersTable.email, fullName: usersTable.fullName })
+      .from(usersTable)
+      .where(eq(usersTable.role, "admin"));
+
+    const appUrl = process.env.APP_URL || "https://eduonline.net.ly";
+    for (const admin of admins) {
+      sendEmail({
+        to: admin.email,
+        subject: `👩‍🏫 طلب معلم جديد بانتظار المراجعة | New teacher awaiting approval`,
+        text: `A new teacher registration is pending review.\n\nName: ${teacher.fullName}\nEmail: ${teacher.email}\n\nReview here: ${appUrl}/admin/dashboard`,
+        html: `<p>New teacher <strong>${teacher.fullName}</strong> (${teacher.email}) has submitted their registration and is awaiting your approval.</p><p><a href="${appUrl}/admin/dashboard">Review now →</a></p>`,
+      }).catch((e) => console.error("Admin notification email failed:", e));
+    }
+
+    res.json({ success: true, status: "pending_review", profileSlug: slug });
+  } catch (err: any) {
+    res.status(500).json({ error: "Server error", message: err.message });
+  }
+});
+
+// ── Admin: List teachers pending approval ─────────────────────────────────────
+router.get("/approvals", requireAuth, requireRole("admin"), async (_req, res) => {
+  try {
+    const teachers = await db
+      .select({
+        id: usersTable.id,
+        fullName: usersTable.fullName,
+        email: usersTable.email,
+        avatarUrl: usersTable.avatarUrl,
+        cvUrl: usersTable.cvUrl,
+        qualificationUrl: usersTable.qualificationUrl,
+        experienceLetterUrl: usersTable.experienceLetterUrl,
+        teacherApprovalStatus: usersTable.teacherApprovalStatus,
+        teacherRejectionReason: usersTable.teacherRejectionReason,
+        createdAt: usersTable.createdAt,
+      })
+      .from(usersTable)
+      .where(and(
+        eq(usersTable.role, "teacher"),
+        eq(usersTable.teacherApprovalStatus, "pending_review"),
+      ));
+    res.json(teachers);
+  } catch (err: any) {
+    res.status(500).json({ error: "Server error", message: err.message });
+  }
+});
+
+// ── Admin: Approve a teacher ──────────────────────────────────────────────────
+router.post("/approvals/:teacherId/approve", requireAuth, requireRole("admin"), async (req, res) => {
+  try {
+    const teacherId = parseParam(req.params.teacherId);
+    const [teacher] = await db.select().from(usersTable).where(eq(usersTable.id, teacherId)).limit(1);
+    if (!teacher || teacher.role !== "teacher") {
+      res.status(404).json({ error: "Teacher not found" }); return;
+    }
+
+    await db.update(usersTable).set({
+      teacherApprovalStatus: "approved",
+      teacherRejectionReason: null,
+      updatedAt: new Date(),
+    }).where(eq(usersTable.id, teacherId));
+
+    // Send approval email
+    const email = buildTeacherApprovedEmail({ teacherName: teacher.fullName, teacherEmail: teacher.email });
+    sendEmail({ to: teacher.email, ...email }).catch((e) => console.error("Approval email failed:", e));
+
+    res.json({ success: true });
+  } catch (err: any) {
+    res.status(500).json({ error: "Server error", message: err.message });
+  }
+});
+
+// ── Admin: Reject a teacher ───────────────────────────────────────────────────
+router.post("/approvals/:teacherId/reject", requireAuth, requireRole("admin"), async (req, res) => {
+  try {
+    const teacherId = parseParam(req.params.teacherId);
+    const { reason } = req.body;
+    if (!reason?.trim()) { res.status(400).json({ error: "Rejection reason is required" }); return; }
+
+    const [teacher] = await db.select().from(usersTable).where(eq(usersTable.id, teacherId)).limit(1);
+    if (!teacher || teacher.role !== "teacher") {
+      res.status(404).json({ error: "Teacher not found" }); return;
+    }
+
+    await db.update(usersTable).set({
+      teacherApprovalStatus: "rejected",
+      teacherRejectionReason: reason.trim(),
+      // Reset onboarding so teacher must resubmit all docs
+      onboardingCompleted: false,
+      updatedAt: new Date(),
+    }).where(eq(usersTable.id, teacherId));
+
+    // Send rejection email
+    const email = buildTeacherRejectedEmail({ teacherName: teacher.fullName, reason: reason.trim() });
+    sendEmail({ to: teacher.email, ...email }).catch((e) => console.error("Rejection email failed:", e));
+
+    res.json({ success: true });
   } catch (err: any) {
     res.status(500).json({ error: "Server error", message: err.message });
   }

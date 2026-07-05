@@ -1500,4 +1500,25 @@ router.post("/users/:userId/reset-devices", async (req, res) => {
   }
 });
 
+// ─── One-time migration: mark existing completed teachers as approved ─────────
+// Run once after deploying this feature. Safe to call multiple times (idempotent).
+router.post("/migrate-teacher-approval-status", async (_req, res) => {
+  try {
+    // All teachers who completed onboarding before this feature existed should be auto-approved
+    const result = await db
+      .update(usersTable)
+      .set({ teacherApprovalStatus: "approved", updatedAt: new Date() })
+      .where(
+        and(
+          eq(usersTable.role, "teacher"),
+          eq(usersTable.onboardingCompleted, true),
+          eq(usersTable.teacherApprovalStatus, "not_submitted"),
+        )
+      );
+    res.json({ success: true, message: "Existing onboarded teachers marked as approved" });
+  } catch (err: any) {
+    res.status(500).json({ error: "Migration failed", message: err.message });
+  }
+});
+
 export default router;

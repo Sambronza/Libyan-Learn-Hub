@@ -5,6 +5,12 @@ import { z } from "zod/v4";
 export const userRoleEnum = pgEnum("user_role", ["student", "teacher", "admin"]);
 export const languageEnum = pgEnum("language", ["ar", "en"]);
 export const teacherTierEnum = pgEnum("teacher_tier", ["free", "bronze", "golden", "diamond"]);
+export const teacherApprovalStatusEnum = pgEnum("teacher_approval_status", [
+  "not_submitted",  // teacher hasn't finished onboarding yet
+  "pending_review", // submitted docs, waiting for admin
+  "approved",       // admin approved — account visible to students
+  "rejected",       // admin rejected — account inactive
+]);
 
 export const usersTable = pgTable("users", {
   id: serial("id").primaryKey(),
@@ -39,6 +45,11 @@ export const usersTable = pgTable("users", {
   onboardingCompleted: boolean("onboarding_completed").notNull().default(false),
   biometricProfile: text("biometric_profile"), // Will store JSON: { face: { front, left, right, up, down }, voice: { scriptText, status } }
   biometricsVerified: boolean("biometrics_verified").notNull().default(false),
+  // Teacher registration approval workflow
+  qualificationUrl: text("qualification_url"),         // required: academic qualification doc (PDF/image)
+  experienceLetterUrl: text("experience_letter_url"),   // optional: teaching experience letters
+  teacherApprovalStatus: teacherApprovalStatusEnum("teacher_approval_status").notNull().default("not_submitted"),
+  teacherRejectionReason: text("teacher_rejection_reason"), // filled by admin on rejection
   // Monetization / subscription
   tier: teacherTierEnum("tier").notNull().default("free"),
   proExpiry: timestamp("pro_expiry"),

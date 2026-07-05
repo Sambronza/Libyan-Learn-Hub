@@ -210,6 +210,12 @@ router.get("/hls-key/:lessonId", async (req, res) => {
 
 // 3. Tokenized document proxy — lesson documents (PDFs etc.) are teacher
 // material too; the raw Cloudinary URL is never exposed to students.
+//
+// Two-phase approach:
+//   Phase 1 – follow any Cloudinary redirect to discover the final CDN URL.
+//   Phase 2 – proxy the actual bytes from that URL, forwarding Range headers
+//              so Chrome's PDF viewer (PDFium) receives proper 206 responses
+//              and can render the file without "Failed to load PDF document".
 router.get("/secure-doc/:lessonId", async (req, res) => {
   try {
     const lessonId = parseInt(req.params.lessonId);
@@ -229,56 +235,96 @@ router.get("/secure-doc/:lessonId", async (req, res) => {
     const [lesson] = await db.select().from(lessonsTable).where(eq(lessonsTable.id, lessonId)).limit(1);
     if (!lesson?.documentFilePath) return res.status(404).send("Document not found");
 
-    res.setHeader("Cache-Control", "no-store, no-cache, must-revalidate");
-    res.setHeader("Content-Disposition", "inline"); // view in browser, don't force download
+    const isPdfDoc = (lesson.documentFileName || "").toLowerCase().endsWith(".pdf") ||
+                     lesson.documentFilePath.toLowerCase().includes(".pdf");
 
-    const isPdfDoc = (lesson.documentFileName || "").toLowerCase().endsWith(".pdf");
-
-    // Stream the document from storage. Chrome's built-in PDF viewer (PDFium)
-    // loads PDFs via HTTP Range requests (it reads the cross-reference table at
-    // the end of the file), so we MUST forward the incoming Range header and
-    // relay the upstream Accept-Ranges / Content-Range headers and 206 status.
-    // Serving a plain 200 without range support makes the viewer fail with
-    // "Failed to load PDF document". Cloudinary raw delivery may also redirect,
-    // so follow up to a few redirects.
-    const fetchDoc = (target: string, redirectsLeft: number): void => {
-      const url = new URL(target);
-      const client = url.protocol === "https:" ? https : http;
-      const options = {
-        headers: {
-          Range: (req.headers.range as string) || "bytes=0-",
-          "User-Agent": (req.headers["user-agent"] as string) || "Libyan-Learn-Hub-Proxy",
-        },
-      };
-      client.get(target, options, (remoteRes) => {
-        const statusCode = remoteRes.statusCode || 200;
-
-        // Follow redirects (3xx) without exposing the raw storage URL to the client.
-        if (statusCode >= 300 && statusCode < 400 && remoteRes.headers.location && redirectsLeft > 0) {
-          remoteRes.resume(); // drain
-          const next = new URL(remoteRes.headers.location, target).toString();
-          return fetchDoc(next, redirectsLeft - 1);
-        }
-
-        const headers: Record<string, string | string[]> = {};
-        for (const h of ["content-type", "content-length", "content-range", "accept-ranges"]) {
-          if (remoteRes.headers[h]) headers[h] = remoteRes.headers[h]!;
-        }
-        // Cloudinary raw files are often delivered as application/octet-stream,
-        // which stops the browser from rendering them inline as a PDF. Force the
-        // correct type for .pdf documents so the viewer activates.
-        if (isPdfDoc) headers["content-type"] = "application/pdf";
-        if (!headers["accept-ranges"]) headers["accept-ranges"] = "bytes";
-
-        res.writeHead(statusCode, headers);
-        remoteRes.pipe(res);
-      }).on("error", (err) => {
-        console.error("Document proxy error:", err);
-        if (!res.headersSent) res.status(500).send("Error streaming document");
+    // ── Phase 1: resolve the final URL (follow Cloudinary redirects) ──────
+    const resolveRedirects = (url: string, left: number): Promise<string> =>
+      new Promise((resolve, reject) => {
+        const parsed = new URL(url);
+        const client = parsed.protocol === "https:" ? https : http;
+        const req2 = client.request(url, { method: "HEAD" }, (r) => {
+          r.resume();
+          if ((r.statusCode ?? 0) >= 300 && (r.statusCode ?? 0) < 400 && r.headers.location && left > 0) {
+            resolve(resolveRedirects(new URL(r.headers.location, url).toString(), left - 1));
+          } else {
+            resolve(url);
+          }
+        });
+        req2.on("error", reject);
+        req2.end();
       });
-    };
 
-    fetchDoc(lesson.documentFilePath, 3);
+    let finalUrl: string;
+    try {
+      finalUrl = await resolveRedirects(lesson.documentFilePath, 5);
+    } catch {
+      // If HEAD fails (some CDNs reject HEAD), fall back to the original URL
+      finalUrl = lesson.documentFilePath;
+    }
+
+    // ── Phase 2: proxy bytes from the final CDN URL ───────────────────────
+    const rangeHeader = (req.headers.range as string) || undefined;
+    const parsed = new URL(finalUrl);
+    const client = parsed.protocol === "https:" ? https : http;
+
+    const upstreamReq = client.get(
+      finalUrl,
+      {
+        headers: {
+          ...(rangeHeader ? { Range: rangeHeader } : {}),
+          "User-Agent": (req.headers["user-agent"] as string) || "Libyan-Learn-Hub-Proxy",
+          // Tell Cloudinary CDN to deliver as a raw byte stream
+          Accept: "*/*",
+        },
+      },
+      (remoteRes) => {
+        const status = remoteRes.statusCode || 200;
+
+        // If CDN still redirects, just fail gracefully
+        if (status >= 300 && status < 400) {
+          if (!res.headersSent) res.status(502).send("Too many redirects from storage");
+          remoteRes.resume();
+          return;
+        }
+
+        const outHeaders: Record<string, string | string[]> = {};
+
+        // Forward range-related headers so Chrome can seek
+        for (const h of ["content-length", "content-range", "accept-ranges", "last-modified", "etag"]) {
+          if (remoteRes.headers[h]) outHeaders[h] = remoteRes.headers[h]!;
+        }
+        // Always advertise byte-range support
+        if (!outHeaders["accept-ranges"]) outHeaders["accept-ranges"] = "bytes";
+
+        // Force the correct MIME type so the browser renders instead of downloading
+        if (isPdfDoc) {
+          outHeaders["content-type"] = "application/pdf";
+        } else {
+          outHeaders["content-type"] = (remoteRes.headers["content-type"] as string) || "application/octet-stream";
+        }
+
+        // Inline view — never force a download dialog
+        outHeaders["content-disposition"] = `inline; filename="${encodeURIComponent(lesson.documentFileName || 'document')}"` ;
+
+        // Block browser and CDN caching of secured content
+        outHeaders["cache-control"] = "no-store, no-cache, must-revalidate";
+
+        // Required for iframe embedding: allow same-origin framing
+        outHeaders["x-frame-options"] = "SAMEORIGIN";
+        outHeaders["content-security-policy"] = "frame-ancestors 'self'";
+
+        res.writeHead(status, outHeaders);
+        remoteRes.pipe(res);
+      }
+    );
+
+    upstreamReq.on("error", (err) => {
+      console.error("Document proxy error:", err);
+      if (!res.headersSent) res.status(500).send("Error streaming document");
+    });
+
+    req.on("close", () => upstreamReq.destroy());
     return;
   } catch (err: any) {
     return void res.status(500).send("Server Error");
