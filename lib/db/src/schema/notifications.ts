@@ -16,6 +16,7 @@ export const notificationTypeEnum = pgEnum("notification_type", [
   "subscription_expiring",
   "subscription_expired",
   "device_switch_review",
+  "new_post",
 ]);
 
 export const notificationsTable = pgTable("notifications", {

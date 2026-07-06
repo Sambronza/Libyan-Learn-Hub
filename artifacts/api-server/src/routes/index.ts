@@ -38,6 +38,7 @@ import feedbackRouter from "./feedback.js";
 import certificatesRouter from "./certificates.js";
 import couponsRouter from "./coupons.js";
 import libraryRouter from "./library.js";
+import communityRouter from "./community.js";
 
 const router: IRouter = Router();
 
@@ -87,5 +88,7 @@ router.use("/certificates", certificatesRouter);
 router.use("/coupons", couponsRouter);
 // Library (shared educational resources)
 router.use("/library", libraryRouter);
+// Community (teacher posts + follows)
+router.use("/community", communityRouter);
 
 export default router;

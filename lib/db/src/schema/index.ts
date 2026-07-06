@@ -58,3 +58,6 @@ export * from "./live-session-feedback.ts";
 
 // Library (shared educational resources)
 export * from "./library-resources.ts";
+
+// Community (teacher posts + follows)
+export * from "./community.ts";

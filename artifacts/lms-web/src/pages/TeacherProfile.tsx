@@ -8,6 +8,7 @@ import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/contexts/AuthContext';
+import { FollowButton, TeacherPostsSection } from '@/components/community/TeacherPosts';
 import {
   BadgeCheck, BookOpen, Users, Star, Download, Share2,
   Flag, Crown, Award, PlayCircle, Copy, Check, Facebook,
@@ -433,6 +434,7 @@ export default function TeacherProfile() {
 
           {/* Action buttons */}
           <div className="flex flex-wrap gap-3 mt-8">
+            <FollowButton teacherId={teacher.id} />
             {teacher.cvUrl && (
               <a href={teacher.cvUrl} target="_blank" rel="noopener noreferrer">
                 <Button variant="outline" className="gap-2"><Download className="w-4 h-4" /> {language === 'ar' ? 'تحميل السيرة الذاتية' : 'Download CV'}</Button>
@@ -471,6 +473,9 @@ export default function TeacherProfile() {
 
           {/* LEFT: Main content */}
           <div className="lg:col-span-2 space-y-10">
+
+            {/* Community posts */}
+            <TeacherPostsSection teacherId={teacher.id} />
 
             {/* Endorsements */}
             {teacher.endorsements?.length > 0 && (

@@ -9,6 +9,7 @@ import { BookOpen, PlayCircle, Trophy, Calendar, Radio, Clock, DollarSign, Exter
 import { Button } from '@/components/ui/button';
 import { useApi } from '@/hooks/useApi';
 import { Skeleton, StatCardSkeleton, CourseCardSkeleton } from '@/components/ui/skeleton';
+import { FeedSection } from '@/components/community/FeedSection';
 
 export default function Dashboard() {
   const { t, language } = useLanguage();
@@ -234,6 +235,9 @@ export default function Dashboard() {
             </div>
           </section>
         )}
+
+        {/* My Feed — posts from followed teachers */}
+        <FeedSection />
 
         {/* My Courses */}
         <section>
