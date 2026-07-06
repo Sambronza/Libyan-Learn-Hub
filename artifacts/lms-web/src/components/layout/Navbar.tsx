@@ -3,7 +3,7 @@ import { Link, useLocation } from 'wouter';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
-import { BookOpen, MonitorPlay, Users, Menu, X, Globe, User as UserIcon, LogOut, GraduationCap, LayoutDashboard, ChevronDown, MessageCircle } from 'lucide-react';
+import { BookOpen, MonitorPlay, Users, Menu, X, Globe, User as UserIcon, LogOut, GraduationCap, LayoutDashboard, ChevronDown, MessageCircle, Library } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { NotificationDropdown } from './NotificationDropdown';
 import { Logo } from '@/components/ui/Logo';
@@ -42,6 +42,7 @@ export function Navbar() {
   const navLinks = [
     { href: '/courses', label: t('nav.courses'), icon: BookOpen },
     { href: '/academy', label: language === 'ar' ? 'الأكاديمية' : 'Academy', icon: GraduationCap, badge: true },
+    { href: '/library', label: language === 'ar' ? 'المكتبة' : 'Library', icon: Library, badge: true },
     { href: '/live-sessions', label: t('nav.live'), icon: MonitorPlay },
     { href: '/tutoring', label: language === 'ar' ? 'دروس خصوصية' : '1-to-1 Tutoring', icon: MessageCircle, badge: true },
     { href: '/teachers', label: t('nav.teachers'), icon: Users },

@@ -46,11 +46,12 @@ const documentUpload = multer({
       "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
       "application/vnd.ms-powerpoint",
       "application/vnd.openxmlformats-officedocument.presentationml.presentation",
+      "application/epub+zip",
     ];
     if (allowed.includes(file.mimetype)) {
       cb(null, true);
     } else {
-      cb(new Error("Only PDF, Text, Word, Excel, and PowerPoint documents are allowed"));
+      cb(new Error("Only PDF, Text, Word, Excel, PowerPoint, and EPUB documents are allowed"));
     }
   },
 });
