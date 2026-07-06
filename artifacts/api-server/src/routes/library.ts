@@ -82,11 +82,16 @@ router.post("/", requireAuth, requireRole("teacher", "admin"), async (req, res) 
   try {
     const { userId, role } = (req as any).user;
 
-    // Teachers must be admin-approved (verified) to publish library material
+    // Teachers must be admin-approved to publish library material.
+    // "approved" covers the current registration workflow; isVerified is the
+    // legacy admin verification flag — accept either.
     if (role === "teacher") {
-      const [teacher] = await db.select({ isVerified: usersTable.isVerified })
-        .from(usersTable).where(eq(usersTable.id, userId)).limit(1);
-      if (!teacher?.isVerified) {
+      const [teacher] = await db.select({
+        isVerified: usersTable.isVerified,
+        teacherApprovalStatus: usersTable.teacherApprovalStatus,
+      }).from(usersTable).where(eq(usersTable.id, userId)).limit(1);
+      const isApproved = teacher && (teacher.isVerified || teacher.teacherApprovalStatus === "approved");
+      if (!isApproved) {
         res.status(403).json({
           error: "Only approved teachers can upload library resources",
           errorAr: "فقط المعلمون المعتمدون يمكنهم رفع موارد المكتبة",

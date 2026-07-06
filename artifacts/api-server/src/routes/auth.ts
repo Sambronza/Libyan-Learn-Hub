@@ -480,6 +480,7 @@ router.get("/me", requireAuth, async (req, res) => {
     createdAt: user.createdAt,
     // Teacher registration / approval workflow
     onboardingCompleted: user.onboardingCompleted,
+    isVerified: user.isVerified,
     teacherApprovalStatus: user.teacherApprovalStatus ?? "not_submitted",
     teacherRejectionReason: user.teacherRejectionReason ?? null,
   });

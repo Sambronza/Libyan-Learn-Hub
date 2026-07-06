@@ -78,7 +78,10 @@ export default function Library() {
   const [gradeFilter, setGradeFilter] = useState('');
   const [showUpload, setShowUpload] = useState(false);
 
-  const canUpload = user?.role === 'admin' || (user?.role === 'teacher' && (user as any)?.isVerified);
+  const canUpload = user?.role === 'admin' || (
+    user?.role === 'teacher' &&
+    ((user as any)?.isVerified || (user as any)?.teacherApprovalStatus === 'approved')
+  );
 
   const { data: categories } = useQuery<Category[]>({
     queryKey: ['library-categories'],
