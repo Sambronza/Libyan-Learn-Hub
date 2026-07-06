@@ -37,6 +37,7 @@ import prepaidCardsRouter from "./prepaid-cards.js";
 import feedbackRouter from "./feedback.js";
 import certificatesRouter from "./certificates.js";
 import couponsRouter from "./coupons.js";
+import libraryRouter from "./library.js";
 
 const router: IRouter = Router();
 
@@ -84,5 +85,7 @@ router.use("/feedback", feedbackRouter);
 router.use("/certificates", certificatesRouter);
 // Coupons & referrals
 router.use("/coupons", couponsRouter);
+// Library (shared educational resources)
+router.use("/library", libraryRouter);
 
 export default router;

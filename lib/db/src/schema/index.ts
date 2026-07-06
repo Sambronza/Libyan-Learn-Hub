@@ -55,3 +55,6 @@ export * from "./audit-logs.ts";
 
 // Feedback System
 export * from "./live-session-feedback.ts";
+
+// Library (shared educational resources)
+export * from "./library-resources.ts";
