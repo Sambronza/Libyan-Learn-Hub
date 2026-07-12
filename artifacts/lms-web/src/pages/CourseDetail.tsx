@@ -8,6 +8,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Button } from '@/components/ui/button';
 import { Clock, PlayCircle, FileText, CheckCircle2, ShieldAlert, Flag, Star } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
+import { CourseDiscussion } from '@/components/community/CourseDiscussion';
 import { useSEO } from '@/hooks/useSEO';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { useForm } from 'react-hook-form';
@@ -412,9 +413,14 @@ export default function CourseDetail() {
             )}
           </div>
 
+          {/* Course discussion — renders only for enrolled students / the teacher */}
+          <div className="mt-16">
+            <CourseDiscussion courseId={courseId} />
+          </div>
+
           <div className="mt-16">
             <h2 className="text-2xl font-display font-bold mb-6 flex items-center gap-2">
-              <Star className="w-6 h-6 text-amber-500 fill-amber-500" /> 
+              <Star className="w-6 h-6 text-amber-500 fill-amber-500" />
               {language === 'ar' ? 'مراجعات الطلاب' : 'Student Reviews'}
             </h2>
             {reviews.length === 0 ? (

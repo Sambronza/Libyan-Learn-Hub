@@ -76,3 +76,22 @@ export const commentLikesTable = pgTable("comment_likes", {
 ]);
 
 export type CommentLike = typeof commentLikesTable.$inferSelect;
+
+// ── Course discussion spaces (private: enrolled students + the teacher) ──────
+export const courseDiscussionMessagesTable = pgTable("course_discussion_messages", {
+  id: serial("id").primaryKey(),
+  courseId: integer("course_id").notNull().references(() => coursesTable.id, { onDelete: "cascade" }),
+  userId: integer("user_id").notNull().references(() => usersTable.id, { onDelete: "cascade" }),
+  // One-level threading, same rule as post comments
+  parentId: integer("parent_id").references((): AnyPgColumn => courseDiscussionMessagesTable.id, { onDelete: "cascade" }),
+  content: text("content").notNull(),
+  // Optional shared link or Library resource ("share to my class")
+  linkUrl: text("link_url"),
+  libraryResourceId: integer("library_resource_id"),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+  updatedAt: timestamp("updated_at").notNull().defaultNow(),
+});
+
+export const insertCourseDiscussionMessageSchema = createInsertSchema(courseDiscussionMessagesTable).omit({ id: true, createdAt: true, updatedAt: true });
+export type InsertCourseDiscussionMessage = z.infer<typeof insertCourseDiscussionMessageSchema>;
+export type CourseDiscussionMessage = typeof courseDiscussionMessagesTable.$inferSelect;

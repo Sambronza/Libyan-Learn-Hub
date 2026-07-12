@@ -3,7 +3,9 @@ import { rateLimit } from "express-rate-limit";
 import {
   db, teacherPostsTable, followsTable, usersTable, coursesTable, notificationsTable,
   postCommentsTable, postLikesTable, commentLikesTable, reportsTable,
+  courseDiscussionMessagesTable, libraryResourcesTable,
 } from "@workspace/db";
+import { requireActiveEnrollment } from "../lib/subscriptions.js";
 import { eq, and, desc, asc, count, inArray } from "drizzle-orm";
 import jwt from "jsonwebtoken";
 import { requireAuth, requireRole } from "../lib/auth.js";
@@ -579,6 +581,174 @@ router.post("/comments/:id/report", requireAuth, async (req, res) => {
     });
 
     res.status(201).json({ success: true });
+  } catch (err: any) {
+    res.status(500).json({ error: "Server error", message: err.message });
+  }
+});
+
+// ═══════════════════ Phase 3: course discussion spaces ═══════════════════════
+// Private to each course: active enrollees, the course teacher, and admins.
+
+async function canAccessDiscussion(userId: number, role: string, courseId: number): Promise<boolean> {
+  const access = await requireActiveEnrollment(userId, courseId, role);
+  return access.ok;
+}
+
+// ── Read the discussion ──────────────────────────────────────────────────────
+router.get("/course/:courseId/discussion", requireAuth, async (req, res) => {
+  try {
+    const { userId, role } = (req as any).user;
+    const courseId = parseInt(req.params.courseId as string);
+    if (isNaN(courseId)) return void res.status(400).json({ error: "Invalid course id" });
+
+    if (!(await canAccessDiscussion(userId, role, courseId))) {
+      return void res.status(403).json({
+        error: "Only enrolled students can view the course discussion",
+        errorAr: "فقط الطلاب المشتركون يمكنهم مشاهدة نقاش الدورة",
+      });
+    }
+
+    const [course] = await db.select({ teacherId: coursesTable.teacherId })
+      .from(coursesTable).where(eq(coursesTable.id, courseId)).limit(1);
+
+    const messages = await db.select({
+      id: courseDiscussionMessagesTable.id,
+      courseId: courseDiscussionMessagesTable.courseId,
+      parentId: courseDiscussionMessagesTable.parentId,
+      content: courseDiscussionMessagesTable.content,
+      linkUrl: courseDiscussionMessagesTable.linkUrl,
+      libraryResourceId: courseDiscussionMessagesTable.libraryResourceId,
+      createdAt: courseDiscussionMessagesTable.createdAt,
+      userId: courseDiscussionMessagesTable.userId,
+      userName: usersTable.fullName,
+      userNameAr: usersTable.fullNameAr,
+      userAvatarUrl: usersTable.avatarUrl,
+      userRole: usersTable.role,
+    }).from(courseDiscussionMessagesTable)
+      .innerJoin(usersTable, eq(courseDiscussionMessagesTable.userId, usersTable.id))
+      .where(eq(courseDiscussionMessagesTable.courseId, courseId))
+      .orderBy(asc(courseDiscussionMessagesTable.createdAt))
+      .limit(300);
+
+    res.json({ teacherId: course?.teacherId ?? null, messages });
+  } catch (err: any) {
+    res.status(500).json({ error: "Server error", message: err.message });
+  }
+});
+
+// ── Post a message (optionally sharing a link or Library resource) ───────────
+router.post("/course/:courseId/discussion", requireAuth, commentLimiter, async (req, res) => {
+  try {
+    const { userId, role } = (req as any).user;
+    const courseId = parseInt(req.params.courseId as string);
+    if (isNaN(courseId)) return void res.status(400).json({ error: "Invalid course id" });
+
+    if (!(await canAccessDiscussion(userId, role, courseId))) {
+      return void res.status(403).json({
+        error: "Only enrolled students can post in the course discussion",
+        errorAr: "فقط الطلاب المشتركون يمكنهم المشاركة في نقاش الدورة",
+      });
+    }
+
+    const { content, parentId, linkUrl, libraryResourceId } = req.body || {};
+    if (!content || typeof content !== "string" || !content.trim()) {
+      return void res.status(400).json({ error: "Message content is required" });
+    }
+    if (content.length > MAX_COMMENT_LENGTH) {
+      return void res.status(400).json({ error: `Message is too long (max ${MAX_COMMENT_LENGTH} characters)` });
+    }
+    if (containsBlockedWord(content)) {
+      return void res.status(400).json({
+        error: "Your message contains inappropriate language",
+        errorAr: "رسالتك تحتوي على ألفاظ غير لائقة",
+      });
+    }
+    if (linkUrl) {
+      try {
+        const u = new URL(linkUrl);
+        if (!["http:", "https:"].includes(u.protocol)) throw new Error();
+      } catch {
+        return void res.status(400).json({ error: "Only valid http/https links are allowed" });
+      }
+    }
+
+    // Shared Library resource must exist
+    let validatedResourceId: number | null = null;
+    if (libraryResourceId) {
+      const rid = parseInt(libraryResourceId);
+      const [resource] = await db.select({ id: libraryResourcesTable.id })
+        .from(libraryResourcesTable).where(eq(libraryResourcesTable.id, rid)).limit(1);
+      if (!resource) return void res.status(400).json({ error: "Library resource not found" });
+      validatedResourceId = rid;
+    }
+
+    // One-level threading
+    let validatedParentId: number | null = null;
+    if (parentId) {
+      const pid = parseInt(parentId);
+      const [parent] = await db.select({
+        courseId: courseDiscussionMessagesTable.courseId,
+        parentId: courseDiscussionMessagesTable.parentId,
+      }).from(courseDiscussionMessagesTable).where(eq(courseDiscussionMessagesTable.id, pid)).limit(1);
+      if (!parent || parent.courseId !== courseId || parent.parentId !== null) {
+        return void res.status(400).json({ error: "Invalid parent message" });
+      }
+      validatedParentId = pid;
+    }
+
+    const [message] = await db.insert(courseDiscussionMessagesTable).values({
+      courseId,
+      userId,
+      parentId: validatedParentId,
+      content: content.trim(),
+      linkUrl: linkUrl || null,
+      libraryResourceId: validatedResourceId,
+    }).returning();
+
+    res.status(201).json(message);
+  } catch (err: any) {
+    res.status(500).json({ error: "Server error", message: err.message });
+  }
+});
+
+// ── Delete a message (author, course teacher, or admin) ──────────────────────
+router.delete("/discussion-messages/:id", requireAuth, async (req, res) => {
+  try {
+    const { userId, role } = (req as any).user;
+    const id = parseInt(req.params.id as string);
+    if (isNaN(id)) return void res.status(400).json({ error: "Invalid message id" });
+
+    const [message] = await db.select().from(courseDiscussionMessagesTable)
+      .where(eq(courseDiscussionMessagesTable.id, id)).limit(1);
+    if (!message) return void res.status(404).json({ error: "Message not found" });
+
+    if (role !== "admin" && message.userId !== userId) {
+      const [course] = await db.select({ teacherId: coursesTable.teacherId })
+        .from(coursesTable).where(eq(coursesTable.id, message.courseId)).limit(1);
+      if (!course || course.teacherId !== userId) {
+        return void res.status(403).json({ error: "You cannot delete this message" });
+      }
+    }
+
+    await db.delete(courseDiscussionMessagesTable).where(eq(courseDiscussionMessagesTable.id, id));
+    res.json({ success: true });
+  } catch (err: any) {
+    res.status(500).json({ error: "Server error", message: err.message });
+  }
+});
+
+// ── "Share to my class": a teacher's own courses (for the Library dialog) ────
+router.get("/my-teaching-courses", requireAuth, requireRole("teacher", "admin"), async (req, res) => {
+  try {
+    const { userId } = (req as any).user;
+    const courses = await db.select({
+      id: coursesTable.id,
+      title: coursesTable.title,
+      titleAr: coursesTable.titleAr,
+    }).from(coursesTable)
+      .where(eq(coursesTable.teacherId, userId))
+      .orderBy(desc(coursesTable.createdAt));
+    res.json(courses);
   } catch (err: any) {
     res.status(500).json({ error: "Server error", message: err.message });
   }
