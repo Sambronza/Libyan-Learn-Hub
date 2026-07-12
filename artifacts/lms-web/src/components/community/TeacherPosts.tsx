@@ -8,7 +8,7 @@ import { useToast } from '@/hooks/use-toast';
 import { Button } from '@/components/ui/button';
 import {
   UserPlus, UserCheck, Megaphone, Trash2, Link2, Image as ImageIcon,
-  Loader2, Send, X, ExternalLink,
+  Loader2, Send, X, ExternalLink, Heart, MessageCircle, MessageCircleOff, Flag, Reply,
 } from 'lucide-react';
 
 export interface TeacherPost {
@@ -18,11 +18,30 @@ export interface TeacherPost {
   imageUrl: string | null;
   linkUrl: string | null;
   courseId: number | null;
+  commentsEnabled: boolean;
   createdAt: string;
   teacherName: string;
   teacherNameAr: string | null;
   teacherAvatarUrl: string | null;
   teacherSlug: string | null;
+  likesCount: number;
+  commentsCount: number;
+  likedByMe: boolean;
+}
+
+interface PostComment {
+  id: number;
+  postId: number;
+  parentId: number | null;
+  content: string;
+  createdAt: string;
+  userId: number;
+  userName: string;
+  userNameAr: string | null;
+  userAvatarUrl: string | null;
+  userRole: string;
+  likesCount: number;
+  likedByMe: boolean;
 }
 
 export function timeAgo(dateStr: string, ar: boolean): string {
@@ -93,13 +112,20 @@ export function PostCard({ post, showAuthor, onDeleted }: {
   onDeleted?: () => void;
 }) {
   const { language } = useLanguage();
-  const { user } = useAuth();
+  const { user, isAuthenticated } = useAuth();
   const api = useApi();
   const { toast } = useToast();
   const ar = language === 'ar';
 
+  const [liked, setLiked] = useState(post.likedByMe);
+  const [likesCount, setLikesCount] = useState(post.likesCount ?? 0);
+  const [commentsCount, setCommentsCount] = useState(post.commentsCount ?? 0);
+  const [commentsEnabled, setCommentsEnabled] = useState(post.commentsEnabled ?? true);
+  const [showComments, setShowComments] = useState(false);
+
   const authorName = ar ? (post.teacherNameAr || post.teacherName) : post.teacherName;
-  const canDelete = user?.id === post.teacherId || user?.role === 'admin';
+  const isOwner = user?.id === post.teacherId;
+  const canDelete = isOwner || user?.role === 'admin';
 
   const handleDelete = async () => {
     if (!window.confirm(ar ? 'حذف هذا المنشور؟' : 'Delete this post?')) return;
@@ -107,6 +133,36 @@ export function PostCard({ post, showAuthor, onDeleted }: {
       await api.del(`/community/posts/${post.id}`);
       onDeleted?.();
       toast({ title: ar ? 'تم الحذف' : 'Deleted' });
+    } catch (e: any) {
+      toast({ title: e.message, variant: 'destructive' });
+    }
+  };
+
+  const toggleLike = async () => {
+    if (!isAuthenticated) {
+      toast({ title: ar ? 'سجّل الدخول للتفاعل' : 'Log in to react' });
+      return;
+    }
+    // Optimistic update, corrected by the server response
+    setLiked(!liked); setLikesCount((c) => c + (liked ? -1 : 1));
+    try {
+      const r = await api.post(`/community/posts/${post.id}/like`, {});
+      setLiked(r.liked); setLikesCount(r.likesCount);
+    } catch (e: any) {
+      setLiked(liked); setLikesCount(likesCount);
+      toast({ title: e.message, variant: 'destructive' });
+    }
+  };
+
+  const toggleCommentsEnabled = async () => {
+    try {
+      const r = await api.patch(`/community/posts/${post.id}/comments-enabled`, {});
+      setCommentsEnabled(r.commentsEnabled);
+      toast({
+        title: r.commentsEnabled
+          ? (ar ? 'تم فتح التعليقات' : 'Comments enabled')
+          : (ar ? 'تم إغلاق التعليقات' : 'Comments disabled'),
+      });
     } catch (e: any) {
       toast({ title: e.message, variant: 'destructive' });
     }
@@ -158,6 +214,243 @@ export function PostCard({ post, showAuthor, onDeleted }: {
             {ar ? 'عرض الدورة' : 'View course'}
           </Link>
         )}
+      </div>
+
+      {/* Interaction bar */}
+      <div className="flex items-center gap-1 mt-4 pt-3 border-t border-border">
+        <button
+          onClick={toggleLike}
+          className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-sm font-medium transition-colors ${
+            liked ? 'text-rose-600 bg-rose-500/10' : 'text-muted-foreground hover:bg-muted'
+          }`}
+        >
+          <Heart className={`w-4 h-4 ${liked ? 'fill-rose-500' : ''}`} />
+          {likesCount > 0 && likesCount}
+        </button>
+        {commentsEnabled ? (
+          <button
+            onClick={() => setShowComments(!showComments)}
+            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-sm font-medium transition-colors ${
+              showComments ? 'text-primary bg-primary/8' : 'text-muted-foreground hover:bg-muted'
+            }`}
+          >
+            <MessageCircle className="w-4 h-4" />
+            {commentsCount > 0 ? commentsCount : (ar ? 'تعليق' : 'Comment')}
+          </button>
+        ) : (
+          <span className="flex items-center gap-1.5 px-3 py-1.5 text-sm text-muted-foreground/60">
+            <MessageCircleOff className="w-4 h-4" />
+            {ar ? 'التعليقات مغلقة' : 'Comments off'}
+          </span>
+        )}
+        {(isOwner || user?.role === 'admin') && (
+          <button
+            onClick={toggleCommentsEnabled}
+            className="ms-auto text-[11px] text-muted-foreground hover:text-foreground px-2 py-1 rounded-lg hover:bg-muted"
+            title={ar ? 'فتح/إغلاق التعليقات' : 'Toggle comments'}
+          >
+            {commentsEnabled ? (ar ? 'إغلاق التعليقات' : 'Turn comments off') : (ar ? 'فتح التعليقات' : 'Turn comments on')}
+          </button>
+        )}
+      </div>
+
+      {showComments && commentsEnabled && (
+        <CommentsSection
+          postId={post.id}
+          postOwnerId={post.teacherId}
+          onCountChange={setCommentsCount}
+        />
+      )}
+    </div>
+  );
+}
+
+// ── Comments (one-level threading) ───────────────────────────────────────────
+function CommentsSection({ postId, postOwnerId, onCountChange }: {
+  postId: number;
+  postOwnerId: number;
+  onCountChange: (n: number) => void;
+}) {
+  const { language } = useLanguage();
+  const { user, isAuthenticated } = useAuth();
+  const api = useApi();
+  const { toast } = useToast();
+  const queryClient = useQueryClient();
+  const ar = language === 'ar';
+
+  const [text, setText] = useState('');
+  const [replyTo, setReplyTo] = useState<PostComment | null>(null);
+  const [submitting, setSubmitting] = useState(false);
+
+  const { data: comments } = useQuery<PostComment[]>({
+    queryKey: ['post-comments', postId],
+    queryFn: () => api.get(`/community/posts/${postId}/comments`),
+  });
+
+  const refresh = () => queryClient.invalidateQueries({ queryKey: ['post-comments', postId] });
+
+  React.useEffect(() => {
+    if (comments) onCountChange(comments.length);
+  }, [comments]);
+
+  const submit = async () => {
+    if (!text.trim()) return;
+    setSubmitting(true);
+    try {
+      await api.post(`/community/posts/${postId}/comments`, {
+        content: text.trim(),
+        parentId: replyTo?.id,
+      });
+      setText(''); setReplyTo(null);
+      refresh();
+    } catch (e: any) {
+      toast({ title: e.message, variant: 'destructive' });
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const topLevel = comments?.filter((c) => !c.parentId) || [];
+  const repliesFor = (id: number) => comments?.filter((c) => c.parentId === id) || [];
+
+  return (
+    <div className="mt-4 pt-4 border-t border-border space-y-4">
+      {/* Input */}
+      {isAuthenticated ? (
+        <div>
+          {replyTo && (
+            <div className="flex items-center justify-between text-xs text-muted-foreground bg-muted/40 rounded-t-xl px-3 py-1.5 border border-b-0 border-border">
+              <span>{ar ? `رد على ${ar ? (replyTo.userNameAr || replyTo.userName) : replyTo.userName}` : `Replying to ${replyTo.userName}`}</span>
+              <button onClick={() => setReplyTo(null)} className="p-0.5 hover:text-destructive"><X className="w-3.5 h-3.5" /></button>
+            </div>
+          )}
+          <div className="flex gap-2">
+            <input
+              value={text}
+              onChange={(e) => setText(e.target.value)}
+              onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); submit(); } }}
+              maxLength={500}
+              placeholder={ar ? 'اكتب تعليقًا...' : 'Write a comment...'}
+              className={`flex-1 bg-muted/40 border border-border px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/40 ${replyTo ? 'rounded-b-xl rounded-t-none' : 'rounded-xl'}`}
+            />
+            <Button size="sm" disabled={submitting || !text.trim()} onClick={submit} className="shrink-0 self-end">
+              {submitting ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
+            </Button>
+          </div>
+        </div>
+      ) : (
+        <p className="text-xs text-muted-foreground">{ar ? 'سجّل الدخول للتعليق.' : 'Log in to comment.'}</p>
+      )}
+
+      {/* Thread */}
+      <div className="space-y-3">
+        {topLevel.map((c) => (
+          <div key={c.id}>
+            <CommentItem comment={c} postOwnerId={postOwnerId} onReply={() => setReplyTo(c)} onChanged={refresh} />
+            {repliesFor(c.id).map((r) => (
+              <div key={r.id} className="ms-8 mt-2">
+                <CommentItem comment={r} postOwnerId={postOwnerId} onChanged={refresh} />
+              </div>
+            ))}
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function CommentItem({ comment, postOwnerId, onReply, onChanged }: {
+  comment: PostComment;
+  postOwnerId: number;
+  onReply?: () => void;
+  onChanged: () => void;
+}) {
+  const { language } = useLanguage();
+  const { user, isAuthenticated } = useAuth();
+  const api = useApi();
+  const { toast } = useToast();
+  const ar = language === 'ar';
+
+  const [liked, setLiked] = useState(comment.likedByMe);
+  const [likesCount, setLikesCount] = useState(comment.likesCount);
+
+  const name = ar ? (comment.userNameAr || comment.userName) : comment.userName;
+  const isTeacherBadge = comment.userId === postOwnerId;
+  const canDelete = user?.id === comment.userId || user?.id === postOwnerId || user?.role === 'admin';
+
+  const toggleLike = async () => {
+    if (!isAuthenticated) return;
+    setLiked(!liked); setLikesCount((c) => c + (liked ? -1 : 1));
+    try {
+      const r = await api.post(`/community/comments/${comment.id}/like`, {});
+      setLiked(r.liked); setLikesCount(r.likesCount);
+    } catch {
+      setLiked(liked); setLikesCount(likesCount);
+    }
+  };
+
+  const handleDelete = async () => {
+    if (!window.confirm(ar ? 'حذف هذا التعليق؟' : 'Delete this comment?')) return;
+    try {
+      await api.del(`/community/comments/${comment.id}`);
+      onChanged();
+    } catch (e: any) {
+      toast({ title: e.message, variant: 'destructive' });
+    }
+  };
+
+  const handleReport = async () => {
+    if (!window.confirm(ar ? 'الإبلاغ عن هذا التعليق للإدارة؟' : 'Report this comment to the admins?')) return;
+    try {
+      await api.post(`/community/comments/${comment.id}/report`, { reason: 'offensive' });
+      toast({ title: ar ? 'تم إرسال البلاغ — شكرًا لك' : 'Report sent — thank you' });
+    } catch (e: any) {
+      toast({ title: e.message, variant: 'destructive' });
+    }
+  };
+
+  return (
+    <div className="flex gap-2.5">
+      <div className="w-8 h-8 rounded-full bg-gradient-to-br from-primary/15 to-primary/5 border border-border flex items-center justify-center text-primary text-xs font-bold overflow-hidden shrink-0">
+        {comment.userAvatarUrl
+          ? <img src={comment.userAvatarUrl} alt={name} className="w-full h-full object-cover" />
+          : name?.charAt(0)}
+      </div>
+      <div className="flex-1 min-w-0">
+        <div className="bg-muted/40 border border-border rounded-xl px-3 py-2">
+          <div className="flex items-center gap-2">
+            <span className="font-bold text-xs">{name}</span>
+            {isTeacherBadge && (
+              <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-full bg-primary/10 text-primary">
+                {ar ? 'المعلم' : 'Teacher'}
+              </span>
+            )}
+            <span className="text-[10px] text-muted-foreground">{timeAgo(comment.createdAt, ar)}</span>
+          </div>
+          <p className="text-sm mt-1 whitespace-pre-wrap break-words">{comment.content}</p>
+        </div>
+        <div className="flex items-center gap-3 mt-1 ps-1">
+          <button onClick={toggleLike}
+            className={`flex items-center gap-1 text-[11px] font-medium ${liked ? 'text-rose-600' : 'text-muted-foreground hover:text-foreground'}`}>
+            <Heart className={`w-3 h-3 ${liked ? 'fill-rose-500' : ''}`} />
+            {likesCount > 0 && likesCount}
+          </button>
+          {onReply && isAuthenticated && (
+            <button onClick={onReply} className="flex items-center gap-1 text-[11px] font-medium text-muted-foreground hover:text-foreground">
+              <Reply className="w-3 h-3" /> {ar ? 'رد' : 'Reply'}
+            </button>
+          )}
+          {isAuthenticated && user?.id !== comment.userId && (
+            <button onClick={handleReport} className="flex items-center gap-1 text-[11px] text-muted-foreground hover:text-destructive">
+              <Flag className="w-3 h-3" /> {ar ? 'بلاغ' : 'Report'}
+            </button>
+          )}
+          {canDelete && (
+            <button onClick={handleDelete} className="flex items-center gap-1 text-[11px] text-muted-foreground hover:text-destructive">
+              <Trash2 className="w-3 h-3" /> {ar ? 'حذف' : 'Delete'}
+            </button>
+          )}
+        </div>
       </div>
     </div>
   );
