@@ -325,7 +325,7 @@ export default function Checkout() {
 
                 <Button
                   size="lg"
-                  className="w-full h-14 text-lg rounded-2xl bg-gradient-to-r from-primary to-teal-500"
+                  className="w-full h-14 text-lg rounded-2xl bg-gradient-to-r from-primary to-violet-600"
                   onClick={() => initiateMutation.mutate()}
                   disabled={initiateMutation.isPending}
                 >

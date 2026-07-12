@@ -286,7 +286,7 @@ export function Navbar() {
                     <Button variant="outline" className="w-full">{t('nav.login')}</Button>
                   </Link>
                   <Link href={`/register?returnTo=${encodeURIComponent(location + window.location.search)}`} onClick={() => setIsMobileOpen(false)}>
-                    <Button className="w-full bg-gradient-to-r from-primary to-teal-500">{t('nav.register')}</Button>
+                    <Button className="w-full bg-gradient-to-r from-primary to-violet-600">{t('nav.register')}</Button>
                   </Link>
                 </div>
               )}

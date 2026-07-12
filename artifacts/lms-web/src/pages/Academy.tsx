@@ -131,9 +131,9 @@ export default function Academy() {
 
           <motion.h1 {...fadeUp(0.1)} className="text-3xl sm:text-5xl lg:text-7xl font-display font-extrabold leading-[1.1] text-foreground mb-6">
             {isRtl ? (
-              <>أكاديمية <span className="text-transparent bg-clip-text bg-gradient-to-r from-amber-500 via-orange-500 to-rose-500">EduLibya</span></>
+              <>أكاديمية <span className="text-transparent bg-clip-text bg-gradient-to-r from-amber-500 to-orange-500">EduLibya</span></>
             ) : (
-              <>EduLibya <span className="text-transparent bg-clip-text bg-gradient-to-r from-amber-500 via-orange-500 to-rose-500">Academy</span></>
+              <>EduLibya <span className="text-transparent bg-clip-text bg-gradient-to-r from-amber-500 to-orange-500">Academy</span></>
             )}
           </motion.h1>
 
@@ -344,7 +344,7 @@ export default function Academy() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <motion.div
             {...fadeUp()}
-            className="relative overflow-hidden rounded-[3rem] bg-gradient-to-br from-amber-500 via-orange-500 to-rose-500 p-12 text-center text-white"
+            className="relative overflow-hidden rounded-[3rem] bg-gradient-to-br from-amber-500 to-orange-500 p-12 text-center text-white"
           >
             <div className="absolute top-0 start-0 w-72 h-72 bg-white/10 rounded-full -translate-x-1/2 -translate-y-1/2 blur-3xl" />
             <div className="absolute bottom-0 end-0 w-72 h-72 bg-rose-400/20 rounded-full translate-x-1/2 translate-y-1/2 blur-3xl" />

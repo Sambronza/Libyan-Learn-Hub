@@ -84,11 +84,11 @@ export default function Profile() {
     setIsRedeeming(true);
     try {
       const res = await api.post('/payments/redeem-code', { code: redeemCode });
-      toast({ title: "Success", description: `Card redeemed successfully! Added ${res.value || ''} LYD.` });
+      toast({ title: currentLanguage === 'ar' ? 'تم بنجاح' : 'Success', description: currentLanguage === 'ar' ? `تم استخدام البطاقة بنجاح! أُضيف ${res.value || ''} د.ل.` : `Card redeemed successfully! Added ${res.value || ''} LYD.` });
       setRedeemCode('');
       refetchUser();
     } catch (err: any) {
-      toast({ title: "Error", description: err.message || "Failed to redeem code", variant: "destructive" });
+      toast({ title: currentLanguage === 'ar' ? 'خطأ' : 'Error', description: err.message || (currentLanguage === 'ar' ? 'فشل استخدام الرمز' : 'Failed to redeem code'), variant: "destructive" });
     } finally {
       setIsRedeeming(false);
     }
@@ -123,7 +123,7 @@ export default function Profile() {
       // 2. Update Email if changed
       if (data.email && data.email !== user?.email) {
         await api.put('/users/email', { newEmail: data.email });
-        toast({ title: "Email updated successfully. Please verify your new email." });
+        toast({ title: currentLanguage === 'ar' ? 'تم تحديث البريد الإلكتروني. يرجى تأكيد بريدك الجديد.' : 'Email updated successfully. Please verify your new email.' });
       }
 
       // 3. Update Password if provided
@@ -132,7 +132,7 @@ export default function Profile() {
           currentPassword: data.currentPassword,
           newPassword: data.newPassword
         });
-        toast({ title: "Password updated successfully" });
+        toast({ title: currentLanguage === 'ar' ? 'تم تحديث كلمة المرور بنجاح' : 'Password updated successfully' });
       }
 
       if (data.language !== currentLanguage) {

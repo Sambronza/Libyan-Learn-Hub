@@ -49,11 +49,11 @@ export default function CourseDetail() {
   const { mutate: enroll, isPending: enrolling } = useEnrollCourse({
     mutation: {
       onSuccess: () => {
-        toast({ title: "Successfully enrolled!", description: "You can now start learning." });
+        toast({ title: language === 'ar' ? 'تم التسجيل بنجاح!' : 'Successfully enrolled!', description: language === 'ar' ? 'يمكنك الآن بدء التعلم.' : 'You can now start learning.' });
         refetch();
       },
       onError: (err) => {
-        toast({ title: "Failed to enroll", description: err.message, variant: "destructive" });
+        toast({ title: language === 'ar' ? 'فشل التسجيل' : 'Failed to enroll', description: err.message, variant: "destructive" });
       }
     }
   });
@@ -79,14 +79,14 @@ export default function CourseDetail() {
   const submitReview = useMutation({
     mutationFn: () => api.post(`/courses/${courseId}/reviews`, { rating: reviewRating, comment: reviewComment }),
     onSuccess: () => {
-      toast({ title: "Review submitted!", description: "Thank you for your feedback." });
+      toast({ title: language === 'ar' ? 'تم إرسال المراجعة!' : 'Review submitted!', description: language === 'ar' ? 'شكرًا لملاحظاتك.' : 'Thank you for your feedback.' });
       queryClient.invalidateQueries({ queryKey: ['/api/courses', courseId, 'reviews'] });
       setShowReviewModal(false);
       setReviewComment("");
       refetch();
     },
     onError: (err: any) => {
-      toast({ title: "Failed to submit review", description: err.message, variant: "destructive" });
+      toast({ title: language === 'ar' ? 'فشل إرسال المراجعة' : 'Failed to submit review', description: err.message, variant: "destructive" });
     }
   });
 

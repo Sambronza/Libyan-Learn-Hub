@@ -903,6 +903,7 @@ function TeacherStudentsList({ api }: { api: any }) {
   );
 }
 function TeacherEarningsTab({ api, user, totalRevenue, initialEarningsData }: { api: any; user: any; totalRevenue: number; initialEarningsData: any }) {
+  const { language } = useLanguage();
   const { toast } = useToast();
   const [withdrawals, setWithdrawals] = React.useState<any[]>([]);
   const [earningsData, setEarningsData] = React.useState<any>(initialEarningsData);
@@ -933,7 +934,7 @@ function TeacherEarningsTab({ api, user, totalRevenue, initialEarningsData }: { 
   const handleRequestWithdrawal = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!amount || isNaN(parseFloat(amount)) || parseFloat(amount) <= 0) {
-      toast({ title: "Invalid amount", variant: "destructive" });
+      toast({ title: language === 'ar' ? 'مبلغ غير صالح' : 'Invalid amount', variant: "destructive" });
       return;
     }
     setIsSubmitting(true);
@@ -943,12 +944,12 @@ function TeacherEarningsTab({ api, user, totalRevenue, initialEarningsData }: { 
         paymentMethod: method,
         details
       });
-      toast({ title: "Withdrawal request submitted successfully" });
+      toast({ title: language === 'ar' ? 'تم إرسال طلب السحب بنجاح' : 'Withdrawal request submitted successfully' });
       setAmount('');
       setDetails('');
       fetchData();
     } catch (err: any) {
-      toast({ title: "Failed to request withdrawal", description: err.message, variant: "destructive" });
+      toast({ title: language === 'ar' ? 'فشل طلب السحب' : 'Failed to request withdrawal', description: err.message, variant: "destructive" });
     } finally {
       setIsSubmitting(false);
     }
@@ -1148,6 +1149,7 @@ function TeacherEarningsTab({ api, user, totalRevenue, initialEarningsData }: { 
 }
 
 function TeacherPromoteTab({ api, user }: { api: any; user: any }) {
+  const { language } = useLanguage();
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const [loadingPro, setLoadingPro] = React.useState(false);
@@ -1178,7 +1180,7 @@ function TeacherPromoteTab({ api, user }: { api: any; user: any }) {
         window.location.href = data.url;
       }
     } catch (err: any) {
-      toast({ title: "Upgrade Failed", description: err.message, variant: 'destructive' });
+      toast({ title: language === 'ar' ? 'فشلت الترقية' : 'Upgrade Failed', description: err.message, variant: 'destructive' });
     } finally {
       setLoadingPro(false);
     }
@@ -1197,10 +1199,10 @@ function TeacherPromoteTab({ api, user }: { api: any; user: any }) {
         endDate: endDate.toISOString(),
         budgetPaid: '50' // Placeholder 50 LYD
       });
-      toast({ title: "Ad Campaign Started!", description: "Your ad is now active for 7 days." });
+      toast({ title: language === 'ar' ? 'بدأت الحملة الإعلانية!' : 'Ad Campaign Started!', description: language === 'ar' ? 'إعلانك نشط الآن لمدة 7 أيام.' : 'Your ad is now active for 7 days.' });
       fetchData();
     } catch (err: any) {
-      toast({ title: "Error", description: err.message, variant: 'destructive' });
+      toast({ title: language === 'ar' ? 'خطأ' : 'Error', description: err.message, variant: 'destructive' });
     } finally {
       setLoadingAd(false);
     }

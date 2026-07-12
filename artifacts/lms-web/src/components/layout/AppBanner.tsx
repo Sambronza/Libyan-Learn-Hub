@@ -35,7 +35,7 @@ export function AppBanner() {
   };
 
   return (
-    <div className="sticky top-0 z-[60] bg-gradient-to-r from-primary to-teal-500 text-white px-3 py-2.5 flex items-center gap-3 shadow-md">
+    <div className="sticky top-0 z-[60] bg-gradient-to-r from-primary to-violet-600 text-white px-3 py-2.5 flex items-center gap-3 shadow-md">
       <button onClick={dismiss} aria-label="Dismiss" className="shrink-0 opacity-80 hover:opacity-100">
         <X className="w-4 h-4" />
       </button>
