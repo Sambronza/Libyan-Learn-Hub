@@ -201,7 +201,7 @@ export default function Courses() {
                             <span>{Math.round(course.totalDuration / 60)}h</span>
                           </div>
                           {Number((course as any).rating) > 0 && (
-                            <div className="flex items-center gap-1 bg-amber-500/10 border border-amber-500/20 px-2 sm:px-2.5 py-1 rounded-md text-[10px] sm:text-[11px] font-bold text-amber-600">
+                            <div className="flex items-center gap-1 bg-warning/10 border border-amber-500/20 px-2 sm:px-2.5 py-1 rounded-md text-[10px] sm:text-[11px] font-bold text-warning">
                               <Star className="w-3 h-3 fill-amber-500" />
                               {Number((course as any).rating).toFixed(1)}
                             </div>

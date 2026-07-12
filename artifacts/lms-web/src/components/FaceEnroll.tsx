@@ -177,10 +177,10 @@ export function FaceEnroll({ onComplete, onError }: FaceEnrollProps) {
           const isCaptured = !!captured[p.id];
           return (
             <div key={p.id} className="flex flex-col items-center gap-1">
-              <div className={`w-8 h-8 rounded-full flex items-center justify-center transition-all ${isCaptured ? "bg-green-500" : "bg-muted animate-pulse"}`}>
+              <div className={`w-8 h-8 rounded-full flex items-center justify-center transition-all ${isCaptured ? "bg-success/100" : "bg-muted animate-pulse"}`}>
                 {isCaptured ? <CheckCircle className="w-4 h-4 text-white" /> : <Camera className="w-3.5 h-3.5 text-muted-foreground" />}
               </div>
-              <span className={`text-[10px] font-medium text-center ${isCaptured ? "text-green-500" : "text-muted-foreground"}`}>
+              <span className={`text-[10px] font-medium text-center ${isCaptured ? "text-success" : "text-muted-foreground"}`}>
                 {isAr ? p.labelAr : p.label}
               </span>
             </div>

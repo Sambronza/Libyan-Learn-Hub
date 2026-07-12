@@ -245,7 +245,7 @@ export function InactivityTimer({ suppressWhenActive = false }: { suppressWhenAc
 
               {/* Custom Interactive Avatar & Banner */}
               <div className="flex items-center gap-3 bg-muted/50 py-2 px-4 rounded-full my-3 border border-border/30">
-                <div className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-ping" />
+                <div className="w-2.5 h-2.5 rounded-full bg-success/100 animate-ping" />
                 <span className="text-sm font-semibold text-foreground/80">
                   {isTeacher ? `👨‍🏫 ${user.fullName}` : `🎓 ${user.fullName}`}
                 </span>

@@ -27,11 +27,11 @@ const ENDORSEMENT_TRAITS = [
 ];
 
 const BADGE_COLORS: Record<string, { bg: string; text: string; border: string; icon: any }> = {
-  amber:  { bg: 'bg-amber-100 dark:bg-amber-900/30',  text: 'text-amber-700 dark:text-amber-300',  border: 'border-amber-300 dark:border-amber-600',  icon: Trophy },
-  violet: { bg: 'bg-violet-100 dark:bg-violet-900/30', text: 'text-violet-700 dark:text-violet-300', border: 'border-violet-300 dark:border-violet-600', icon: Zap },
-  blue:   { bg: 'bg-blue-100 dark:bg-blue-900/30',    text: 'text-blue-700 dark:text-blue-300',    border: 'border-blue-300 dark:border-blue-600',    icon: Star },
-  teal:   { bg: 'bg-teal-100 dark:bg-teal-900/30',   text: 'text-teal-700 dark:text-teal-300',   border: 'border-teal-300 dark:border-teal-600',   icon: CheckCircle2 },
-  green:  { bg: 'bg-green-100 dark:bg-green-900/30',  text: 'text-green-700 dark:text-green-300',  border: 'border-green-300 dark:border-green-600',  icon: GraduationCap },
+  amber:  { bg: 'bg-warning/10',  text: 'text-warning',  border: 'border-warning/30',  icon: Trophy },
+  violet: { bg: 'bg-primary/10', text: 'text-primary', border: 'border-primary/30', icon: Zap },
+  blue:   { bg: 'bg-info/10',    text: 'text-info',    border: 'border-info/40',    icon: Star },
+  teal:   { bg: 'bg-success/10',   text: 'text-secondary',   border: 'border-secondary/30',   icon: CheckCircle2 },
+  green:  { bg: 'bg-success/10',  text: 'text-success',  border: 'border-success/30',  icon: GraduationCap },
 };
 
 function formatDateTime(dateStr: string, language: string) {
@@ -63,10 +63,10 @@ function timeUntil(dateStr: string, language: string): string {
 // ─── Status Badge ──────────────────────────────────────────────────────────────
 function StatusBadge({ status, language }: { status: string; language: string }) {
   const cfg = {
-    scheduled: { label: { en: 'Upcoming', ar: 'قادم' }, cls: 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300' },
-    live:      { label: { en: 'Live Now', ar: 'مباشر' }, cls: 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-300 animate-pulse' },
+    scheduled: { label: { en: 'Upcoming', ar: 'قادم' }, cls: 'bg-info/10 text-info' },
+    live:      { label: { en: 'Live Now', ar: 'مباشر' }, cls: 'bg-destructive/10 text-destructive animate-pulse' },
     ended:     { label: { en: 'Ended', ar: 'انتهى' }, cls: 'bg-muted text-muted-foreground' },
-    accepted:  { label: { en: 'Confirmed', ar: 'مؤكد' }, cls: 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-300' },
+    accepted:  { label: { en: 'Confirmed', ar: 'مؤكد' }, cls: 'bg-success/10 text-success' },
   }[status] ?? { label: { en: status, ar: status }, cls: 'bg-muted text-muted-foreground' };
 
   return (
@@ -220,7 +220,7 @@ function ActivityPanel({ slug, language }: { slug: string; language: string }) {
                       </div>
                       {s.status === 'live' && s.meetingUrl && (
                         <a href={s.meetingUrl} target="_blank" rel="noopener noreferrer" className="mt-3 block">
-                          <Button size="sm" className="w-full gap-2 bg-red-600 hover:bg-red-700 text-white">
+                          <Button size="sm" className="w-full gap-2 bg-destructive hover:bg-destructive/90 text-white">
                             <Radio className="w-3.5 h-3.5" />
                             {language === 'ar' ? 'انضم الآن' : 'Join Now'}
                           </Button>
@@ -404,12 +404,12 @@ export default function TeacherProfile() {
                 <h1 className="text-3xl font-display font-bold">{name}</h1>
                 {teacher.isVerified && <BadgeCheck className="w-6 h-6 text-primary" aria-label="Verified" />}
                 {teacher.isSponsored && (
-                  <span className="text-xs font-bold px-2.5 py-1 rounded-full bg-amber-100 text-amber-700 border border-amber-200 flex items-center gap-1">
+                  <span className="text-xs font-bold px-2.5 py-1 rounded-full bg-warning/10 text-warning border border-warning/30 flex items-center gap-1">
                     <Crown className="w-3 h-3" /> {language === 'ar' ? 'مميز' : 'Sponsored'}
                   </span>
                 )}
                 {teacher.tier === 'pro' && (
-                  <span className="text-xs font-bold px-2.5 py-1 rounded-full bg-violet-100 text-violet-700 border border-violet-200">PRO</span>
+                  <span className="text-xs font-bold px-2.5 py-1 rounded-full bg-primary/10 text-primary border border-primary/30">PRO</span>
                 )}
               </div>
               {teacher.expertise && <p className="text-muted-foreground mb-3">{teacher.expertise}</p>}
@@ -425,7 +425,7 @@ export default function TeacherProfile() {
                 <span className="flex items-center gap-1.5 text-muted-foreground">
                   <Users className="w-4 h-4" /> {teacher.studentCount} {language === 'ar' ? 'طلاب' : 'students'}
                 </span>
-                <span className="flex items-center gap-1.5 text-amber-600">
+                <span className="flex items-center gap-1.5 text-warning">
                   <Star className="w-4 h-4 fill-amber-500" /> {teacher.rating?.toFixed(1)} ({teacher.reviewCount})
                 </span>
               </div>
@@ -441,14 +441,14 @@ export default function TeacherProfile() {
               </a>
             )}
             <Button variant="outline" className="gap-2" onClick={handleCopyLink}>
-              {copied ? <Check className="w-4 h-4 text-green-600" /> : <Copy className="w-4 h-4" />}
+              {copied ? <Check className="w-4 h-4 text-success" /> : <Copy className="w-4 h-4" />}
               {language === 'ar' ? 'نسخ الرابط' : 'Copy Link'}
             </Button>
             <Button variant="outline" className="gap-2" onClick={handleShareFacebook}>
               <Facebook className="w-4 h-4" /> {language === 'ar' ? 'مشاركة' : 'Share'}
             </Button>
             {user && user.role === 'student' && (
-              <Button variant="outline" className="gap-2 text-amber-600 border-amber-200 hover:bg-amber-50" onClick={() => setShowEndorse(true)}>
+              <Button variant="outline" className="gap-2 text-warning border-warning/30 hover:bg-warning/10" onClick={() => setShowEndorse(true)}>
                 <Award className="w-4 h-4" /> {language === 'ar' ? 'توصية' : 'Endorse'}
               </Button>
             )}
@@ -488,7 +488,7 @@ export default function TeacherProfile() {
                   {teacher.endorsements.map((e: any) => {
                     const trait = ENDORSEMENT_TRAITS.find(t => t.key === e.trait);
                     return (
-                      <span key={e.trait} className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-amber-50 border border-amber-200 text-sm font-medium text-amber-800 dark:bg-amber-900/20 dark:border-amber-700 dark:text-amber-300">
+                      <span key={e.trait} className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-warning/10 border border-warning/30 text-sm font-medium text-warning">
                         <Award className="w-3.5 h-3.5" />
                         {language === 'ar' ? (trait?.ar || e.trait) : (trait?.en || e.trait)}
                         <span className="text-xs text-amber-500 font-bold">×{e.count}</span>

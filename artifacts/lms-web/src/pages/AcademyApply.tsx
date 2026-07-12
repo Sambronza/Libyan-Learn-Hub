@@ -99,12 +99,12 @@ export default function AcademyApply() {
       {[1, 2, 3, 4].map((num) => (
         <React.Fragment key={num}>
           <div className={`w-10 h-10 rounded-full flex items-center justify-center font-bold text-sm transition-colors ${
-            step >= num ? 'bg-amber-500 text-white shadow-lg' : 'bg-muted text-muted-foreground'
+            step >= num ? 'bg-warning/100 text-white shadow-lg' : 'bg-muted text-muted-foreground'
           }`}>
             {step > num ? <CheckCircle2 className="w-5 h-5" /> : num}
           </div>
           {num < 4 && (
-            <div className={`w-16 h-1 transition-colors ${step > num ? 'bg-amber-500' : 'bg-muted'}`} />
+            <div className={`w-16 h-1 transition-colors ${step > num ? 'bg-warning/100' : 'bg-muted'}`} />
           )}
         </React.Fragment>
       ))}
@@ -115,8 +115,8 @@ export default function AcademyApply() {
     <PageContainer>
       <div className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 py-16">
         <div className="text-center mb-12">
-          <div className="w-16 h-16 rounded-2xl bg-amber-100 flex items-center justify-center mx-auto mb-6">
-            <GraduationCap className="w-8 h-8 text-amber-600" />
+          <div className="w-16 h-16 rounded-2xl bg-warning/10 flex items-center justify-center mx-auto mb-6">
+            <GraduationCap className="w-8 h-8 text-warning" />
           </div>
           <h1 className="text-3xl font-display font-bold text-foreground mb-4">
             {isRtl ? 'طلب الالتحاق بالأكاديمية' : 'Academy Admission Application'}
@@ -148,8 +148,8 @@ export default function AcademyApply() {
                         </div>
                       )}
                       {!loadingPrograms && (programs as any[]).length === 0 && (
-                        <div className="p-4 rounded-xl border border-amber-200 bg-amber-50/50 dark:bg-amber-500/10 text-sm">
-                          <p className="font-medium text-amber-700">
+                        <div className="p-4 rounded-xl border border-warning/30 bg-warning/10 dark:bg-warning/10 text-sm">
+                          <p className="font-medium text-warning">
                             {isRtl ? 'لا توجد برامج متاحة حاليًا' : 'No programs available at this time'}
                           </p>
                           <p className="text-muted-foreground mt-1">
@@ -162,7 +162,7 @@ export default function AcademyApply() {
                       {(programs as any[]).map((prog: any) => (
                         <label 
                           key={prog.id} 
-                          className={`flex items-center p-4 border rounded-xl cursor-pointer transition-colors ${formData.programId === prog.id.toString() ? 'border-amber-500 bg-amber-50/50 dark:bg-amber-500/10' : 'border-border hover:border-amber-500/50'}`}
+                          className={`flex items-center p-4 border rounded-xl cursor-pointer transition-colors ${formData.programId === prog.id.toString() ? 'border-amber-500 bg-warning/10 dark:bg-warning/10' : 'border-border hover:border-amber-500/50'}`}
                         >
                           <input 
                             type="radio" 
@@ -177,7 +177,7 @@ export default function AcademyApply() {
                             <div className="text-sm text-muted-foreground">{prog.gradeLevel}</div>
                           </div>
                           <div className={`w-6 h-6 rounded-full border-2 flex items-center justify-center ${formData.programId === prog.id.toString() ? 'border-amber-500' : 'border-muted-foreground'}`}>
-                            {formData.programId === prog.id.toString() && <div className="w-3 h-3 rounded-full bg-amber-500" />}
+                            {formData.programId === prog.id.toString() && <div className="w-3 h-3 rounded-full bg-warning/100" />}
                           </div>
                         </label>
                       ))}
@@ -326,7 +326,7 @@ export default function AcademyApply() {
                     </div>
                   </div>
                 </div>
-                <p className="text-sm text-muted-foreground flex items-start gap-2 bg-amber-500/10 text-amber-700 p-4 rounded-xl">
+                <p className="text-sm text-muted-foreground flex items-start gap-2 bg-warning/10 text-warning p-4 rounded-xl">
                   <span className="text-lg">ℹ️</span>
                   <span>
                     {isRtl 
@@ -355,7 +355,7 @@ export default function AcademyApply() {
                 <Button 
                   type="button" 
                   onClick={handleNext}
-                  className="rounded-xl px-8 bg-amber-500 hover:bg-amber-600 text-white gap-2"
+                  className="rounded-xl px-8 bg-warning/100 hover:bg-warning/90 text-white gap-2"
                   disabled={step === 1 && !step1Valid}
                 >
                   {isRtl ? 'التالي' : 'Next'}

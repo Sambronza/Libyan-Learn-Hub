@@ -80,7 +80,7 @@ export default function Home() {
         <div className="absolute inset-0 -z-10 overflow-hidden">
           <Blob color="bg-primary/20" size="w-[500px] h-[500px]" className="-top-24 -start-24" duration={25} />
           <Blob color="bg-cyan-500/15" size="w-[400px] h-[400px]" className="top-1/2 -end-24" delay={2} duration={30} />
-          <Blob color="bg-violet-500/10" size="w-[600px] h-[600px]" className="-bottom-24 left-1/3" delay={5} duration={35} />
+          <Blob color="bg-primary/10" size="w-[600px] h-[600px]" className="-bottom-24 left-1/3" delay={5} duration={35} />
           
           <div className="absolute inset-0 bg-[radial-gradient(ellipse_80%_60%_at_50%_-20%,rgba(124,58,237,0.08),transparent)]" />
           <svg className="absolute inset-0 w-full h-full opacity-[0.03] dark:opacity-[0.05]" xmlns="http://www.w3.org/2000/svg">
@@ -185,8 +185,8 @@ export default function Home() {
                       {isRtl ? 'قريباً' : 'COMING SOON'}
                     </div>
                     <div className="relative flex items-start gap-4">
-                      <div className="w-12 h-12 rounded-xl bg-amber-500/10 flex items-center justify-center shrink-0 group-hover:bg-gradient-to-br group-hover:from-amber-500 group-hover:to-orange-500 transition-all">
-                        <GraduationCap className="w-6 h-6 text-amber-600 group-hover:text-white transition-colors" />
+                      <div className="w-12 h-12 rounded-xl bg-warning/10 flex items-center justify-center shrink-0 group-hover:bg-gradient-to-br group-hover:from-amber-500 group-hover:to-orange-500 transition-all">
+                        <GraduationCap className="w-6 h-6 text-warning group-hover:text-white transition-colors" />
                       </div>
                       <div className={isRtl ? 'text-right' : ''}>
                         <h3 className="font-display font-bold text-foreground">
@@ -243,8 +243,8 @@ export default function Home() {
                 transition={{ duration: 3, repeat: Infinity, ease: 'easeInOut' }}
                 className="absolute -top-6 -end-6 bg-card border border-border/60 rounded-2xl p-4 shadow-xl flex items-center gap-3"
               >
-                <div className="w-10 h-10 rounded-full bg-yellow-400/20 flex items-center justify-center">
-                  <Star className="w-5 h-5 text-yellow-500 fill-yellow-400" />
+                <div className="w-10 h-10 rounded-full bg-warning/20 flex items-center justify-center">
+                  <Star className="w-5 h-5 text-warning fill-yellow-400" />
                 </div>
                 <div>
                   <div className="font-bold text-sm">4.9/5</div>
@@ -259,7 +259,7 @@ export default function Home() {
                 className="absolute -bottom-6 -start-6 bg-card border border-border/60 rounded-2xl p-4 shadow-xl flex items-center gap-3"
               >
                 <div className="w-10 h-10 rounded-full bg-green-400/20 flex items-center justify-center">
-                  <TrendingUp className="w-5 h-5 text-green-500" />
+                  <TrendingUp className="w-5 h-5 text-success" />
                 </div>
                 <div>
                   <div className="font-bold text-sm">{isRtl ? 'طالب جديد' : 'New Student'}</div>
@@ -391,8 +391,8 @@ export default function Home() {
         <section className="py-12 bg-primary/5">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
             <div className={`mb-8 flex items-center gap-3 ${isRtl ? 'flex-row-reverse' : ''}`}>
-              <div className="w-10 h-10 rounded-full bg-yellow-400/20 flex flex-shrink-0 items-center justify-center">
-                <Star className="w-5 h-5 text-yellow-500 fill-yellow-400" />
+              <div className="w-10 h-10 rounded-full bg-warning/20 flex flex-shrink-0 items-center justify-center">
+                <Star className="w-5 h-5 text-warning fill-yellow-400" />
               </div>
               <h2 className="text-2xl font-display font-bold text-foreground">
                 {isRtl ? 'معلمون مميزون' : 'Featured Instructors'}
@@ -404,7 +404,7 @@ export default function Home() {
                 <Link key={ad.id} href={`/teachers/${ad.teacherSlug}`}>
                   <motion.div 
                     {...fadeUp(i * 0.1)}
-                    className="bg-card border border-amber-200/50 rounded-2xl p-5 flex items-center gap-4 cursor-pointer hover:shadow-lg hover:-translate-y-1 transition-all"
+                    className="bg-card border border-warning/25 rounded-2xl p-5 flex items-center gap-4 cursor-pointer hover:shadow-lg hover:-translate-y-1 transition-all"
                   >
                     <div className="w-14 h-14 rounded-full bg-primary flex items-center justify-center text-white font-bold text-xl flex-shrink-0 overflow-hidden relative">
                       {ad.teacherAvatar ? (
@@ -418,7 +418,7 @@ export default function Home() {
                       <div className="font-bold text-sm text-foreground line-clamp-1">
                         {language === 'ar' ? (ad.teacherNameAr || ad.teacherName) : ad.teacherName}
                       </div>
-                      <div className="text-xs text-amber-600 font-medium bg-amber-100/50 inline-block px-2 py-0.5 rounded-full mt-1">
+                      <div className="text-xs text-warning font-medium bg-warning/10 inline-block px-2 py-0.5 rounded-full mt-1">
                         {isRtl ? 'إعلان' : 'Sponsored'}
                       </div>
                     </div>
@@ -483,7 +483,7 @@ export default function Home() {
                           {(course as any).rating > 0 && (
                             <>
                               <span className="w-1 h-1 rounded-full bg-border" />
-                              <span className="flex items-center gap-1 text-amber-600 font-bold">
+                              <span className="flex items-center gap-1 text-warning font-bold">
                                 <Star className="w-3.5 h-3.5 text-amber-500 fill-amber-500" />
                                 {Number((course as any).rating).toFixed(1)}
                               </span>

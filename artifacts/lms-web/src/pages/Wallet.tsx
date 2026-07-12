@@ -115,8 +115,8 @@ function TransactionRow({ tx }: { tx: WalletTransaction }) {
         <div
           className={`p-2 rounded-full shrink-0 ${
             isCredit
-              ? "bg-green-100 text-green-600 dark:bg-green-900/30 dark:text-green-400"
-              : "bg-red-100 text-red-600 dark:bg-red-900/30 dark:text-red-400"
+              ? "bg-success/10 text-success"
+              : "bg-destructive/10 text-destructive"
           }`}
         >
           {isCredit ? (
@@ -137,8 +137,8 @@ function TransactionRow({ tx }: { tx: WalletTransaction }) {
       <div
         className={`font-bold shrink-0 ${
           isCredit
-            ? "text-green-600 dark:text-green-400"
-            : "text-red-600 dark:text-red-400"
+            ? "text-success"
+            : "text-destructive"
         }`}
       >
         {isCredit ? "+" : "-"}
@@ -156,7 +156,7 @@ function RechargeRow({ tx }: { tx: RechargeTransaction }) {
       className="flex items-start justify-between p-4 rounded-lg border bg-card gap-3 hover:bg-muted/30 transition-colors"
     >
       <div className="flex items-center gap-4 min-w-0 overflow-hidden">
-        <div className="p-2 rounded-full shrink-0 bg-green-100 text-green-600 dark:bg-green-900/30 dark:text-green-400">
+        <div className="p-2 rounded-full shrink-0 bg-success/10 text-success">
           <ArrowUpRight className="h-5 w-5" />
         </div>
         <div className="min-w-0">
@@ -176,7 +176,7 @@ function RechargeRow({ tx }: { tx: RechargeTransaction }) {
           </div>
         </div>
       </div>
-      <div className="font-bold shrink-0 text-green-600 dark:text-green-400">
+      <div className="font-bold shrink-0 text-success">
         +{parseFloat(tx.amount).toFixed(2)} LYD
       </div>
     </motion.div>
@@ -392,7 +392,7 @@ export default function Wallet() {
               >
                 <div className="rounded-xl border bg-card p-4 text-center">
                   <p className="text-xs text-muted-foreground mb-1">Total In</p>
-                  <p className="text-lg font-bold text-green-600 dark:text-green-400">
+                  <p className="text-lg font-bold text-success">
                     +
                     {transactions
                       .filter((t) => t.type === "credit")
@@ -403,7 +403,7 @@ export default function Wallet() {
                 </div>
                 <div className="rounded-xl border bg-card p-4 text-center">
                   <p className="text-xs text-muted-foreground mb-1">Total Out</p>
-                  <p className="text-lg font-bold text-red-600 dark:text-red-400">
+                  <p className="text-lg font-bold text-destructive">
                     -
                     {transactions
                       .filter((t) => t.type === "debit")

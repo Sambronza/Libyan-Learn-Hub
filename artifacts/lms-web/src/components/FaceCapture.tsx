@@ -106,7 +106,7 @@ export const FaceCapture: React.FC<FaceCaptureProps> = ({ onCapture }) => {
 
   if (error) {
     return (
-      <div className="bg-red-50 text-red-600 p-4 rounded-lg flex flex-col items-center">
+      <div className="bg-destructive/10 text-destructive p-4 rounded-lg flex flex-col items-center">
         <p className="text-center mb-4">{error}</p>
         <Button onClick={() => setError(null)} variant="outline">Try Again</Button>
       </div>

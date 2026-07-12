@@ -124,7 +124,7 @@ export default function Academy() {
         </div>
 
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-14 sm:py-20 lg:py-24 text-center">
-          <motion.div {...fadeUp(0)} className="inline-flex items-center gap-2 mb-6 px-4 py-2 rounded-full border border-emerald-500/30 bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 text-sm font-bold">
+          <motion.div {...fadeUp(0)} className="inline-flex items-center gap-2 mb-6 px-4 py-2 rounded-full border border-emerald-500/30 bg-success/10 text-success text-sm font-bold">
             <Sparkles className="w-4 h-4" />
             {isRtl ? 'التسجيل مفتوح الآن' : 'Enrollment Now Open'}
           </motion.div>
@@ -185,7 +185,7 @@ export default function Academy() {
       <section className="py-20 bg-muted/30">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <motion.div {...fadeUp()} className={`mb-12 ${isRtl ? 'text-right' : ''}`}>
-            <p className="text-amber-600 font-semibold mb-2 text-sm uppercase tracking-widest">{isRtl ? 'المراحل الدراسية' : 'Grade Levels'}</p>
+            <p className="text-warning font-semibold mb-2 text-sm uppercase tracking-widest">{isRtl ? 'المراحل الدراسية' : 'Grade Levels'}</p>
             <h2 className="text-4xl font-display font-bold text-foreground">{isRtl ? 'من الصف الأول حتى الثانوية العامة' : 'From 1st Grade to High School'}</h2>
           </motion.div>
 
@@ -229,8 +229,8 @@ export default function Academy() {
                    {...fadeUp(i * 0.1)} 
                    className="bg-card border border-border rounded-3xl p-8 hover:border-amber-500/40 hover:shadow-xl transition-all flex flex-col"
                  >
-                   <div className="w-14 h-14 rounded-2xl bg-amber-100 flex items-center justify-center mb-5">
-                      <GraduationCap className="w-7 h-7 text-amber-600" />
+                   <div className="w-14 h-14 rounded-2xl bg-warning/10 flex items-center justify-center mb-5">
+                      <GraduationCap className="w-7 h-7 text-warning" />
                    </div>
                    <h3 className={`font-display font-bold text-2xl text-foreground mb-2 ${isRtl ? 'text-right' : ''}`}>
                      {isRtl ? prog.nameAr : prog.name}
@@ -253,7 +253,7 @@ export default function Academy() {
                    </div>
 
                    <Button 
-                     className="w-full mt-6 bg-amber-500 hover:bg-amber-600 text-white rounded-xl h-12"
+                     className="w-full mt-6 bg-warning/100 hover:bg-warning/90 text-white rounded-xl h-12"
                      onClick={handleApplyClick}
                    >
                      {isRtl ? 'تقديم طلب' : 'Apply Now'}
@@ -275,7 +275,7 @@ export default function Academy() {
       <section className="py-20">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <motion.div {...fadeUp()} className={`mb-12 text-center`}>
-            <p className="text-amber-600 font-semibold mb-2 text-sm uppercase tracking-widest">{isRtl ? 'لماذا أكاديمية EduLibya؟' : 'Why EduLibya Academy?'}</p>
+            <p className="text-warning font-semibold mb-2 text-sm uppercase tracking-widest">{isRtl ? 'لماذا أكاديمية EduLibya؟' : 'Why EduLibya Academy?'}</p>
             <h2 className="text-4xl font-display font-bold text-foreground">{isRtl ? 'تعليم عالي الجودة من المنزل' : 'Quality Education From Home'}</h2>
           </motion.div>
 
@@ -297,7 +297,7 @@ export default function Academy() {
       <section className="py-20 bg-muted/30">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <motion.div {...fadeUp()} className="mb-12 text-center">
-            <p className="text-amber-600 font-semibold mb-2 text-sm uppercase tracking-widest">{isRtl ? 'كيف يعمل' : 'How It Works'}</p>
+            <p className="text-warning font-semibold mb-2 text-sm uppercase tracking-widest">{isRtl ? 'كيف يعمل' : 'How It Works'}</p>
             <h2 className="text-4xl font-display font-bold text-foreground">{isRtl ? 'رحلتك الأكاديمية' : 'Your Academic Journey'}</h2>
           </motion.div>
 
@@ -321,7 +321,7 @@ export default function Academy() {
       <section className="py-20">
         <div className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8">
           <motion.div {...fadeUp()} className="mb-12 text-center">
-            <p className="text-amber-600 font-semibold mb-2 text-sm uppercase tracking-widest">{isRtl ? 'أسئلة شائعة' : 'FAQ'}</p>
+            <p className="text-warning font-semibold mb-2 text-sm uppercase tracking-widest">{isRtl ? 'أسئلة شائعة' : 'FAQ'}</p>
             <h2 className="text-4xl font-display font-bold text-foreground">{isRtl ? 'الأسئلة الشائعة' : 'Frequently Asked Questions'}</h2>
           </motion.div>
 
@@ -363,7 +363,7 @@ export default function Academy() {
               <Button 
                 size="lg" 
                 onClick={handleApplyClick}
-                className="h-14 px-10 text-base font-bold rounded-2xl bg-white text-amber-600 hover:bg-white/90 shadow-2xl gap-2"
+                className="h-14 px-10 text-base font-bold rounded-2xl bg-white text-warning hover:bg-white/90 shadow-2xl gap-2"
               >
                 {isRtl ? 'التحق الآن' : 'Enroll Now'}
                 <Arrow className="w-5 h-5" />

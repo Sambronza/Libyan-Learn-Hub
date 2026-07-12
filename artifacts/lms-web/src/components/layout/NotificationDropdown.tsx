@@ -27,13 +27,13 @@ export function NotificationDropdown() {
 
   const getIcon = (type: Notification['type']) => {
     switch (type) {
-      case 'new_course': return <BookOpen className="w-5 h-5 text-indigo-500" />;
-      case 'live_session_starting': return <MonitorPlay className="w-5 h-5 text-emerald-500" />;
-      case 'live_session_cancelled': return <AlertTriangle className="w-5 h-5 text-rose-500" />;
+      case 'new_course': return <BookOpen className="w-5 h-5 text-info" />;
+      case 'live_session_starting': return <MonitorPlay className="w-5 h-5 text-success" />;
+      case 'live_session_cancelled': return <AlertTriangle className="w-5 h-5 text-destructive" />;
       case 'course_submitted': return <ClipboardCheck className="w-5 h-5 text-amber-500" />;
-      case 'course_approved': return <BadgeCheck className="w-5 h-5 text-green-500" />;
-      case 'course_rejected': return <XCircle className="w-5 h-5 text-red-500" />;
-      default: return <Info className="w-5 h-5 text-blue-500" />;
+      case 'course_approved': return <BadgeCheck className="w-5 h-5 text-success" />;
+      case 'course_rejected': return <XCircle className="w-5 h-5 text-destructive" />;
+      default: return <Info className="w-5 h-5 text-info" />;
     }
   };
 
@@ -71,7 +71,7 @@ export function NotificationDropdown() {
         </motion.div>
         
         {unreadCount > 0 && (
-          <span className="absolute top-1.5 right-1.5 w-2.5 h-2.5 bg-rose-500 rounded-full border-2 border-background" />
+          <span className="absolute top-1.5 right-1.5 w-2.5 h-2.5 bg-destructive/100 rounded-full border-2 border-background" />
         )}
       </button>
 

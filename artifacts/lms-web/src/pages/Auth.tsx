@@ -382,14 +382,14 @@ export default function Auth() {
         <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }}
           className="bg-card rounded-3xl border border-border shadow-xl p-10 w-full max-w-md">
           <div className="text-center mb-6">
-            <div className="w-16 h-16 rounded-2xl bg-amber-100 flex items-center justify-center mx-auto mb-4">
-              <ShieldAlert className="w-8 h-8 text-amber-600" />
+            <div className="w-16 h-16 rounded-2xl bg-warning/10 flex items-center justify-center mx-auto mb-4">
+              <ShieldAlert className="w-8 h-8 text-warning" />
             </div>
             <h2 className="text-2xl font-display font-bold">
               {isRtl ? 'جهاز جديد تم اكتشافه' : 'New Device Detected'}
             </h2>
           </div>
-          <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 mb-6 text-sm text-amber-800 leading-relaxed">
+          <div className="bg-warning/10 border border-warning/30 rounded-xl p-4 mb-6 text-sm text-warning leading-relaxed">
             {isRtl ? securityMsg?.messageAr : securityMsg?.message}
           </div>
           <div className="space-y-3">
@@ -606,7 +606,7 @@ export default function Auth() {
             <p className="text-muted-foreground mt-2 text-sm">Enter the 6-digit verification code</p>
           </div>
 
-          <div className="mb-6 p-4 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-sm text-emerald-700 dark:text-emerald-400 flex gap-3 items-start">
+          <div className="mb-6 p-4 rounded-xl bg-success/10 border border-emerald-500/20 text-sm text-success flex gap-3 items-start">
             <Mail className="w-5 h-5 mt-0.5 shrink-0" />
             <div>
               <p className="font-semibold">Check your email</p>

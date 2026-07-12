@@ -136,17 +136,17 @@ function ServerSyncedTimer({
       {/* Timer pill */}
       <div className="absolute top-4 left-1/2 -translate-x-1/2 z-[100] flex flex-col items-center gap-2 pointer-events-none">
         <div className={`bg-black/70 px-4 py-2 rounded-full border backdrop-blur-md flex items-center gap-2 shadow-xl transition-colors ${
-          isPaused ? 'border-amber-400/60' : isLow ? 'border-red-400/60' : 'border-white/20'
+          isPaused ? 'border-amber-400/60' : isLow ? 'border-destructive/30' : 'border-white/20'
         }`}>
-          <Clock className={`w-4 h-4 ${isPaused ? 'text-amber-400' : isLow ? 'text-red-400 animate-pulse' : 'text-green-400'}`} />
-          <span className={`font-mono font-bold ${isPaused ? 'text-amber-400' : isLow ? 'text-red-400' : 'text-white'}`}>
+          <Clock className={`w-4 h-4 ${isPaused ? 'text-warning' : isLow ? 'text-destructive animate-pulse' : 'text-success'}`} />
+          <span className={`font-mono font-bold ${isPaused ? 'text-warning' : isLow ? 'text-destructive' : 'text-white'}`}>
             {mins.toString().padStart(2, '0')}:{secs.toString().padStart(2, '0')}
           </span>
         </div>
 
         {/* Pause banner – shown when teacher is absent */}
         {isPaused && (
-          <div className="bg-amber-500/90 text-black text-xs font-bold px-3 py-1 rounded-full flex items-center gap-1.5 shadow-lg backdrop-blur-sm pointer-events-none">
+          <div className="bg-warning/90 text-black text-xs font-bold px-3 py-1 rounded-full flex items-center gap-1.5 shadow-lg backdrop-blur-sm pointer-events-none">
             <PauseCircle className="w-3.5 h-3.5" />
             Timer paused — waiting for teacher
           </div>
@@ -363,8 +363,8 @@ export default function TutoringRoom() {
   if (isEndedStatus) {
     return (
       <div className="h-screen flex items-center justify-center bg-slate-900 text-white flex-col gap-4">
-        <div className="w-16 h-16 rounded-full bg-red-500/20 flex items-center justify-center mb-2">
-          <AlertTriangle className="w-8 h-8 text-red-500" />
+        <div className="w-16 h-16 rounded-full bg-destructive/20 flex items-center justify-center mb-2">
+          <AlertTriangle className="w-8 h-8 text-destructive" />
         </div>
         <h1 className="text-2xl font-bold">Session Ended</h1>
         <p className="text-white/70 max-w-md text-center">
@@ -393,8 +393,8 @@ export default function TutoringRoom() {
           </Button>
           <div className="min-w-0">
             <div className="flex items-center gap-2 mb-0.5">
-              <span className={`w-2.5 h-2.5 rounded-full shrink-0 ${hasJoined ? 'bg-red-500 animate-pulse' : 'bg-amber-500'}`} />
-              <span className={`text-xs font-bold uppercase tracking-widest ${hasJoined ? 'text-red-400' : 'text-amber-400'}`}>
+              <span className={`w-2.5 h-2.5 rounded-full shrink-0 ${hasJoined ? 'bg-destructive/100 animate-pulse' : 'bg-warning/100'}`} />
+              <span className={`text-xs font-bold uppercase tracking-widest ${hasJoined ? 'text-destructive' : 'text-warning'}`}>
                 {hasJoined ? 'Live' : 'Waiting Room'}
               </span>
             </div>
@@ -408,7 +408,7 @@ export default function TutoringRoom() {
             id="misbehave-btn"
             variant="destructive"
             size="sm"
-            className="gap-2 bg-red-600 hover:bg-red-700 text-white font-bold border border-red-400 shadow-lg animate-pulse shrink-0"
+            className="gap-2 bg-destructive hover:bg-destructive/90 text-white font-bold border border-destructive/30 shadow-lg animate-pulse shrink-0"
             onClick={() => setShowMisbehaveConfirm(true)}
             disabled={isMisbehaveSubmitting}
           >
@@ -482,11 +482,11 @@ export default function TutoringRoom() {
           <div className="bg-slate-900 border border-red-500/60 rounded-2xl shadow-2xl p-6 w-full max-w-md">
             <div className="flex items-center gap-3 mb-4">
               <div className="w-12 h-12 rounded-full bg-red-600/20 flex items-center justify-center shrink-0">
-                <AlertTriangle className="w-6 h-6 text-red-500" />
+                <AlertTriangle className="w-6 h-6 text-destructive" />
               </div>
               <div>
                 <h2 className="font-bold text-white text-lg">Report Misbehaviour</h2>
-                <p className="text-red-300 text-sm">This will immediately close the session for everyone.</p>
+                <p className="text-destructive text-sm">This will immediately close the session for everyone.</p>
               </div>
             </div>
 
@@ -514,7 +514,7 @@ export default function TutoringRoom() {
             <div className="flex gap-3">
               <Button
                 id="misbehave-confirm-btn"
-                className="flex-1 bg-red-600 hover:bg-red-700 text-white font-bold gap-2"
+                className="flex-1 bg-destructive hover:bg-destructive/90 text-white font-bold gap-2"
                 disabled={isMisbehaveSubmitting}
                 onClick={handleMisbehave}
               >

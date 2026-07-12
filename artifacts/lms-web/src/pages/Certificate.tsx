@@ -57,7 +57,7 @@ export default function Certificate() {
       <div className="max-w-3xl mx-auto">
         {/* Actions (hidden in print) */}
         <div className="flex justify-between items-center mb-6 print:hidden">
-          <div className="flex items-center gap-2 text-green-600 text-sm font-bold">
+          <div className="flex items-center gap-2 text-success text-sm font-bold">
             <CheckCircle2 className="w-5 h-5" />
             {isAr ? 'شهادة موثّقة من المنصة' : 'Verified by Libyan Learn Hub'}
           </div>
@@ -68,8 +68,8 @@ export default function Certificate() {
 
         {/* Certificate body */}
         <div className="bg-white text-slate-900 rounded-2xl border-8 border-double border-amber-600/60 shadow-2xl p-10 sm:p-14 text-center relative overflow-hidden print:shadow-none print:rounded-none">
-          <div className="absolute top-0 left-0 w-40 h-40 bg-amber-100 rounded-full blur-3xl -translate-x-1/2 -translate-y-1/2 opacity-60" />
-          <div className="absolute bottom-0 right-0 w-40 h-40 bg-amber-100 rounded-full blur-3xl translate-x-1/2 translate-y-1/2 opacity-60" />
+          <div className="absolute top-0 left-0 w-40 h-40 bg-warning/10 rounded-full blur-3xl -translate-x-1/2 -translate-y-1/2 opacity-60" />
+          <div className="absolute bottom-0 right-0 w-40 h-40 bg-warning/10 rounded-full blur-3xl translate-x-1/2 translate-y-1/2 opacity-60" />
 
           {/* Platform logo */}
           <img
@@ -78,7 +78,7 @@ export default function Certificate() {
             className="h-16 mx-auto mb-3 object-contain select-none"
             draggable={false}
           />
-          <Award className="w-10 h-10 text-amber-600 mx-auto mb-3" />
+          <Award className="w-10 h-10 text-warning mx-auto mb-3" />
           <div className="text-xs tracking-[0.3em] uppercase text-slate-500 mb-1">Libyan Learn Hub — EduLibya</div>
           <h1 className="font-display text-3xl sm:text-4xl font-extrabold text-slate-900 mb-1">
             {isAr ? 'شهادة إتمام دورة' : 'Certificate of Completion'}
@@ -86,7 +86,7 @@ export default function Certificate() {
           <div className="text-sm text-slate-500 mb-8">{isAr ? 'Certificate of Completion' : 'شهادة إتمام دورة'}</div>
 
           <p className="text-slate-500 text-sm mb-2">{isAr ? 'تُمنح هذه الشهادة إلى' : 'This certificate is awarded to'}</p>
-          <div className="text-3xl sm:text-4xl font-extrabold text-amber-700 mb-1" style={{ fontFamily: 'serif' }}>
+          <div className="text-3xl sm:text-4xl font-extrabold text-warning mb-1" style={{ fontFamily: 'serif' }}>
             {isAr ? (data.studentNameAr || data.studentName) : data.studentName}
           </div>
           {data.studentNameAr && !isAr && <div className="text-lg text-slate-500 mb-6">{data.studentNameAr}</div>}

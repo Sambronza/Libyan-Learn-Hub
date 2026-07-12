@@ -37,10 +37,10 @@ interface LibraryResource {
 interface Category { id: number; name: string; nameAr: string; icon?: string; }
 
 const TYPE_META: Record<ResourceType, { icon: React.ElementType; en: string; ar: string; badge: string }> = {
-  book:    { icon: BookOpen,  en: 'Book',    ar: 'كتاب',  badge: 'bg-blue-500/10 text-blue-600' },
-  article: { icon: FileText,  en: 'Article', ar: 'مقال',  badge: 'bg-emerald-500/10 text-emerald-600' },
-  image:   { icon: ImageIcon, en: 'Image',   ar: 'صورة',  badge: 'bg-purple-500/10 text-purple-600' },
-  link:    { icon: Link2,     en: 'Link',    ar: 'رابط',  badge: 'bg-amber-500/10 text-amber-600' },
+  book:    { icon: BookOpen,  en: 'Book',    ar: 'كتاب',  badge: 'bg-info/10 text-info' },
+  article: { icon: FileText,  en: 'Article', ar: 'مقال',  badge: 'bg-success/10 text-success' },
+  image:   { icon: ImageIcon, en: 'Image',   ar: 'صورة',  badge: 'bg-primary/10 text-primary' },
+  link:    { icon: Link2,     en: 'Link',    ar: 'رابط',  badge: 'bg-warning/10 text-warning' },
 };
 
 const GRADE_LEVELS = [

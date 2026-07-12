@@ -55,7 +55,7 @@ function DocUploadField({
               <p className="text-sm font-medium text-foreground truncate">{file.name}</p>
               <p className="text-xs text-muted-foreground">{(file.size / 1024 / 1024).toFixed(2)} MB</p>
             </div>
-            <CheckCircle2 className="w-5 h-5 text-green-500 shrink-0" />
+            <CheckCircle2 className="w-5 h-5 text-success shrink-0" />
           </div>
         ) : (
           <div className="flex flex-col items-center gap-2 py-2">
@@ -206,7 +206,7 @@ export default function TeacherOnboarding({ onComplete }: TeacherOnboardingProps
       <div className="fixed inset-0 z-50 bg-background/95 backdrop-blur-sm overflow-y-auto flex items-center justify-center">
         <div className="max-w-md mx-auto px-4 py-12 text-center">
           <div className="bg-card rounded-2xl border border-border p-10 space-y-6 shadow-xl">
-            <div className="w-20 h-20 rounded-full bg-amber-100 dark:bg-amber-900/30 flex items-center justify-center mx-auto">
+            <div className="w-20 h-20 rounded-full bg-warning/10 flex items-center justify-center mx-auto">
               <Clock className="w-10 h-10 text-amber-500" />
             </div>
             <div>
@@ -219,7 +219,7 @@ export default function TeacherOnboarding({ onComplete }: TeacherOnboardingProps
                   : 'Your application has been received. Our admin team will review your documents and notify you by email as soon as possible.'}
               </p>
             </div>
-            <div className="bg-amber-50 dark:bg-amber-950/20 border border-amber-200 dark:border-amber-800 rounded-xl p-4 text-sm text-amber-700 dark:text-amber-300">
+            <div className="bg-warning/10 border border-warning/30 rounded-xl p-4 text-sm text-warning">
               {language === 'ar'
                 ? '⏳ يستغرق المراجعة عادةً 1-3 أيام عمل'
                 : '⏳ Review usually takes 1-3 business days'}
@@ -269,9 +269,9 @@ export default function TeacherOnboarding({ onComplete }: TeacherOnboardingProps
               <h2 className="text-2xl font-bold mb-2">{language === 'ar' ? 'إقرار حقوق النشر' : 'Copyright Declaration'}</h2>
               <p className="text-muted-foreground text-sm">{language === 'ar' ? 'يرجى قراءة والموافقة على الإقرار التالي قبل المتابعة' : 'Please read and agree to the following declaration before proceeding'}</p>
             </div>
-            <div className="bg-amber-50 dark:bg-amber-950/20 border border-amber-200 dark:border-amber-800 rounded-xl p-5 text-sm leading-relaxed space-y-3">
-              <div className="flex items-start gap-2"><AlertTriangle className="w-5 h-5 text-amber-600 shrink-0 mt-0.5" />
-                <p className="font-medium text-amber-800 dark:text-amber-200">{language === 'ar' ? 'إقرار بحقوق الملكية الفكرية' : 'Intellectual Property Rights Declaration'}</p>
+            <div className="bg-warning/10 border border-warning/30 rounded-xl p-5 text-sm leading-relaxed space-y-3">
+              <div className="flex items-start gap-2"><AlertTriangle className="w-5 h-5 text-warning shrink-0 mt-0.5" />
+                <p className="font-medium text-warning">{language === 'ar' ? 'إقرار بحقوق الملكية الفكرية' : 'Intellectual Property Rights Declaration'}</p>
               </div>
               <p>{language === 'ar' ? 'أقر وأتعهد بأن جميع المواد التعليمية التي أقوم برفعها على هذه المنصة، بما في ذلك الفيديوهات والمستندات والاختبارات، هي من إعدادي الشخصي ولا تنتهك حقوق أي طرف آخر.' : 'I declare and undertake that all educational materials I upload to this platform, including videos, documents, and quizzes, are my own original work and do not infringe on any third party\'s rights.'}</p>
               <p>{language === 'ar' ? 'أتحمل المسؤولية الكاملة عن أي مطالبات تتعلق بحقوق النشر أو الملكية الفكرية الناتجة عن المحتوى الذي أقوم برفعه.' : 'I take full responsibility for any copyright or intellectual property claims arising from the content I upload.'}</p>
@@ -371,7 +371,7 @@ export default function TeacherOnboarding({ onComplete }: TeacherOnboardingProps
             </div>
 
             {/* Info box */}
-            <div className="bg-blue-50 dark:bg-blue-950/20 border border-blue-200 dark:border-blue-800 rounded-xl p-4 text-sm text-blue-700 dark:text-blue-300 flex gap-3">
+            <div className="bg-info/10 border border-info/30 rounded-xl p-4 text-sm text-info flex gap-3">
               <FileCheck className="w-5 h-5 shrink-0 mt-0.5" />
               <div>
                 <p className="font-semibold mb-1">{language === 'ar' ? 'ما الذي نقبله؟' : 'Accepted formats'}</p>

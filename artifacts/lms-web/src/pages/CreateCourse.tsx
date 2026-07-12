@@ -1,3 +1,4 @@
+import { PageSkeleton } from '@/components/ui/skeleton';
 import React, { useState, useRef, useCallback, useEffect } from 'react';
 import { PageContainer } from '@/components/layout/PageContainer';
 import { useAuth } from '@/contexts/AuthContext';
@@ -265,7 +266,7 @@ export default function CreateCourse() {
   };
 
   if (authLoading) {
-    return <PageContainer><div className="p-20 text-center text-muted-foreground">Loading...</div></PageContainer>;
+    return <PageContainer><PageSkeleton /></PageContainer>;
   }
   if (!user || user.role !== 'teacher') return null;
 
@@ -375,7 +376,7 @@ export default function CreateCourse() {
                     </div>
                   )}
                   {lesson.status === 'done' && (
-                    <div className="h-1 bg-green-500" />
+                    <div className="h-1 bg-success/100" />
                   )}
                   {lesson.status === 'error' && (
                     <div className="h-1 bg-destructive" />
@@ -390,7 +391,7 @@ export default function CreateCourse() {
 
                     {/* Status icon */}
                     <div className="shrink-0">
-                      {lesson.status === 'done' && <CheckCircle2 className="w-5 h-5 text-green-500" />}
+                      {lesson.status === 'done' && <CheckCircle2 className="w-5 h-5 text-success" />}
                       {lesson.status === 'uploading' && <Loader2 className="w-5 h-5 text-primary animate-spin" />}
                       {lesson.status === 'pending' && <Loader2 className="w-5 h-5 text-muted-foreground animate-spin" />}
                       {lesson.status === 'error' && <XCircle className="w-5 h-5 text-destructive" />}
@@ -423,7 +424,7 @@ export default function CreateCourse() {
                           <span className="text-xs text-primary">{lesson.progress}%</span>
                         )}
                         {lesson.status === 'done' && lesson.duration > 0 && (
-                          <span className="text-xs text-green-600">{formatDuration(lesson.duration)}</span>
+                          <span className="text-xs text-success">{formatDuration(lesson.duration)}</span>
                         )}
                         {lesson.status === 'error' && (
                           <span className="text-xs text-destructive">{lesson.error}</span>
@@ -439,8 +440,8 @@ export default function CreateCourse() {
                         ))}
                         className={`shrink-0 text-xs px-2 py-0.5 rounded-full font-medium border transition-colors
                           ${lesson.isFree
-                            ? 'bg-blue-100 text-blue-700 border-blue-200'
-                            : 'bg-muted text-muted-foreground border-border hover:border-blue-300'
+                            ? 'bg-info/10 text-info border-info/30'
+                            : 'bg-muted text-muted-foreground border-border hover:border-info/40'
                           }`}
                       >
                         {lesson.isFree ? 'Free' : 'Paid'}
@@ -630,7 +631,7 @@ function StatusRow({ done, loading, label }: { done: boolean; loading?: boolean;
       {loading ? (
         <Loader2 className="w-3.5 h-3.5 text-primary animate-spin" />
       ) : done ? (
-        <CheckCircle2 className="w-3.5 h-3.5 text-green-500" />
+        <CheckCircle2 className="w-3.5 h-3.5 text-success" />
       ) : (
         <div className="w-3.5 h-3.5 rounded-full border-2 border-muted-foreground/30" />
       )}

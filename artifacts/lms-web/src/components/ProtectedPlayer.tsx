@@ -160,8 +160,8 @@ export function ProtectedPlayer({ url, courseId, lessonId, startAt = 0, onEnded,
     <ScreenProtection className="aspect-video bg-black rounded-2xl shadow-2xl">
       {error ? (
         <div className="absolute inset-0 flex flex-col items-center justify-center text-white bg-black/90 gap-3 p-6 text-center">
-          <AlertCircle className="w-10 h-10 text-red-400" />
-          <p className="text-sm text-red-300 font-medium">{error}</p>
+          <AlertCircle className="w-10 h-10 text-destructive" />
+          <p className="text-sm text-destructive font-medium">{error}</p>
           <button
             onClick={generateToken}
             className="flex items-center gap-2 text-xs bg-white/10 hover:bg-white/20 px-4 py-2 rounded-lg transition-colors"

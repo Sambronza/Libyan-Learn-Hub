@@ -215,7 +215,7 @@ export default function SearchPage() {
                               </div>
                             )}
                             {course.isSponsored && (
-                              <div className="absolute top-2 end-2 bg-amber-500 text-white px-2 py-0.5 rounded-lg text-xs font-bold flex items-center gap-1">
+                              <div className="absolute top-2 end-2 bg-warning/100 text-white px-2 py-0.5 rounded-lg text-xs font-bold flex items-center gap-1">
                                 <Crown className="w-3 h-3" /> {language === 'ar' ? 'مميز' : 'Sponsored'}
                               </div>
                             )}

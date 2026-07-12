@@ -146,7 +146,7 @@ export function Navbar() {
                         
                         {user?.role === 'student' && (
                           <Link href="/academy/dashboard" onClick={() => setIsUserMenuOpen(false)}>
-                            <button className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-amber-600 hover:bg-amber-50 transition-colors text-start font-medium">
+                            <button className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-warning hover:bg-warning/10 transition-colors text-start font-medium">
                               <GraduationCap className="w-4 h-4 text-amber-500" />
                               {language === 'ar' ? 'بوابة الأكاديمية' : 'Academy Portal'}
                             </button>

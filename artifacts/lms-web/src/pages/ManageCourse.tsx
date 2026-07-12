@@ -1,3 +1,4 @@
+import { PageSkeleton } from '@/components/ui/skeleton';
 import React, { useState, useEffect } from 'react';
 import { PageContainer } from '@/components/layout/PageContainer';
 import { useAuth } from '@/contexts/AuthContext';
@@ -404,7 +405,7 @@ export default function ManageCourse() {
   };
 
   if (authLoading || loading) {
-    return <PageContainer><div className="p-20 text-center">Loading...</div></PageContainer>;
+    return <PageContainer><PageSkeleton /></PageContainer>;
   }
   if (!user || user.role !== 'teacher') return null;
 
@@ -667,7 +668,7 @@ export default function ManageCourse() {
                 <Badge variant="outline" className="gap-1"><Layers className="w-3 h-3" /> {sections.length} sections</Badge>
                 <Badge variant="outline" className="gap-1"><Video className="w-3 h-3" /> {totalLessons} lessons</Badge>
                 <Badge variant="outline" className="gap-1"><Clock className="w-3 h-3" /> {formatDuration(totalDuration)}</Badge>
-                <Badge className={course?.isPublished ? 'bg-green-100 text-green-700 border-green-200' : 'bg-yellow-100 text-yellow-700 border-yellow-200'}>
+                <Badge className={course?.isPublished ? 'bg-success/10 text-success border-success/30' : 'bg-warning/10 text-warning border-warning/30'}>
                   {course?.isPublished ? '✓ Published' : '⏸ Draft'}
                 </Badge>
                 {enrollCount > 0 && (
@@ -692,28 +693,28 @@ export default function ManageCourse() {
       {(course?.status === 'draft' || course?.status === 'rejected') && totalLessons > 0 && (
         <div className={`border-b ${
           course?.status === 'rejected'
-            ? 'bg-red-50 border-red-200'
-            : 'bg-blue-50 border-blue-200'
+            ? 'bg-destructive/10 border-destructive/30'
+            : 'bg-info/10 border-info/30'
         }`}>
           <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
             <div className="flex items-center gap-3">
               <div className={`w-10 h-10 rounded-full flex items-center justify-center shrink-0 ${
-                course?.status === 'rejected' ? 'bg-red-100' : 'bg-blue-100'
+                course?.status === 'rejected' ? 'bg-destructive/10' : 'bg-info/10'
               }`}>
                 <SendHorizonal className={`w-5 h-5 ${
-                  course?.status === 'rejected' ? 'text-red-600' : 'text-blue-600'
+                  course?.status === 'rejected' ? 'text-destructive' : 'text-info'
                 }`} />
               </div>
               <div>
                 <p className={`font-bold text-sm ${
-                  course?.status === 'rejected' ? 'text-red-800' : 'text-blue-800'
+                  course?.status === 'rejected' ? 'text-destructive' : 'text-info'
                 }`}>
                   {course?.status === 'rejected'
                     ? '✗ Course Rejected — Fix & Resubmit'
                     : '🎉 Your course is ready! Submit it for admin review.'}
                 </p>
                 <p className={`text-xs mt-0.5 ${
-                  course?.status === 'rejected' ? 'text-red-600' : 'text-blue-600'
+                  course?.status === 'rejected' ? 'text-destructive' : 'text-info'
                 }`}>
                   {course?.status === 'rejected'
                     ? (course?.rejectionReason ? `Reason: ${course.rejectionReason}` : 'Please review the feedback and resubmit.')
@@ -724,8 +725,8 @@ export default function ManageCourse() {
             <Button
               className={`shrink-0 gap-2 text-white shadow-sm ${
                 course?.status === 'rejected'
-                  ? 'bg-red-600 hover:bg-red-700'
-                  : 'bg-blue-600 hover:bg-blue-700'
+                  ? 'bg-destructive hover:bg-destructive/90'
+                  : 'bg-info hover:bg-info/90'
               }`}
               onClick={handleSubmitForReview}
             >
@@ -738,12 +739,12 @@ export default function ManageCourse() {
 
       {/* Under Review Banner */}
       {course?.status === 'pending_review' && (
-        <div className="bg-amber-50 border-b border-amber-200">
+        <div className="bg-warning/10 border-b border-warning/30">
           <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-3 flex items-center gap-3">
-            <div className="w-8 h-8 rounded-full bg-amber-100 flex items-center justify-center shrink-0">
-              <Clock className="w-4 h-4 text-amber-600" />
+            <div className="w-8 h-8 rounded-full bg-warning/10 flex items-center justify-center shrink-0">
+              <Clock className="w-4 h-4 text-warning" />
             </div>
-            <p className="text-sm text-amber-800">
+            <p className="text-sm text-warning">
               <span className="font-bold">⏳ Under Review</span> — Your course is currently being reviewed by the admin. You will be notified once it is approved.
             </p>
           </div>
@@ -874,7 +875,7 @@ export default function ManageCourse() {
                                 <div className="flex items-center gap-2 flex-wrap">
                                   <span className="font-medium text-sm">{lesson.title}</span>
                                   {lesson.isFree && (
-                                    <span className="text-xs px-2 py-0.5 rounded-full bg-blue-100 text-blue-700 font-medium">Free</span>
+                                    <span className="text-xs px-2 py-0.5 rounded-full bg-info/10 text-info font-medium">Free</span>
                                   )}
                                 </div>
                                 <p className="text-xs text-muted-foreground" dir="rtl">{lesson.titleAr}</p>
@@ -885,11 +886,11 @@ export default function ManageCourse() {
                                 </span>
                               )}
                               <div className="flex gap-1 shrink-0">
-                                <Button variant="ghost" size="icon" className="h-7 w-7 text-muted-foreground hover:text-green-600" title="Preview Lesson" onClick={() => setPreviewLesson(lesson)}>
+                                <Button variant="ghost" size="icon" className="h-7 w-7 text-muted-foreground hover:text-success" title="Preview Lesson" onClick={() => setPreviewLesson(lesson)}>
                                   <PlayCircle className="w-3.5 h-3.5" />
                                 </Button>
-                                <Button variant="ghost" size="icon" className="h-7 w-7 text-muted-foreground hover:text-blue-600" title={lesson.isFree ? 'Remove free' : 'Mark free'} onClick={() => handleToggleFree(lesson)}>
-                                  {lesson.isFree ? <Eye className="w-3.5 h-3.5 text-blue-500" /> : <EyeOff className="w-3.5 h-3.5" />}
+                                <Button variant="ghost" size="icon" className="h-7 w-7 text-muted-foreground hover:text-info" title={lesson.isFree ? 'Remove free' : 'Mark free'} onClick={() => handleToggleFree(lesson)}>
+                                  {lesson.isFree ? <Eye className="w-3.5 h-3.5 text-info" /> : <EyeOff className="w-3.5 h-3.5" />}
                                 </Button>
                                 <Button variant="ghost" size="icon" className="h-7 w-7 text-muted-foreground hover:text-primary" onClick={() => openEditLesson(lesson)}>
                                   <Edit className="w-3.5 h-3.5" />

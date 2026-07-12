@@ -21,10 +21,10 @@ import ScheduleLiveCourseModal from '@/components/ScheduleLiveCourseModal';
 type ActiveTab = 'available' | 'enrolled';
 
 const statusConfig: Record<string, { label: string; color: string }> = {
-  scheduled: { label: 'Scheduled', color: 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400' },
-  live: { label: '🔴 Live Now', color: 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400 animate-pulse' },
+  scheduled: { label: 'Scheduled', color: 'bg-info/10 text-info' },
+  live: { label: '🔴 Live Now', color: 'bg-destructive/10 text-destructive animate-pulse' },
   ended: { label: 'Ended', color: 'bg-gray-100 text-gray-500 dark:bg-gray-800 dark:text-gray-400' },
-  cancelled: { label: 'Cancelled', color: 'bg-red-50 text-red-400 dark:bg-red-900/20 dark:text-red-500' },
+  cancelled: { label: 'Cancelled', color: 'bg-destructive/10 text-destructive dark:text-destructive' },
 };
 
 // ─── Main Component ────────────────────────────────────────────────────────────
@@ -216,11 +216,11 @@ export default function LiveSessions() {
               {cfg.label}
             </span>
             <div className="flex items-center gap-3">
-              <div className={`flex items-center gap-1.5 text-sm font-medium ${isFull ? 'text-red-500' : 'text-muted-foreground'}`}>
+              <div className={`flex items-center gap-1.5 text-sm font-medium ${isFull ? 'text-destructive' : 'text-muted-foreground'}`}>
                 <Users className="w-4 h-4" />
                 <span dir="ltr">{session.participantCount || 0} / {session.maxParticipants}</span>
                 {!isEnded && (
-                  <span className={`text-xs px-1.5 py-0.5 rounded-full ${isFull ? 'bg-red-100 text-red-600 dark:bg-red-900/30' : 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400'}`}>
+                  <span className={`text-xs px-1.5 py-0.5 rounded-full ${isFull ? 'bg-destructive/10 text-destructive' : 'bg-success/10 text-success'}`}>
                     {isFull ? (isAr ? 'مكتمل' : 'Full') : `${seatsLeft} ${isAr ? 'مقعد' : 'left'}`}
                   </span>
                 )}
@@ -228,7 +228,7 @@ export default function LiveSessions() {
               {/* Seat bar */}
               <div className="w-20 h-1.5 bg-muted rounded-full overflow-hidden hidden sm:block">
                 <div
-                  className={`h-full rounded-full transition-all ${isFull ? 'bg-red-400' : 'bg-green-500'}`}
+                  className={`h-full rounded-full transition-all ${isFull ? 'bg-destructive' : 'bg-success/100'}`}
                   style={{ width: `${Math.min(100, ((session.participantCount || 0) / session.maxParticipants) * 100)}%` }}
                 />
               </div>
@@ -258,7 +258,7 @@ export default function LiveSessions() {
                 </span>
               )}
               {!isNested && !isPaid && (
-                <span className="text-xs bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400 px-2 py-0.5 rounded-full font-semibold">
+                <span className="text-xs bg-success/10 text-success px-2 py-0.5 rounded-full font-semibold">
                   {isAr ? 'مجاني' : 'Free'}
                 </span>
               )}
@@ -283,7 +283,7 @@ export default function LiveSessions() {
                 /* Available tab → enroll or checkout */
                 <Button
                   disabled={isEnded || isFull || isEnrolling}
-                  className={`gap-2 ${isEnrolling ? 'opacity-70' : isPaid ? 'bg-primary hover:bg-primary/90' : 'bg-green-600 hover:bg-green-700 text-white'}`}
+                  className={`gap-2 ${isEnrolling ? 'opacity-70' : isPaid ? 'bg-primary hover:bg-primary/90' : 'bg-success hover:bg-success/90 text-white'}`}
                   onClick={() => enrollFree(session)}
                 >
                   {isEnrolling ? (
@@ -308,7 +308,7 @@ export default function LiveSessions() {
                   title={isTooEarly ? `Opens ${minsUntilOpen}m before start` : undefined}
                   className={`gap-2 ${
                     session.status === 'live'
-                      ? 'bg-red-600 hover:bg-red-700 text-white'
+                      ? 'bg-destructive hover:bg-destructive/90 text-white'
                       : isEnded
                       ? 'opacity-50 bg-muted text-muted-foreground'
                       : isTooEarly
@@ -345,15 +345,15 @@ export default function LiveSessions() {
     return (
       <div
         key={`bundle-${bundle.id}`}
-        className="bg-gradient-to-br from-indigo-50 to-indigo-100/50 dark:from-indigo-950/20 dark:to-indigo-900/10 rounded-2xl border border-indigo-200 dark:border-indigo-800/30 overflow-hidden shadow-sm transition-shadow hover:shadow-md"
+        className="bg-gradient-to-br from-indigo-50 to-indigo-100/50 dark:from-indigo-950/20 dark:to-indigo-900/10 rounded-2xl border border-info/30 overflow-hidden shadow-sm transition-shadow hover:shadow-md"
       >
         <div className="p-6 flex flex-col md:flex-row gap-6">
-          <div className="w-16 h-16 rounded-2xl bg-indigo-100 dark:bg-indigo-900/50 flex items-center justify-center shrink-0">
-            <Package className="w-8 h-8 text-indigo-600 dark:text-indigo-400" />
+          <div className="w-16 h-16 rounded-2xl bg-info/10 flex items-center justify-center shrink-0">
+            <Package className="w-8 h-8 text-info" />
           </div>
           <div className="flex-1 flex flex-col justify-center">
             <div className="flex items-center gap-2 mb-2">
-              <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider bg-indigo-200 text-indigo-800 dark:bg-indigo-800 dark:text-indigo-200">
+              <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider bg-indigo-200 text-info">
                 {isAr ? 'باقة دورة مباشرة' : 'Live Course Bundle'}
               </span>
               <span className="text-xs font-semibold text-muted-foreground">
@@ -367,9 +367,9 @@ export default function LiveSessions() {
               <p className="text-muted-foreground text-sm line-clamp-2">{bundle.description}</p>
             )}
           </div>
-          <div className="md:w-64 flex flex-col justify-center items-end border-t md:border-t-0 md:border-s border-indigo-200/50 dark:border-indigo-800/30 pt-4 md:pt-0 md:ps-6 text-end">
+          <div className="md:w-64 flex flex-col justify-center items-end border-t md:border-t-0 md:border-s border-info/20 pt-4 md:pt-0 md:ps-6 text-end">
             <div className="flex items-center gap-2 text-sm font-medium mb-3">
-              <div className="w-8 h-8 rounded-full bg-indigo-200 dark:bg-indigo-800/50 flex items-center justify-center text-indigo-700 dark:text-indigo-300 font-bold text-sm">
+              <div className="w-8 h-8 rounded-full bg-indigo-200 flex items-center justify-center text-info font-bold text-sm">
                 {teacherName?.charAt(0)}
               </div>
               {teacherName}
@@ -397,7 +397,7 @@ export default function LiveSessions() {
 
             <Button
               variant="outline"
-              className="w-full gap-2 border-indigo-300 hover:bg-indigo-200/50 dark:border-indigo-700 dark:hover:bg-indigo-800/50"
+              className="w-full gap-2 border-info/40 hover:bg-indigo-200/50 dark:hover:bg-indigo-800/50"
               onClick={() => toggleBundle(bundle.id)}
             >
               {isExpanded ? (
@@ -410,7 +410,7 @@ export default function LiveSessions() {
         </div>
 
         {isExpanded && (
-          <div className="bg-background/80 backdrop-blur-sm p-4 pt-1 border-t border-indigo-200/50 dark:border-indigo-800/30">
+          <div className="bg-background/80 backdrop-blur-sm p-4 pt-1 border-t border-info/20">
             {bundleSessions.map((s: any) => renderSessionCard(s, true))}
           </div>
         )}
@@ -465,8 +465,8 @@ export default function LiveSessions() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
             <div className="flex items-center gap-4">
-              <div className="w-12 h-12 rounded-2xl bg-red-100 dark:bg-red-900/30 flex items-center justify-center">
-                <Radio className="w-6 h-6 text-red-600" />
+              <div className="w-12 h-12 rounded-2xl bg-destructive/10 flex items-center justify-center">
+                <Radio className="w-6 h-6 text-destructive" />
               </div>
               <div>
                 <h1 className="text-3xl sm:text-4xl font-display font-bold">

@@ -106,7 +106,7 @@ function StepDot({ step, current, label }: { step: number; current: number; labe
       <div
         className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold transition-all ${
           done
-            ? 'bg-green-500 text-white'
+            ? 'bg-success/100 text-white'
             : active
             ? 'bg-primary text-white ring-4 ring-primary/20'
             : 'bg-muted text-muted-foreground'
@@ -242,8 +242,8 @@ export default function ScheduleLiveCourseModal({ open, onClose }: Props) {
       <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <div className="flex items-center gap-3 mb-2">
-            <div className="w-10 h-10 rounded-xl bg-red-100 dark:bg-red-900/30 flex items-center justify-center">
-              <Radio className="w-5 h-5 text-red-600" />
+            <div className="w-10 h-10 rounded-xl bg-destructive/10 flex items-center justify-center">
+              <Radio className="w-5 h-5 text-destructive" />
             </div>
             <DialogTitle className="text-xl font-display font-bold">
               Schedule Live Session Course
@@ -318,7 +318,7 @@ export default function ScheduleLiveCourseModal({ open, onClose }: Props) {
                 <label className="text-sm font-medium mb-1.5 flex items-center gap-1.5">
                   <Clock className="w-3.5 h-3.5" /> Duration
                   {tier !== 'diamond' && (
-                    <span className="text-[10px] bg-amber-100 text-amber-700 px-1.5 py-0.5 rounded-md font-bold ml-1">
+                    <span className="text-[10px] bg-warning/10 text-warning px-1.5 py-0.5 rounded-md font-bold ml-1">
                       max {maxDuration}m
                     </span>
                   )}
@@ -372,7 +372,7 @@ export default function ScheduleLiveCourseModal({ open, onClose }: Props) {
                 />
                 <p className="text-[11px] text-muted-foreground mt-1">
                   Students pay this once to access all {form.lessonCount} session{form.lessonCount !== 1 ? 's' : ''}.
-                  {form.totalPrice === 0 && <span className="ml-1 font-semibold text-green-600">Free course</span>}
+                  {form.totalPrice === 0 && <span className="ml-1 font-semibold text-success">Free course</span>}
                 </p>
               </div>
             </div>
@@ -522,8 +522,8 @@ export default function ScheduleLiveCourseModal({ open, onClose }: Props) {
             {/* Course card summary */}
             <div className="bg-gradient-to-br from-primary/10 via-primary/5 to-transparent border border-primary/20 rounded-2xl p-5 shadow-sm">
               <div className="flex items-start gap-3 mb-4">
-                <div className="w-10 h-10 rounded-xl bg-red-100 dark:bg-red-900/30 flex items-center justify-center shrink-0">
-                  <Radio className="w-5 h-5 text-red-600" />
+                <div className="w-10 h-10 rounded-xl bg-destructive/10 flex items-center justify-center shrink-0">
+                  <Radio className="w-5 h-5 text-destructive" />
                 </div>
                 <div>
                   <h3 className="font-display font-bold text-lg leading-tight">{form.title}</h3>
@@ -571,7 +571,7 @@ export default function ScheduleLiveCourseModal({ open, onClose }: Props) {
                       </p>
                       <p className="text-xs text-muted-foreground">{form.durationMinutes} min · {form.maxParticipants} seats</p>
                     </div>
-                    <span className="text-xs bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400 px-2 py-0.5 rounded-full font-semibold">
+                    <span className="text-xs bg-info/10 text-info px-2 py-0.5 rounded-full font-semibold">
                       Scheduled
                     </span>
                   </div>
@@ -580,12 +580,12 @@ export default function ScheduleLiveCourseModal({ open, onClose }: Props) {
             </div>
 
             {form.totalPrice > 0 && (
-              <div className="bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-700/40 rounded-xl px-4 py-3 text-sm text-amber-800 dark:text-amber-300">
+              <div className="bg-warning/10 border border-warning/30 rounded-xl px-4 py-3 text-sm text-warning">
                 <strong>Students pay once:</strong> {form.totalPrice.toFixed(2)} LYD — unlocks all {form.lessonCount} session{form.lessonCount !== 1 ? 's' : ''}.
               </div>
             )}
             {form.totalPrice === 0 && (
-              <div className="bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-700/40 rounded-xl px-4 py-3 text-sm text-green-800 dark:text-green-300">
+              <div className="bg-success/10 border border-success/30 rounded-xl px-4 py-3 text-sm text-success">
                 🎉 <strong>Free course</strong> — all {form.lessonCount} sessions are open to everyone.
               </div>
             )}

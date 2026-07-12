@@ -78,12 +78,12 @@ export default function AdminDashboard() {
           {/* Stats Grid */}
           <div className="grid grid-cols-2 md:grid-cols-4 xl:grid-cols-6 gap-3">
             {[
-              { label: 'Total Users', value: stats?.totalUsers || 0, icon: Users, color: 'text-blue-400' },
+              { label: 'Total Users', value: stats?.totalUsers || 0, icon: Users, color: 'text-info' },
               { label: 'Teachers', value: stats?.totalTeachers || 0, icon: Presentation, color: 'text-purple-400' },
               { label: 'Students', value: stats?.totalStudents || 0, icon: GraduationCap, color: 'text-teal-400' },
-              { label: 'Published Courses', value: `${stats?.publishedCourses || 0} / ${stats?.totalCourses || 0}`, icon: BookOpen, color: 'text-green-400' },
-              { label: 'Enrollments', value: stats?.totalEnrollments || 0, icon: TrendingUp, color: 'text-amber-400' },
-              { label: 'Revenue (LYD)', value: (stats?.totalRevenue || 0).toFixed(0), icon: DollarSign, color: 'text-emerald-400' },
+              { label: 'Published Courses', value: `${stats?.publishedCourses || 0} / ${stats?.totalCourses || 0}`, icon: BookOpen, color: 'text-success' },
+              { label: 'Enrollments', value: stats?.totalEnrollments || 0, icon: TrendingUp, color: 'text-warning' },
+              { label: 'Revenue (LYD)', value: (stats?.totalRevenue || 0).toFixed(0), icon: DollarSign, color: 'text-success' },
             ].map(({ label, value, icon: Icon, color }) => (
               <div key={label} className="bg-white/5 border border-white/10 rounded-2xl p-4">
                 <Icon className={`w-5 h-5 ${color} mb-2`} />
@@ -96,9 +96,9 @@ export default function AdminDashboard() {
           {/* Finance Quick Stats */}
           <div className="grid grid-cols-3 gap-3 mt-3">
             {[
-              { label: 'Platform Fees Earned', value: `${(stats?.platformFees || 0).toFixed(2)} LYD`, icon: BarChart2, color: 'text-green-400' },
+              { label: 'Platform Fees Earned', value: `${(stats?.platformFees || 0).toFixed(2)} LYD`, icon: BarChart2, color: 'text-success' },
               { label: 'Pending Payments', value: stats?.pendingPayments || 0, icon: Clock, color: 'text-yellow-400' },
-              { label: 'Pending Payouts to Teachers', value: `${(stats?.pendingEarnings || 0).toFixed(2)} LYD`, icon: CreditCard, color: 'text-red-400' },
+              { label: 'Pending Payouts to Teachers', value: `${(stats?.pendingEarnings || 0).toFixed(2)} LYD`, icon: CreditCard, color: 'text-destructive' },
             ].map(({ label, value, icon: Icon, color }) => (
               <div key={label} className="bg-white/5 border border-white/10 rounded-xl p-4 flex items-center gap-3">
                 <Icon className={`w-5 h-5 ${color} shrink-0`} />
@@ -120,7 +120,7 @@ export default function AdminDashboard() {
             <TabsTrigger value="approvals" className="gap-2 relative">
               <CheckCircle className="w-4 h-4" /> Approvals
               {pendingCount > 0 && (
-                <span className="absolute -top-2 -right-2 bg-red-500 text-white text-[10px] font-bold px-1.5 py-0.5 rounded-full animate-pulse">
+                <span className="absolute -top-2 -right-2 bg-destructive/100 text-white text-[10px] font-bold px-1.5 py-0.5 rounded-full animate-pulse">
                   {pendingCount}
                 </span>
               )}
@@ -128,7 +128,7 @@ export default function AdminDashboard() {
             <TabsTrigger value="teacher_reg_approvals" className="gap-2 relative">
               <GraduationCap className="w-4 h-4" /> Teacher Registrations
               {teacherRegPendingCount > 0 && (
-                <span className="absolute -top-2 -right-2 bg-amber-500 text-white text-[10px] font-bold px-1.5 py-0.5 rounded-full animate-pulse">
+                <span className="absolute -top-2 -right-2 bg-warning/100 text-white text-[10px] font-bold px-1.5 py-0.5 rounded-full animate-pulse">
                   {teacherRegPendingCount}
                 </span>
               )}
@@ -145,7 +145,7 @@ export default function AdminDashboard() {
             <TabsTrigger value="device_security" className="gap-2"><ShieldAlert className="w-4 h-4" /> Device Security</TabsTrigger>
             <TabsTrigger value="refunds" className="gap-2"><Banknote className="w-4 h-4" /> Refunds</TabsTrigger>
             <TabsTrigger value="analytics" className="gap-2"><DollarSign className="w-4 h-4" /> Analytics</TabsTrigger>
-            <TabsTrigger value="academy" className="gap-2 text-amber-600"><School className="w-4 h-4 text-amber-500" /> Academy</TabsTrigger>
+            <TabsTrigger value="academy" className="gap-2 text-warning"><School className="w-4 h-4 text-amber-500" /> Academy</TabsTrigger>
             <TabsTrigger value="settings" className="gap-2"><Settings className="w-4 h-4" /> Settings</TabsTrigger>
           </TabsList>
 
@@ -229,8 +229,8 @@ function UsersTab({ api, queryClient, toast, stats, user }: any) {
   });
 
   const roleColors: Record<string, string> = {
-    admin: 'bg-red-100 text-red-700 border-red-200',
-    teacher: 'bg-blue-100 text-blue-700 border-blue-200',
+    admin: 'bg-destructive/10 text-destructive border-destructive/30',
+    teacher: 'bg-info/10 text-info border-info/30',
     student: 'bg-gray-100 text-gray-700 border-gray-200',
   };
 
@@ -311,7 +311,7 @@ function UsersTab({ api, queryClient, toast, stats, user }: any) {
                     <td className="px-4 py-3">
                       <div className="text-sm">{u.phoneNumber || <span className="text-muted-foreground text-xs">–</span>}</div>
                       {u.phoneNumber && (
-                        <div className={`text-xs flex items-center gap-1 mt-0.5 ${u.phoneVerified ? 'text-green-600' : 'text-yellow-600'}`}>
+                        <div className={`text-xs flex items-center gap-1 mt-0.5 ${u.phoneVerified ? 'text-success' : 'text-warning'}`}>
                           {u.phoneVerified ? <><BadgeCheck className="w-3 h-3" /> Verified</> : <><AlertCircle className="w-3 h-3" /> Unverified</>}
                         </div>
                       )}
@@ -480,14 +480,14 @@ function CoursesTab({ api, queryClient, toast }: any) {
                     </td>
                     <td className="px-4 py-3 text-sm text-muted-foreground">{c.categoryName}</td>
                     <td className="px-4 py-3">
-                      <span className={`text-sm font-semibold ${parseFloat(c.price) === 0 ? 'text-green-600' : 'text-primary'}`}>
+                      <span className={`text-sm font-semibold ${parseFloat(c.price) === 0 ? 'text-success' : 'text-primary'}`}>
                         {parseFloat(c.price) === 0 ? 'Free' : `${parseFloat(c.price)} LYD`}
                       </span>
                     </td>
                     <td className="px-4 py-3 text-sm">{c.enrollmentCount}</td>
                     <td className="px-4 py-3 text-sm font-medium">{(c.revenue || 0).toFixed(2)} LYD</td>
                     <td className="px-4 py-3">
-                      <span className={`text-xs px-2.5 py-1 rounded-full font-medium ${c.isPublished ? 'bg-green-100 text-green-700' : 'bg-yellow-100 text-yellow-700'}`}>
+                      <span className={`text-xs px-2.5 py-1 rounded-full font-medium ${c.isPublished ? 'bg-success/10 text-success' : 'bg-warning/10 text-warning'}`}>
                         {c.isPublished ? '✓ Published' : '⏸ Draft'}
                       </span>
                     </td>
@@ -496,7 +496,7 @@ function CoursesTab({ api, queryClient, toast }: any) {
                         <Button
                           variant="ghost"
                           size="sm"
-                          className={`h-7 text-xs gap-1 ${c.isPublished ? 'text-yellow-600 hover:bg-yellow-50' : 'text-green-600 hover:bg-green-50'}`}
+                          className={`h-7 text-xs gap-1 ${c.isPublished ? 'text-warning hover:bg-warning/10' : 'text-success hover:bg-success/10'}`}
                           onClick={() => togglePublish(c.id, c.isPublished)}
                         >
                           {c.isPublished ? <><Lock className="w-3 h-3" /> Unpublish</> : <><Globe className="w-3 h-3" /> Publish</>}
@@ -549,9 +549,9 @@ function PaymentsTab({ api, queryClient, toast }: any) {
   };
 
   const statusColors: Record<string, string> = {
-    pending: 'bg-yellow-100 text-yellow-800 border-yellow-200',
-    completed: 'bg-green-100 text-green-700 border-green-200',
-    failed: 'bg-red-100 text-red-700 border-red-200',
+    pending: 'bg-warning/10 text-warning border-warning/30',
+    completed: 'bg-success/10 text-success border-success/30',
+    failed: 'bg-destructive/10 text-destructive border-destructive/30',
   };
 
   const methodLabel: Record<string, string> = {
@@ -582,10 +582,10 @@ function PaymentsTab({ api, queryClient, toast }: any) {
           </Button>
         </div>
         <div className="flex gap-4 text-sm">
-          <div className="flex items-center gap-1 text-green-700">
+          <div className="flex items-center gap-1 text-success">
             <CheckCircle className="w-3.5 h-3.5" /> Completed: <span className="font-bold">{totalRevenue.toFixed(2)} LYD</span>
           </div>
-          <div className="flex items-center gap-1 text-yellow-700">
+          <div className="flex items-center gap-1 text-warning">
             <Clock className="w-3.5 h-3.5" /> Pending: <span className="font-bold">{pendingTotal.toFixed(2)} LYD</span>
           </div>
         </div>
@@ -632,7 +632,7 @@ function PaymentsTab({ api, queryClient, toast }: any) {
               {p.status === 'pending' && (
                 <div className="flex gap-2 mt-auto">
                   <Button
-                    className="flex-1 gap-1 bg-green-600 hover:bg-green-700 text-white text-xs h-9"
+                    className="flex-1 gap-1 bg-success hover:bg-success/90 text-white text-xs h-9"
                     disabled={processing === p.id}
                     onClick={() => handleAction(p.id, 'approve')}
                   >
@@ -715,9 +715,9 @@ function FinanceTab({ api, queryClient, toast }: any) {
   }, {});
 
   const statusColors: Record<string, string> = {
-    available: 'bg-green-100 text-green-700',
-    paid: 'bg-blue-100 text-blue-700',
-    pending: 'bg-yellow-100 text-yellow-800',
+    available: 'bg-success/10 text-success',
+    paid: 'bg-info/10 text-info',
+    pending: 'bg-warning/10 text-warning',
   };
 
   return (
@@ -739,13 +739,13 @@ function FinanceTab({ api, queryClient, toast }: any) {
                   </div>
                 </div>
                 <div className="grid grid-cols-2 gap-2 mb-4">
-                  <div className="bg-green-50 border border-green-200 rounded-lg p-2 text-center">
-                    <div className="text-sm font-bold text-green-700">{t.available.toFixed(2)}</div>
-                    <div className="text-xs text-green-600">LYD Available</div>
+                  <div className="bg-success/10 border border-success/30 rounded-lg p-2 text-center">
+                    <div className="text-sm font-bold text-success">{t.available.toFixed(2)}</div>
+                    <div className="text-xs text-success">LYD Available</div>
                   </div>
-                  <div className="bg-blue-50 border border-blue-200 rounded-lg p-2 text-center">
-                    <div className="text-sm font-bold text-blue-700">{t.paid.toFixed(2)}</div>
-                    <div className="text-xs text-blue-600">LYD Paid</div>
+                  <div className="bg-info/10 border border-info/30 rounded-lg p-2 text-center">
+                    <div className="text-sm font-bold text-info">{t.paid.toFixed(2)}</div>
+                    <div className="text-xs text-info">LYD Paid</div>
                   </div>
                 </div>
                 {t.available > 0 && (
@@ -769,8 +769,8 @@ function FinanceTab({ api, queryClient, toast }: any) {
       {/* Finance Stats */}
       <div className="grid grid-cols-3 gap-4">
         {[
-          { label: 'Available for Payout', value: `${available.toFixed(2)} LYD`, color: 'text-green-600', bg: 'bg-green-100' },
-          { label: 'Total Paid to Teachers', value: `${totalPaid.toFixed(2)} LYD`, color: 'text-blue-600', bg: 'bg-blue-100' },
+          { label: 'Available for Payout', value: `${available.toFixed(2)} LYD`, color: 'text-success', bg: 'bg-success/10' },
+          { label: 'Total Paid to Teachers', value: `${totalPaid.toFixed(2)} LYD`, color: 'text-info', bg: 'bg-info/10' },
           { label: 'Platform Fees (20%)', value: `${platformFees.toFixed(2)} LYD`, color: 'text-primary', bg: 'bg-primary/10' },
         ].map(({ label, value, color, bg }) => (
           <div key={label} className="bg-card rounded-2xl border border-border p-5 shadow-sm">
@@ -825,8 +825,8 @@ function FinanceTab({ api, queryClient, toast }: any) {
                         <span className="line-clamp-1">{e.itemName}</span>
                       </td>
                       <td className="px-4 py-3 text-sm font-medium">{e.gross} {e.currency}</td>
-                      <td className="px-4 py-3 text-sm text-red-600">-{e.platformFee} {e.currency}</td>
-                      <td className="px-4 py-3 text-sm font-bold text-green-700">{e.net} {e.currency}</td>
+                      <td className="px-4 py-3 text-sm text-destructive">-{e.platformFee} {e.currency}</td>
+                      <td className="px-4 py-3 text-sm font-bold text-success">{e.net} {e.currency}</td>
                       <td className="px-4 py-3">
                         <span className={`text-xs px-2.5 py-1 rounded-full font-medium ${statusColors[e.status] || 'bg-gray-100 text-gray-700'}`}>
                           {e.status.charAt(0).toUpperCase() + e.status.slice(1)}
@@ -840,7 +840,7 @@ function FinanceTab({ api, queryClient, toast }: any) {
                           <Button
                             variant="outline"
                             size="sm"
-                            className="h-7 text-xs gap-1 text-green-600 border-green-300 hover:bg-green-50"
+                            className="h-7 text-xs gap-1 text-success border-success/30 hover:bg-success/10"
                             disabled={paying === e.id}
                             onClick={() => handlePay(e.id, e.teacherId)}
                           >
@@ -903,12 +903,12 @@ function ExpensesPL({ api, queryClient, toast, platformFees }: any) {
   const netProfit = platformFees - totalExpenses;
 
   const categoryColors: Record<string, string> = {
-    hosting: 'bg-blue-100 text-blue-700',
-    domain: 'bg-purple-100 text-purple-700',
-    marketing: 'bg-orange-100 text-orange-700',
-    salary: 'bg-green-100 text-green-700',
+    hosting: 'bg-info/10 text-info',
+    domain: 'bg-primary/10 text-primary',
+    marketing: 'bg-warning/10 text-warning',
+    salary: 'bg-success/10 text-success',
     tools: 'bg-gray-100 text-gray-700',
-    other: 'bg-yellow-100 text-yellow-700',
+    other: 'bg-warning/10 text-warning',
   };
 
   return (
@@ -921,17 +921,17 @@ function ExpensesPL({ api, queryClient, toast, platformFees }: any) {
       </div>
 
       <div className="grid grid-cols-3 gap-4">
-        <div className="bg-green-50 border border-green-200 rounded-2xl p-4">
-          <div className="text-xs text-green-700 font-medium mb-1">Platform Revenue (20% fees)</div>
-          <div className="text-xl font-bold text-green-700">+{(platformFees || 0).toFixed(2)} LYD</div>
+        <div className="bg-success/10 border border-success/30 rounded-2xl p-4">
+          <div className="text-xs text-success font-medium mb-1">Platform Revenue (20% fees)</div>
+          <div className="text-xl font-bold text-success">+{(platformFees || 0).toFixed(2)} LYD</div>
         </div>
-        <div className="bg-red-50 border border-red-200 rounded-2xl p-4">
-          <div className="text-xs text-red-700 font-medium mb-1">Total Expenses</div>
-          <div className="text-xl font-bold text-red-700">-{totalExpenses.toFixed(2)} LYD</div>
+        <div className="bg-destructive/10 border border-destructive/30 rounded-2xl p-4">
+          <div className="text-xs text-destructive font-medium mb-1">Total Expenses</div>
+          <div className="text-xl font-bold text-destructive">-{totalExpenses.toFixed(2)} LYD</div>
         </div>
-        <div className={`border rounded-2xl p-4 ${netProfit >= 0 ? 'bg-primary/5 border-primary/20' : 'bg-red-50 border-red-200'}`}>
-          <div className={`text-xs font-medium mb-1 ${netProfit >= 0 ? 'text-primary' : 'text-red-700'}`}>Net Profit</div>
-          <div className={`text-xl font-bold ${netProfit >= 0 ? 'text-primary' : 'text-red-700'}`}>
+        <div className={`border rounded-2xl p-4 ${netProfit >= 0 ? 'bg-primary/5 border-primary/20' : 'bg-destructive/10 border-destructive/30'}`}>
+          <div className={`text-xs font-medium mb-1 ${netProfit >= 0 ? 'text-primary' : 'text-destructive'}`}>Net Profit</div>
+          <div className={`text-xl font-bold ${netProfit >= 0 ? 'text-primary' : 'text-destructive'}`}>
             {netProfit >= 0 ? '+' : ''}{netProfit.toFixed(2)} LYD
           </div>
         </div>
@@ -962,7 +962,7 @@ function ExpensesPL({ api, queryClient, toast, platformFees }: any) {
                         {e.category}
                       </span>
                     </td>
-                    <td className="px-4 py-3 text-sm font-semibold text-red-600">{e.amount} {e.currency}</td>
+                    <td className="px-4 py-3 text-sm font-semibold text-destructive">{e.amount} {e.currency}</td>
                     <td className="px-4 py-3 text-xs text-muted-foreground">{new Date(e.expenseDate).toLocaleDateString()}</td>
                     <td className="px-4 py-3">
                       <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive hover:bg-destructive/10" onClick={() => deleteExpense(e.id)}>
@@ -1098,7 +1098,7 @@ function TeachersManagementTab({ api, queryClient, toast }: any) {
                     <div className="flex items-center gap-2 flex-wrap">
                       <h3 className="font-bold">{teacher.fullName}</h3>
                       {teacher.isVerified && <BadgeCheck className="w-4 h-4 text-primary" />}
-                      {teacher.isTutoringEnabled && <span className="text-xs bg-violet-100 text-violet-700 px-1.5 py-0.5 rounded-full">Tutoring</span>}
+                      {teacher.isTutoringEnabled && <span className="text-xs bg-primary/10 text-primary px-1.5 py-0.5 rounded-full">Tutoring</span>}
                     </div>
                     {teacher.expertise && <p className="text-xs text-muted-foreground">{teacher.expertise}</p>}
                   </div>
@@ -1122,7 +1122,7 @@ function TeachersManagementTab({ api, queryClient, toast }: any) {
                   {erng.available > 0 && (
                     <Button
                       size="sm"
-                      className="gap-1 bg-green-600 hover:bg-green-700 text-white text-xs"
+                      className="gap-1 bg-success hover:bg-success/90 text-white text-xs"
                       onClick={() => payAllTeacher(teacher.id, teacher.fullName)}
                     >
                       <DollarSign className="w-3 h-3" /> Pay {erng.available.toFixed(0)} LYD
@@ -1140,7 +1140,7 @@ function TeachersManagementTab({ api, queryClient, toast }: any) {
                   <Button
                     size="sm"
                     variant={teacher.certificatesApproved ? 'outline' : 'secondary'}
-                    className={`gap-1 text-xs ${teacher.certificatesApproved ? 'border-amber-500 text-amber-600' : ''}`}
+                    className={`gap-1 text-xs ${teacher.certificatesApproved ? 'border-amber-500 text-warning' : ''}`}
                     onClick={() => toggleCertificates(teacher.id, teacher.certificatesApproved)}
                   >
                     🎓 {teacher.certificatesApproved ? 'Certificates ✓' : 'Allow Certificates'}
@@ -1163,10 +1163,10 @@ function TeachersManagementTab({ api, queryClient, toast }: any) {
                       <p className="font-semibold text-xs uppercase tracking-wider text-muted-foreground mb-2">Earnings Breakdown</p>
                       <div className="space-y-1">
                         <div className="flex justify-between"><span>Total Gross</span><span className="font-bold">{(erng.total / 0.8 * 1).toFixed(2)} LYD</span></div>
-                        <div className="flex justify-between"><span>Platform (20%)</span><span className="text-red-600">-{(erng.total / 0.8 * 0.2).toFixed(2)} LYD</span></div>
-                        <div className="flex justify-between"><span>Teacher Net</span><span className="font-bold text-green-600">{erng.total.toFixed(2)} LYD</span></div>
-                        <div className="flex justify-between"><span>Available</span><span className="font-bold text-amber-600">{erng.available.toFixed(2)} LYD</span></div>
-                        <div className="flex justify-between"><span>Already Paid</span><span className="font-bold text-blue-600">{erng.paid.toFixed(2)} LYD</span></div>
+                        <div className="flex justify-between"><span>Platform (20%)</span><span className="text-destructive">-{(erng.total / 0.8 * 0.2).toFixed(2)} LYD</span></div>
+                        <div className="flex justify-between"><span>Teacher Net</span><span className="font-bold text-success">{erng.total.toFixed(2)} LYD</span></div>
+                        <div className="flex justify-between"><span>Available</span><span className="font-bold text-warning">{erng.available.toFixed(2)} LYD</span></div>
+                        <div className="flex justify-between"><span>Already Paid</span><span className="font-bold text-info">{erng.paid.toFixed(2)} LYD</span></div>
                       </div>
                     </div>
                     <div>
@@ -1230,9 +1230,9 @@ function ReportsTab({ api, queryClient, toast }: any) {
   });
 
   const statusColors: Record<string, string> = {
-    open: 'bg-red-100 text-red-700',
-    under_review: 'bg-yellow-100 text-yellow-800',
-    resolved: 'bg-green-100 text-green-700',
+    open: 'bg-destructive/10 text-destructive',
+    under_review: 'bg-warning/10 text-warning',
+    resolved: 'bg-success/10 text-success',
     dismissed: 'bg-gray-100 text-gray-500',
   };
 
@@ -1255,7 +1255,7 @@ function ReportsTab({ api, queryClient, toast }: any) {
         <div className="flex items-center gap-3">
           <h2 className="font-bold text-lg">Reports</h2>
           {openCount > 0 && (
-            <span className="bg-red-100 text-red-700 text-xs font-bold px-2 py-0.5 rounded-full">{openCount} open</span>
+            <span className="bg-destructive/10 text-destructive text-xs font-bold px-2 py-0.5 rounded-full">{openCount} open</span>
           )}
         </div>
         <div className="flex gap-2">
@@ -1354,7 +1354,7 @@ function ReportsTab({ api, queryClient, toast }: any) {
                       href={activeReport.recordingUrl}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="inline-flex items-center gap-2 text-xs font-bold text-white bg-red-600 hover:bg-red-700 px-3 py-1.5 rounded-lg transition-colors"
+                      className="inline-flex items-center gap-2 text-xs font-bold text-white bg-destructive hover:bg-destructive/90 px-3 py-1.5 rounded-lg transition-colors"
                     >
                       <Video className="w-3.5 h-3.5" /> View Incident Recording
                     </a>
@@ -1372,10 +1372,10 @@ function ReportsTab({ api, queryClient, toast }: any) {
                 />
               </div>
               <div className="grid grid-cols-2 gap-2">
-                <Button className="gap-1 bg-yellow-600 hover:bg-yellow-700 text-white text-xs" onClick={() => updateStatus(activeReport.id, 'under_review')}>
+                <Button className="gap-1 bg-warning hover:bg-yellow-700 text-white text-xs" onClick={() => updateStatus(activeReport.id, 'under_review')}>
                   Under Review
                 </Button>
-                <Button className="gap-1 bg-green-600 hover:bg-green-700 text-white text-xs" onClick={() => updateStatus(activeReport.id, 'resolved')}>
+                <Button className="gap-1 bg-success hover:bg-success/90 text-white text-xs" onClick={() => updateStatus(activeReport.id, 'resolved')}>
                   <CheckCircle className="w-3.5 h-3.5" /> Resolved
                 </Button>
                 <Button variant="outline" className="gap-1 text-muted-foreground text-xs" onClick={() => updateStatus(activeReport.id, 'dismissed')}>
@@ -1570,10 +1570,10 @@ function DMCAComplaintsTab({ api, queryClient, toast }: any) {
   });
 
   const statusColors: Record<string, string> = {
-    pending: 'bg-yellow-100 text-yellow-800 border-yellow-200',
-    reviewing: 'bg-blue-100 text-blue-800 border-blue-200',
-    resolved: 'bg-green-100 text-green-700 border-green-200',
-    rejected: 'bg-red-100 text-red-700 border-red-200',
+    pending: 'bg-warning/10 text-warning border-warning/30',
+    reviewing: 'bg-info/10 text-info border-info/30',
+    resolved: 'bg-success/10 text-success border-success/30',
+    rejected: 'bg-destructive/10 text-destructive border-destructive/30',
   };
 
   const pendingCount = (complaints || []).filter((c: any) => c.status === 'pending').length;
@@ -1584,7 +1584,7 @@ function DMCAComplaintsTab({ api, queryClient, toast }: any) {
         <div className="flex items-center gap-3">
           <h2 className="font-bold text-lg">DMCA Complaints</h2>
           {pendingCount > 0 && (
-            <span className="bg-amber-100 text-amber-700 text-xs font-bold px-2 py-0.5 rounded-full">{pendingCount} pending</span>
+            <span className="bg-warning/10 text-warning text-xs font-bold px-2 py-0.5 rounded-full">{pendingCount} pending</span>
           )}
         </div>
         <select value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)} className="h-9 px-3 rounded-md border border-input bg-background text-sm">
@@ -1657,16 +1657,16 @@ function DMCAComplaintsTab({ api, queryClient, toast }: any) {
           {activeComplaint && (
             <div className="space-y-4 mt-2">
               <div className="grid grid-cols-2 gap-4">
-                <div className="bg-amber-50 rounded-xl p-4 border border-amber-100 space-y-2 text-sm">
-                  <h4 className="font-bold text-amber-900 border-b border-amber-200 pb-1 mb-2">Reporter Details</h4>
+                <div className="bg-warning/10 rounded-xl p-4 border border-warning/30 space-y-2 text-sm">
+                  <h4 className="font-bold text-amber-900 border-b border-warning/30 pb-1 mb-2">Reporter Details</h4>
                   <div><span className="font-semibold">Name:</span> {activeComplaint.reporterName}</div>
                   <div><span className="font-semibold">Email:</span> {activeComplaint.reporterEmail}</div>
                   {activeComplaint.proofUrl && (
-                    <div><span className="font-semibold">Proof Link:</span> <a href={activeComplaint.proofUrl} target="_blank" rel="noreferrer" className="text-blue-600 underline break-all">{activeComplaint.proofUrl}</a></div>
+                    <div><span className="font-semibold">Proof Link:</span> <a href={activeComplaint.proofUrl} target="_blank" rel="noreferrer" className="text-info underline break-all">{activeComplaint.proofUrl}</a></div>
                   )}
                 </div>
-                <div className="bg-red-50 rounded-xl p-4 border border-red-100 space-y-2 text-sm">
-                  <h4 className="font-bold text-red-900 border-b border-red-200 pb-1 mb-2">Reported Target</h4>
+                <div className="bg-destructive/10 rounded-xl p-4 border border-destructive/30 space-y-2 text-sm">
+                  <h4 className="font-bold text-red-900 border-b border-destructive/30 pb-1 mb-2">Reported Target</h4>
                   <div><span className="font-semibold">Teacher ID:</span> {activeComplaint.reportedTeacherId} ({activeComplaint.reportedTeacherName})</div>
                   {activeComplaint.reportedLessonId && <div><span className="font-semibold">Lesson ID:</span> {activeComplaint.reportedLessonId}</div>}
                 </div>
@@ -1693,10 +1693,10 @@ function DMCAComplaintsTab({ api, queryClient, toast }: any) {
               <div className="bg-card border rounded-xl p-4">
                 <h4 className="font-bold text-sm mb-3">Resolution Actions</h4>
                 <div className="grid grid-cols-2 gap-2">
-                  <Button className="bg-blue-600 hover:bg-blue-700 text-white" onClick={() => updateStatus(activeComplaint.id, 'reviewing')}>
+                  <Button className="bg-info hover:bg-info/90 text-white" onClick={() => updateStatus(activeComplaint.id, 'reviewing')}>
                     ⏳ Mark as Under Review
                   </Button>
-                  <Button className="bg-green-600 hover:bg-green-700 text-white" onClick={() => updateStatus(activeComplaint.id, 'resolved')}>
+                  <Button className="bg-success hover:bg-success/90 text-white" onClick={() => updateStatus(activeComplaint.id, 'resolved')}>
                     ✓ Approve (Take Down Content)
                   </Button>
                   <Button variant="outline" className="text-destructive border-destructive" onClick={() => updateStatus(activeComplaint.id, 'rejected')}>
@@ -1757,13 +1757,13 @@ function AcademyAdminTab({ api, queryClient, toast }: any) {
       <div className="flex gap-4 border-b border-border pb-4">
         <button
           onClick={() => setActiveSubTab('applications')}
-          className={`font-semibold text-sm pb-1 border-b-2 ${activeSubTab === 'applications' ? 'border-amber-500 text-amber-600' : 'border-transparent text-muted-foreground'}`}
+          className={`font-semibold text-sm pb-1 border-b-2 ${activeSubTab === 'applications' ? 'border-amber-500 text-warning' : 'border-transparent text-muted-foreground'}`}
         >
           Applications
         </button>
         <button
           onClick={() => setActiveSubTab('programs')}
-          className={`font-semibold text-sm pb-1 border-b-2 ${activeSubTab === 'programs' ? 'border-amber-500 text-amber-600' : 'border-transparent text-muted-foreground'}`}
+          className={`font-semibold text-sm pb-1 border-b-2 ${activeSubTab === 'programs' ? 'border-amber-500 text-warning' : 'border-transparent text-muted-foreground'}`}
         >
           Programs
         </button>
@@ -1803,9 +1803,9 @@ function AcademyAdminTab({ api, queryClient, toast }: any) {
                     </td>
                     <td className="px-6 py-4">
                       <Badge variant="outline" className={
-                        app.status === 'approved' ? 'bg-emerald-100 text-emerald-700 border-emerald-200' :
-                        app.status === 'rejected' ? 'bg-rose-100 text-rose-700 border-rose-200' :
-                        'bg-amber-100 text-amber-700 border-amber-200'
+                        app.status === 'approved' ? 'bg-success/10 text-success border-success/30' :
+                        app.status === 'rejected' ? 'bg-destructive/10 text-destructive border-destructive/30' :
+                        'bg-warning/10 text-warning border-warning/30'
                       }>
                         {app.status}
                       </Badge>
@@ -1814,7 +1814,7 @@ function AcademyAdminTab({ api, queryClient, toast }: any) {
                       <Button 
                         size="sm" 
                         variant="outline" 
-                        className={app.status === 'approved' ? 'text-rose-600 hover:text-rose-700' : 'text-emerald-600 hover:text-emerald-700'}
+                        className={app.status === 'approved' ? 'text-destructive hover:text-destructive' : 'text-success hover:text-success'}
                         onClick={() => handleApprove(app.id, app.status)}
                         disabled={approveMutation.isPending}
                       >
@@ -1845,13 +1845,13 @@ function AcademyAdminTab({ api, queryClient, toast }: any) {
             ) : programs?.map((prog: any) => (
               <div key={prog.id} className="bg-card border border-border rounded-xl p-6">
                 <div className="flex items-center justify-between mb-4">
-                  <div className="w-10 h-10 rounded-lg bg-amber-100 flex items-center justify-center">
-                    <GraduationCap className="w-5 h-5 text-amber-600" />
+                  <div className="w-10 h-10 rounded-lg bg-warning/10 flex items-center justify-center">
+                    <GraduationCap className="w-5 h-5 text-warning" />
                   </div>
-                  <Badge variant="outline" className="bg-emerald-100 text-emerald-700 border-emerald-200 rounded-full">Active</Badge>
+                  <Badge variant="outline" className="bg-success/10 text-success border-success/30 rounded-full">Active</Badge>
                 </div>
                 <h4 className="font-bold text-lg mb-1">{prog.name}</h4>
-                <div className="text-sm font-medium text-amber-600 mb-4">{prog.type}</div>
+                <div className="text-sm font-medium text-warning mb-4">{prog.type}</div>
                 <div className="space-y-2 text-sm">
                   <div className="flex justify-between text-muted-foreground"><span>Grade</span> <span className="text-foreground font-semibold">{prog.gradeLevel}</span></div>
                   <div className="flex justify-between text-muted-foreground"><span>Duration</span> <span className="text-foreground font-semibold">{prog.durationYears} Years</span></div>
@@ -1997,14 +1997,14 @@ function WithdrawalsTab({ api, queryClient, toast }: any) {
                     <td className="px-4 py-3 capitalize">{(w.paymentMethod || 'bank_transfer').replace(/_/g, ' ')}</td>
                     <td className="px-4 py-3 max-w-xs truncate" title={w.details}>{w.details}</td>
                     <td className="px-4 py-3">
-                      <Badge variant={w.status === 'approved' ? 'default' : w.status === 'rejected' ? 'destructive' : 'outline'} className={w.status === 'approved' ? 'bg-green-500 text-white' : w.status === 'pending' ? 'bg-amber-100 text-amber-700' : ''}>
+                      <Badge variant={w.status === 'approved' ? 'default' : w.status === 'rejected' ? 'destructive' : 'outline'} className={w.status === 'approved' ? 'bg-success/100 text-white' : w.status === 'pending' ? 'bg-warning/10 text-warning' : ''}>
                         {w.status}
                       </Badge>
                     </td>
                     <td className="px-4 py-3">
                       {w.status === 'pending' && (
                         <div className="flex gap-2">
-                          <Button size="sm" onClick={() => handleUpdateStatus(w.id, 'approved')} className="bg-green-600 hover:bg-green-700 h-8 text-xs">Approve</Button>
+                          <Button size="sm" onClick={() => handleUpdateStatus(w.id, 'approved')} className="bg-success hover:bg-success/90 h-8 text-xs">Approve</Button>
                           <Button size="sm" variant="destructive" onClick={() => handleUpdateStatus(w.id, 'rejected')} className="h-8 text-xs">Reject</Button>
                         </div>
                       )}
@@ -2091,7 +2091,7 @@ function RedeemCardsTab({ api, queryClient, toast }: any) {
                     <td className="px-4 py-3 font-mono text-lg tracking-widest">{c.code}</td>
                     <td className="px-4 py-3 font-bold">{c.value} LYD</td>
                     <td className="px-4 py-3">
-                      <Badge variant={c.status === 'active' ? 'default' : c.status === 'redeemed' ? 'secondary' : 'destructive'} className={c.status === 'active' ? 'bg-green-100 text-green-700 hover:bg-green-100' : ''}>
+                      <Badge variant={c.status === 'active' ? 'default' : c.status === 'redeemed' ? 'secondary' : 'destructive'} className={c.status === 'active' ? 'bg-success/10 text-success hover:bg-success/15' : ''}>
                         {c.status}
                       </Badge>
                     </td>
@@ -2210,7 +2210,7 @@ function PendingApprovalsTab({ api, queryClient, toast, initialPendingCourses }:
           <div className="text-center py-20 text-muted-foreground">Loading pending courses...</div>
         ) : pendingList.length === 0 ? (
           <div className="text-center py-20 bg-muted/20 rounded-xl border border-dashed border-border">
-            <CheckCircle className="w-16 h-16 text-green-500/50 mx-auto mb-4" />
+            <CheckCircle className="w-16 h-16 text-success/50 mx-auto mb-4" />
             <h3 className="text-xl font-bold">All Caught Up!</h3>
             <p className="text-muted-foreground mt-2">There are no courses waiting for review right now.</p>
           </div>
@@ -2227,7 +2227,7 @@ function PendingApprovalsTab({ api, queryClient, toast, initialPendingCourses }:
                     </div>
                   )}
                   <div className="absolute top-2 start-2">
-                    <Badge className="bg-blue-500 hover:bg-blue-600 shadow-md">Under Review</Badge>
+                    <Badge className="bg-info/100 hover:bg-info shadow-md">Under Review</Badge>
                   </div>
                 </div>
                 <div className="p-4 flex flex-col flex-1">
@@ -2298,7 +2298,7 @@ function PendingApprovalsTab({ api, queryClient, toast, initialPendingCourses }:
                           <div className="flex-1">
                             <div className="font-medium text-sm">{lesson.title}</div>
                             {lesson.videoUrl ? (
-                              <a href={lesson.videoUrl} target="_blank" rel="noreferrer" className="text-xs text-blue-500 hover:underline flex items-center gap-1 mt-1">
+                              <a href={lesson.videoUrl} target="_blank" rel="noreferrer" className="text-xs text-info hover:underline flex items-center gap-1 mt-1">
                                 <PlayCircle className="w-3 h-3" /> View Video Content
                               </a>
                             ) : (
@@ -2329,7 +2329,7 @@ function PendingApprovalsTab({ api, queryClient, toast, initialPendingCourses }:
 
                 <div className="space-y-3">
                   <Button 
-                    className="w-full gap-2 bg-green-600 hover:bg-green-700 text-white" 
+                    className="w-full gap-2 bg-success hover:bg-success/90 text-white" 
                     onClick={handleApprove}
                     disabled={isSubmitting || !lessons || lessons.length === 0}
                   >
@@ -2396,12 +2396,12 @@ function TutoringReviewsTab({ api, queryClient, toast }: any) {
   };
 
   const statusColors: Record<string, string> = {
-    completed_pending_review: 'bg-indigo-100 text-indigo-800 border-indigo-200',
-    cancelled_no_show: 'bg-orange-100 text-orange-800 border-orange-200',
-    terminated_due_to_report: 'bg-red-100 text-red-800 border-red-300',
-    approved: 'bg-emerald-100 text-emerald-800 border-emerald-200',
-    rejected: 'bg-red-100 text-red-800 border-red-200',
-    partially_approved: 'bg-teal-100 text-teal-800 border-teal-200',
+    completed_pending_review: 'bg-info/10 text-info border-info/30',
+    cancelled_no_show: 'bg-warning/10 text-warning border-warning/30',
+    terminated_due_to_report: 'bg-destructive/10 text-destructive border-destructive/30',
+    approved: 'bg-success/10 text-success border-success/30',
+    rejected: 'bg-destructive/10 text-destructive border-destructive/30',
+    partially_approved: 'bg-success/10 text-secondary border-secondary/30',
   };
 
   const statusLabels: Record<string, string> = {
@@ -2446,14 +2446,14 @@ function TutoringReviewsTab({ api, queryClient, toast }: any) {
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-2 gap-4">
           {(reviews || []).map((r: any) => (
-            <div key={r.id} className={`bg-card rounded-2xl border p-5 shadow-sm flex flex-col ${r.earlyTerminationFlagged || r.status === 'cancelled_no_show' ? 'border-red-400/60 bg-red-50/30 dark:bg-red-950/10' : 'border-border'}`}>
+            <div key={r.id} className={`bg-card rounded-2xl border p-5 shadow-sm flex flex-col ${r.earlyTerminationFlagged || r.status === 'cancelled_no_show' ? 'border-destructive/30 bg-destructive/10' : 'border-border'}`}>
               <div className="flex justify-between items-start mb-3 gap-2 flex-wrap">
                 <div className="flex flex-wrap gap-2">
                   <span className={`text-xs px-2.5 py-1 rounded-full font-semibold border ${statusColors[r.status] || 'bg-gray-100 text-gray-700'}`}>
                     {statusLabels[r.status] || r.status}
                   </span>
                   {r.earlyTerminationFlagged && (
-                    <span className="text-xs px-2.5 py-1 rounded-full font-bold border bg-red-100 text-red-700 border-red-300 flex items-center gap-1">
+                    <span className="text-xs px-2.5 py-1 rounded-full font-bold border bg-destructive/10 text-destructive border-destructive/30 flex items-center gap-1">
                       ⚠ Early Termination
                     </span>
                   )}
@@ -2468,8 +2468,8 @@ function TutoringReviewsTab({ api, queryClient, toast }: any) {
                   {r.elapsedSeconds != null && r.elapsedSeconds > 0 && (
                     <div className={`text-xs font-semibold px-2 py-0.5 rounded-full ${
                       r.elapsedSeconds >= r.durationMinutes * 60
-                        ? 'bg-green-100 text-green-700'
-                        : 'bg-amber-100 text-amber-700'
+                        ? 'bg-success/10 text-success'
+                        : 'bg-warning/10 text-warning'
                     }`}>
                       {Math.floor(r.elapsedSeconds / 60)}m {r.elapsedSeconds % 60}s elapsed
                     </div>
@@ -2492,7 +2492,7 @@ function TutoringReviewsTab({ api, queryClient, toast }: any) {
                 <div className="font-semibold mb-1">Student Feedback:</div>
                 {r.studentRating ? (
                   <>
-                    <div className="flex items-center gap-1 text-yellow-500 mb-1">
+                    <div className="flex items-center gap-1 text-warning mb-1">
                       {[...Array(5)].map((_, i) => (
                         <svg key={i} xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill={i < r.studentRating ? "currentColor" : "none"} stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
                       ))}
@@ -2508,7 +2508,7 @@ function TutoringReviewsTab({ api, queryClient, toast }: any) {
               {r.recordingUrl && (
                 <div className="mb-4 bg-muted/30 p-3 rounded-lg border border-border/50">
                   <div className="text-xs font-semibold mb-2 flex items-center gap-1.5 text-muted-foreground">
-                    <Radio className="w-3.5 h-3.5 text-blue-500" />
+                    <Radio className="w-3.5 h-3.5 text-info" />
                     Temporary Session Audio
                   </div>
                   <audio src={r.recordingUrl} controls className="w-full" style={{ minHeight: '40px' }} />
@@ -2517,15 +2517,15 @@ function TutoringReviewsTab({ api, queryClient, toast }: any) {
 
               {/* Incident Recording for Misbehave cases */}
               {r.status === 'terminated_due_to_report' && r.recordingUrl && (
-                <div className="mb-4 bg-red-50 dark:bg-red-950/20 p-3 rounded-lg border border-red-300/60">
-                  <div className="text-xs font-bold mb-2 flex items-center gap-1.5 text-red-700">
+                <div className="mb-4 bg-destructive/10 p-3 rounded-lg border border-destructive/40">
+                  <div className="text-xs font-bold mb-2 flex items-center gap-1.5 text-destructive">
                     <Video className="w-3.5 h-3.5" /> Incident Recording (2-min buffer)
                   </div>
                   <a
                     href={r.recordingUrl}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="inline-flex items-center gap-2 text-xs font-bold text-white bg-red-600 hover:bg-red-700 px-3 py-1.5 rounded-lg transition-colors"
+                    className="inline-flex items-center gap-2 text-xs font-bold text-white bg-destructive hover:bg-destructive/90 px-3 py-1.5 rounded-lg transition-colors"
                   >
                     <PlayCircle className="w-3.5 h-3.5" /> Watch Recording
                   </a>
@@ -2546,7 +2546,7 @@ function TutoringReviewsTab({ api, queryClient, toast }: any) {
                   </div>
                   <div className="flex gap-2">
                     <Button
-                      className="flex-1 bg-green-600 hover:bg-green-700 text-white text-xs h-9"
+                      className="flex-1 bg-success hover:bg-success/90 text-white text-xs h-9"
                       disabled={processing === r.id}
                       onClick={() => handleAction(r.id, 'approve')}
                     >
@@ -2572,7 +2572,7 @@ function TutoringReviewsTab({ api, queryClient, toast }: any) {
                     />
                     <Button
                       variant="outline"
-                      className="flex-1 text-teal-700 border-teal-200 hover:bg-teal-50 text-xs h-9"
+                      className="flex-1 text-secondary border-secondary/30 hover:bg-teal-50 text-xs h-9"
                       disabled={processing === r.id || !partialAmounts[r.id]}
                       onClick={() => handleAction(r.id, 'partial-approve')}
                     >
@@ -2674,7 +2674,7 @@ function DeviceSecurityTab({ api, toast }: any) {
                     <div>Face distance: <span className="font-mono">{request.distance ?? '—'}</span></div>
                     <div>Requested: {request.createdAt ? new Date(request.createdAt).toLocaleString() : '—'}</div>
                     {student.accountBlocked && (
-                      <span className="inline-block mt-1 px-2 py-0.5 rounded-full bg-red-100 text-red-700 font-bold">Account blocked</span>
+                      <span className="inline-block mt-1 px-2 py-0.5 rounded-full bg-destructive/10 text-destructive font-bold">Account blocked</span>
                     )}
                   </div>
                 </div>
@@ -2701,7 +2701,7 @@ function DeviceSecurityTab({ api, toast }: any) {
 
                 {request.status === 'pending' ? (
                   <div className="flex flex-col gap-2 min-w-[140px]">
-                    <Button size="sm" disabled={busyId === request.id} onClick={() => review(request.id, 'approve')} className="bg-green-600 hover:bg-green-700 text-white">
+                    <Button size="sm" disabled={busyId === request.id} onClick={() => review(request.id, 'approve')} className="bg-success hover:bg-success/90 text-white">
                       Approve switch
                     </Button>
                     <Button size="sm" variant="destructive" disabled={busyId === request.id} onClick={() => review(request.id, 'reject')}>
@@ -2715,7 +2715,7 @@ function DeviceSecurityTab({ api, toast }: any) {
                   </div>
                 ) : (
                   <div className="min-w-[140px]">
-                    <span className={`px-3 py-1 rounded-full text-xs font-bold ${request.status === 'approved' ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>
+                    <span className={`px-3 py-1 rounded-full text-xs font-bold ${request.status === 'approved' ? 'bg-success/10 text-success' : 'bg-destructive/10 text-destructive'}`}>
                       {request.status}
                     </span>
                   </div>
@@ -2829,14 +2829,14 @@ function RefundsTab({ api, toast }: any) {
                       <span className="text-muted-foreground">Total watch time</span>
                       <span className="font-bold">{fmtWatch(watchStats.totalWatchedSeconds)}</span>
                     </div>
-                    <div className={`text-[11px] font-bold mt-1 ${completedPct > 50 ? 'text-red-600' : completedPct > 20 ? 'text-amber-600' : 'text-green-600'}`}>
+                    <div className={`text-[11px] font-bold mt-1 ${completedPct > 50 ? 'text-destructive' : completedPct > 20 ? 'text-warning' : 'text-success'}`}>
                       {completedPct > 50 ? 'High consumption — refund questionable' : completedPct > 20 ? 'Moderate consumption' : 'Low consumption'}
                     </div>
                   </div>
 
                   {request.status === 'pending' ? (
                     <div className="flex flex-col gap-2 min-w-[130px]">
-                      <Button size="sm" disabled={busyId === request.id} onClick={() => review(request.id, 'approve')} className="bg-green-600 hover:bg-green-700 text-white">
+                      <Button size="sm" disabled={busyId === request.id} onClick={() => review(request.id, 'approve')} className="bg-success hover:bg-success/90 text-white">
                         Approve refund
                       </Button>
                       <Button size="sm" variant="destructive" disabled={busyId === request.id} onClick={() => review(request.id, 'reject')}>
@@ -2845,7 +2845,7 @@ function RefundsTab({ api, toast }: any) {
                     </div>
                   ) : (
                     <div className="min-w-[130px]">
-                      <span className={`px-3 py-1 rounded-full text-xs font-bold ${request.status === 'approved' ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>
+                      <span className={`px-3 py-1 rounded-full text-xs font-bold ${request.status === 'approved' ? 'bg-success/10 text-success' : 'bg-destructive/10 text-destructive'}`}>
                         {request.status}
                       </span>
                       {request.adminNotes && <div className="text-[11px] text-muted-foreground mt-2">{request.adminNotes}</div>}
@@ -2913,9 +2913,9 @@ function AnalyticsTab({ api }: any) {
       {/* Subscription snapshot */}
       <div className="grid grid-cols-3 gap-4">
         {[
-          { label: 'Active Subscriptions', value: snapshot.active_subscriptions ?? 0, color: 'text-green-600', bg: 'bg-green-100' },
-          { label: 'Expired Subscriptions', value: snapshot.expired_subscriptions ?? 0, color: 'text-red-600', bg: 'bg-red-100' },
-          { label: 'Permanent (free) Enrollments', value: snapshot.permanent_enrollments ?? 0, color: 'text-blue-600', bg: 'bg-blue-100' },
+          { label: 'Active Subscriptions', value: snapshot.active_subscriptions ?? 0, color: 'text-success', bg: 'bg-success/10' },
+          { label: 'Expired Subscriptions', value: snapshot.expired_subscriptions ?? 0, color: 'text-destructive', bg: 'bg-destructive/10' },
+          { label: 'Permanent (free) Enrollments', value: snapshot.permanent_enrollments ?? 0, color: 'text-info', bg: 'bg-info/10' },
         ].map((c) => (
           <div key={c.label} className="bg-card border border-border rounded-2xl p-5 shadow-sm text-center">
             <div className={`text-3xl font-extrabold ${c.color}`}>{c.value}</div>
@@ -2927,9 +2927,9 @@ function AnalyticsTab({ api }: any) {
       {/* Weekly trends (last 12 weeks) */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
         <BarChart title="Weekly Revenue (LYD)" field="revenue" color="bg-primary" format={(v) => `${v.toFixed(0)} LYD`} />
-        <BarChart title="Weekly Enrollments" field="enrollments" color="bg-blue-500" />
-        <BarChart title="Weekly Renewals" field="renewals" color="bg-green-500" />
-        <BarChart title="Weekly Expirations" field="expirations" color="bg-red-400" />
+        <BarChart title="Weekly Enrollments" field="enrollments" color="bg-info/100" />
+        <BarChart title="Weekly Renewals" field="renewals" color="bg-success/100" />
+        <BarChart title="Weekly Expirations" field="expirations" color="bg-destructive" />
       </div>
       <p className="text-xs text-muted-foreground">
         Renewals vs expirations tells you whether the subscription pricing curve is retaining students — if expirations
@@ -2998,7 +2998,7 @@ function TeacherRegistrationApprovalsTab({ api, toast, onCountChange }: any) {
 
       {teachers.length === 0 ? (
         <div className="text-center py-24 bg-card rounded-2xl border border-dashed border-border">
-          <CheckCircle className="w-12 h-12 text-green-500 mx-auto mb-4" />
+          <CheckCircle className="w-12 h-12 text-success mx-auto mb-4" />
           <h3 className="text-lg font-bold">All caught up!</h3>
           <p className="text-muted-foreground text-sm">No pending teacher registrations.</p>
         </div>
@@ -3049,7 +3049,7 @@ function TeacherRegistrationApprovalsTab({ api, toast, onCountChange }: any) {
                 {/* Actions */}
                 <div className="flex md:flex-col gap-3 md:w-36 justify-end md:justify-start">
                   <Button
-                    className="gap-2 bg-green-600 hover:bg-green-700 text-white"
+                    className="gap-2 bg-success hover:bg-success/90 text-white"
                     disabled={processing}
                     onClick={() => approve(t)}
                   >

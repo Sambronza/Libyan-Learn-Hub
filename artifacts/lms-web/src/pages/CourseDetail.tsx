@@ -1,3 +1,4 @@
+import { PageSkeleton } from '@/components/ui/skeleton';
 import React from 'react';
 import { useRoute, Link, useLocation } from 'wouter';
 import { PageContainer } from '@/components/layout/PageContainer';
@@ -122,8 +123,8 @@ export default function CourseDetail() {
     } : undefined
   });
 
-  if (isLoading) return <PageContainer><div className="p-20 text-center">Loading...</div></PageContainer>;
-  if (isError) return <div className="min-h-screen pt-24 text-center text-red-500">Error loading course</div>;
+  if (isLoading) return <PageContainer><PageSkeleton /></PageContainer>;
+  if (isError) return <div className="min-h-screen pt-24 text-center text-destructive">Error loading course</div>;
   if (!course) return null;
 
   const formatDuration = (secs: number): string => {
@@ -242,7 +243,7 @@ export default function CourseDetail() {
                 
                 {course.price === 0 ? (
                   <div className="text-4xl font-bold mb-8 flex items-end gap-2 text-white">
-                    <span className="text-emerald-400 drop-shadow-md">{language === 'ar' ? 'مجاناً' : 'Free'}</span>
+                    <span className="text-success drop-shadow-md">{language === 'ar' ? 'مجاناً' : 'Free'}</span>
                   </div>
                 ) : (
                   <div className="mb-8">
@@ -287,7 +288,7 @@ export default function CourseDetail() {
                       className="w-full h-12 mb-6 bg-transparent border-white/20 text-white hover:bg-white/10 gap-2 font-medium rounded-xl"
                       onClick={() => setShowReviewModal(true)}
                     >
-                      <Star className="w-4 h-4 text-amber-400" /> {language === 'ar' ? 'كتابة مراجعة' : 'Write a Review'}
+                      <Star className="w-4 h-4 text-warning" /> {language === 'ar' ? 'كتابة مراجعة' : 'Write a Review'}
                     </Button>
                   </>
                 ) : (
@@ -383,7 +384,7 @@ export default function CourseDetail() {
                     {idx + 1}. {language === 'ar' ? lesson.titleAr : lesson.title}
                   </h4>
                   {lesson.isFree && !course.isEnrolled && (
-                    <span className="inline-block mt-1 text-xs px-2 py-0.5 bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400 rounded">{language === 'ar' ? 'معاينة مجانية' : 'Free Preview'}</span>
+                    <span className="inline-block mt-1 text-xs px-2 py-0.5 bg-success/10 text-success rounded">{language === 'ar' ? 'معاينة مجانية' : 'Free Preview'}</span>
                   )}
                 </div>
                 <div className="flex items-center gap-3">

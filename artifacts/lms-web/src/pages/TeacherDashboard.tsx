@@ -21,7 +21,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Textarea } from '@/components/ui/textarea';
 import { Checkbox } from '@/components/ui/checkbox';
-import { Skeleton, StatCardSkeleton, CourseCardSkeleton } from '@/components/ui/skeleton';
+import { Skeleton, StatCardSkeleton, CourseCardSkeleton, PageSkeleton } from '@/components/ui/skeleton';
 import ScheduleLiveCourseModal from '@/components/ScheduleLiveCourseModal';
 
 export default function TeacherDashboard() {
@@ -105,10 +105,10 @@ export default function TeacherDashboard() {
           <p className="text-sm text-muted-foreground">{session.titleAr}</p>
         </div>
         <span className={`text-xs px-2.5 py-1 rounded-full font-bold ml-3 ${
-          session.status === 'live' ? 'bg-red-500 text-white animate-pulse' :
-          session.status === 'scheduled' ? 'bg-blue-100 text-blue-700' :
+          session.status === 'live' ? 'bg-destructive/100 text-white animate-pulse' :
+          session.status === 'scheduled' ? 'bg-info/10 text-info' :
           session.status === 'ended' ? 'bg-gray-100 text-gray-600' :
-          'bg-yellow-100 text-yellow-700'
+          'bg-warning/10 text-warning'
         }`}>
           {session.status === 'live' ? '🔴 LIVE' : session.status}
         </span>
@@ -138,7 +138,7 @@ export default function TeacherDashboard() {
       {session.status !== 'cancelled' && (
         <div className="flex gap-2">
           <Link href={`/session/${session.id}`} className="flex-1">
-            <Button className="w-full gap-2 bg-red-500 hover:bg-red-600 text-white" size="sm">
+            <Button className="w-full gap-2 bg-destructive/100 hover:bg-destructive text-white" size="sm">
               <Radio className="w-3.5 h-3.5" /> Join Session
             </Button>
           </Link>
@@ -243,7 +243,7 @@ export default function TeacherDashboard() {
   };
 
   if (authLoading || isLoading) {
-    return <PageContainer><div className="p-20 text-center">Loading...</div></PageContainer>;
+    return <PageContainer><PageSkeleton /></PageContainer>;
   }
   if (!user || user.role !== 'teacher') return null;
 
@@ -287,11 +287,11 @@ export default function TeacherDashboard() {
           </div>
 
           {!user?.biometricsVerified && (
-            <div className="mt-6 bg-red-50 border border-red-200 rounded-xl p-4 flex items-start gap-4">
-              <AlertTriangle className="w-6 h-6 text-red-600 shrink-0 mt-0.5" />
+            <div className="mt-6 bg-destructive/10 border border-destructive/30 rounded-xl p-4 flex items-start gap-4">
+              <AlertTriangle className="w-6 h-6 text-destructive shrink-0 mt-0.5" />
               <div className="flex-1">
-                <h3 className="text-red-800 font-bold mb-1">Identity Verification Required</h3>
-                <p className="text-red-700 text-sm mb-3">
+                <h3 className="text-destructive font-bold mb-1">Identity Verification Required</h3>
+                <p className="text-destructive text-sm mb-3">
                   You must complete the facial and voice biometric verification before you can upload courses or schedule live sessions.
                 </p>
                 <Link href="/teacher/biometrics-setup">
@@ -310,13 +310,13 @@ export default function TeacherDashboard() {
             if (!status || status === 'approved') return null;
 
             if (status === 'pending_review') return (
-              <div className="mt-4 bg-amber-50 dark:bg-amber-950/20 border border-amber-300 dark:border-amber-700 rounded-xl p-4 flex items-start gap-4">
-                <Clock className="w-6 h-6 text-amber-600 shrink-0 mt-0.5" />
+              <div className="mt-4 bg-warning/10 border border-warning/30 rounded-xl p-4 flex items-start gap-4">
+                <Clock className="w-6 h-6 text-warning shrink-0 mt-0.5" />
                 <div className="flex-1">
-                  <h3 className="font-bold text-amber-800 dark:text-amber-200 mb-1">
+                  <h3 className="font-bold text-warning mb-1">
                     {language === 'ar' ? '⏳ حسابك قيد المراجعة' : '⏳ Account Under Review'}
                   </h3>
-                  <p className="text-amber-700 dark:text-amber-300 text-sm">
+                  <p className="text-warning text-sm">
                     {language === 'ar'
                       ? 'تم استلام طلبك وهو قيد المراجعة من قِبل فريق الإدارة. ستتلقى إشعاراً عبر البريد الإلكتروني بمجرد اتخاذ القرار.'
                       : 'Your registration is being reviewed by our admin team. You\'ll receive an email notification once a decision is made.'}
@@ -326,18 +326,18 @@ export default function TeacherDashboard() {
             );
 
             if (status === 'rejected') return (
-              <div className="mt-4 bg-red-50 dark:bg-red-950/20 border border-red-300 dark:border-red-700 rounded-xl p-4 flex items-start gap-4">
-                <XCircle className="w-6 h-6 text-red-600 shrink-0 mt-0.5" />
+              <div className="mt-4 bg-destructive/10 border border-destructive/30 rounded-xl p-4 flex items-start gap-4">
+                <XCircle className="w-6 h-6 text-destructive shrink-0 mt-0.5" />
                 <div className="flex-1">
-                  <h3 className="font-bold text-red-800 dark:text-red-200 mb-1">
+                  <h3 className="font-bold text-destructive mb-1">
                     {language === 'ar' ? '❌ تم رفض طلب التسجيل' : '❌ Registration Rejected'}
                   </h3>
                   {reason && (
-                    <div className="bg-red-100 dark:bg-red-900/30 rounded-lg p-3 mb-3 text-sm text-red-800 dark:text-red-300">
+                    <div className="bg-destructive/10 rounded-lg p-3 mb-3 text-sm text-destructive">
                       <span className="font-semibold">{language === 'ar' ? 'السبب: ' : 'Reason: '}</span>{reason}
                     </div>
                   )}
-                  <p className="text-red-700 dark:text-red-300 text-sm mb-3">
+                  <p className="text-destructive text-sm mb-3">
                     {language === 'ar'
                       ? 'يمكنك تصحيح المعلومات وإعادة تقديم جميع الوثائق المطلوبة.'
                       : 'Please correct the issues and resubmit all required documents.'}
@@ -352,13 +352,13 @@ export default function TeacherDashboard() {
             );
 
             if (status === 'not_submitted') return (
-              <div className="mt-4 bg-blue-50 dark:bg-blue-950/20 border border-blue-300 dark:border-blue-700 rounded-xl p-4 flex items-start gap-4">
-                <GraduationCap className="w-6 h-6 text-blue-600 shrink-0 mt-0.5" />
+              <div className="mt-4 bg-info/10 border border-info/40 rounded-xl p-4 flex items-start gap-4">
+                <GraduationCap className="w-6 h-6 text-info shrink-0 mt-0.5" />
                 <div className="flex-1">
-                  <h3 className="font-bold text-blue-800 dark:text-blue-200 mb-1">
+                  <h3 className="font-bold text-info mb-1">
                     {language === 'ar' ? 'أكمل إعداد حسابك' : 'Complete Your Account Setup'}
                   </h3>
-                  <p className="text-blue-700 dark:text-blue-300 text-sm mb-3">
+                  <p className="text-info text-sm mb-3">
                     {language === 'ar'
                       ? 'لم تكمل تسجيلك بعد. ارفع وثائقك الأكاديمية للحصول على الموافقة.'
                       : 'Your registration is incomplete. Please upload your academic documents to get approved.'}
@@ -386,9 +386,9 @@ export default function TeacherDashboard() {
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mt-8">
               {[
                 { icon: BookOpen, label: t('teacher_dashboard.total_courses'), value: courses?.length || 0, color: 'text-primary', bg: 'bg-primary/10' },
-                { icon: Globe, label: t('teacher_dashboard.published'), value: publishedCount, color: 'text-green-600', bg: 'bg-green-100' },
-                { icon: pendingReviewCount > 0 ? Clock : Users, label: pendingReviewCount > 0 ? `${pendingReviewCount} Under Review` : t('teacher_dashboard.total_students'), value: pendingReviewCount > 0 ? '' : totalStudents, color: pendingReviewCount > 0 ? 'text-blue-600' : 'text-blue-600', bg: 'bg-blue-100' },
-                { icon: DollarSign, label: t('teacher_dashboard.revenue'), value: totalRevenue.toFixed(0), color: 'text-amber-600', bg: 'bg-amber-100' },
+                { icon: Globe, label: t('teacher_dashboard.published'), value: publishedCount, color: 'text-success', bg: 'bg-success/10' },
+                { icon: pendingReviewCount > 0 ? Clock : Users, label: pendingReviewCount > 0 ? `${pendingReviewCount} Under Review` : t('teacher_dashboard.total_students'), value: pendingReviewCount > 0 ? '' : totalStudents, color: pendingReviewCount > 0 ? 'text-info' : 'text-info', bg: 'bg-info/10' },
+                { icon: DollarSign, label: t('teacher_dashboard.revenue'), value: totalRevenue.toFixed(0), color: 'text-warning', bg: 'bg-warning/10' },
               ].map(({ icon: Icon, label, value, color, bg }) => (
                 <div key={label} className="bg-card rounded-2xl border border-border p-4 flex items-center gap-3 shadow-sm">
                   <div className={`w-10 h-10 rounded-xl ${bg} flex items-center justify-center`}>
@@ -414,9 +414,9 @@ export default function TeacherDashboard() {
             const pct = Math.min((storageUsed / effectiveLimit) * 100, 100);
             const usedGB = (storageUsed / 1024 ** 3).toFixed(2);
             const totalGB = (effectiveLimit / 1024 ** 3).toFixed(0);
-            const tierColor = tier === 'golden' ? 'text-yellow-500' : tier === 'bronze' ? 'text-amber-500' : 'text-primary';
+            const tierColor = tier === 'golden' ? 'text-warning' : tier === 'bronze' ? 'text-amber-500' : 'text-primary';
             const tierIcon = tier === 'golden' ? <Trophy className="w-4 h-4" /> : tier === 'bronze' ? <Star className="w-4 h-4" /> : <Zap className="w-4 h-4" />;
-            const barColor = pct > 90 ? 'bg-destructive' : pct > 70 ? 'bg-amber-500' : 'bg-primary';
+            const barColor = pct > 90 ? 'bg-destructive' : pct > 70 ? 'bg-warning/100' : 'bg-primary';
             return (
               <div className="mt-6 bg-card rounded-2xl border border-border p-4 flex flex-col sm:flex-row items-start sm:items-center gap-4 shadow-sm">
                 <div className={`w-10 h-10 rounded-xl flex items-center justify-center bg-muted ${tierColor} flex-shrink-0`}>
@@ -427,14 +427,14 @@ export default function TeacherDashboard() {
                     <div className="flex items-center gap-2">
                       <span className="text-sm font-semibold">Storage</span>
                       <span className={`text-xs font-bold px-2 py-0.5 rounded-full capitalize flex items-center gap-1 ${
-                        tier === 'golden' ? 'bg-yellow-100 text-yellow-600' :
-                        tier === 'bronze' ? 'bg-amber-100 text-amber-600' :
+                        tier === 'golden' ? 'bg-warning/10 text-warning' :
+                        tier === 'bronze' ? 'bg-warning/10 text-warning' :
                         'bg-primary/10 text-primary'
                       }`}>
                         {tierIcon} {tier}
                       </span>
                       {isBonusUnlocked && (
-                        <span className="text-xs font-bold px-2 py-0.5 rounded-full bg-green-100 text-green-600 flex items-center gap-1">
+                        <span className="text-xs font-bold px-2 py-0.5 rounded-full bg-success/10 text-success flex items-center gap-1">
                           🎁 +{tier === 'diamond' ? '150GB' : '10GB'} Bonus
                         </span>
                       )}
@@ -516,10 +516,10 @@ export default function TeacherDashboard() {
                       )}
                       <div className="absolute top-3 start-3 flex gap-2">
                         <span className={`text-xs px-2.5 py-1 rounded-full font-bold shadow-sm ${
-                          course.status === 'published' ? 'bg-green-500 text-white' : 
-                          course.status === 'pending_review' ? 'bg-blue-500 text-white' : 
-                          course.status === 'rejected' ? 'bg-red-500 text-white' : 
-                          'bg-yellow-400 text-yellow-900'
+                          course.status === 'published' ? 'bg-success/100 text-white' : 
+                          course.status === 'pending_review' ? 'bg-info/100 text-white' : 
+                          course.status === 'rejected' ? 'bg-destructive/100 text-white' : 
+                          'bg-warning text-yellow-900'
                         }`}>
                           {course.status === 'published' ? '✓ Published' : 
                            course.status === 'pending_review' ? '⏳ Under Review' : 
@@ -536,7 +536,7 @@ export default function TeacherDashboard() {
                       <p className="text-xs text-muted-foreground mb-3 line-clamp-1">{course.titleAr}</p>
                       
                       {course.status === 'rejected' && course.rejectionReason && (
-                        <div className="bg-red-50 border border-red-200 text-red-700 text-xs p-2 rounded mb-3">
+                        <div className="bg-destructive/10 border border-destructive/30 text-destructive text-xs p-2 rounded mb-3">
                           <span className="font-bold">Reason:</span> {course.rejectionReason}
                         </div>
                       )}
@@ -559,7 +559,7 @@ export default function TeacherDashboard() {
                       <div className="mt-auto space-y-2">
                         {(course.status === 'draft' || course.status === 'rejected') && course.lessonCount > 0 && (
                           <Button 
-                            className="w-full gap-2 bg-blue-600 hover:bg-blue-700 text-white" 
+                            className="w-full gap-2 bg-info hover:bg-info/90 text-white" 
                             size="sm"
                             onClick={() => handleSubmitForReview(course.id)}
                           >
@@ -636,14 +636,14 @@ export default function TeacherDashboard() {
                       const isExpanded = expandedCourses.has(bundle.id);
                       
                       return (
-                        <div key={`bundle-${bundle.id}`} className="bg-gradient-to-br from-indigo-50 to-indigo-100/50 dark:from-indigo-950/20 dark:to-indigo-900/10 rounded-2xl border border-indigo-200 dark:border-indigo-800/30 overflow-hidden shadow-sm md:col-span-2">
+                        <div key={`bundle-${bundle.id}`} className="bg-gradient-to-br from-indigo-50 to-indigo-100/50 dark:from-indigo-950/20 dark:to-indigo-900/10 rounded-2xl border border-info/30 overflow-hidden shadow-sm md:col-span-2">
                           <div className="p-6 flex flex-col md:flex-row gap-6">
-                            <div className="w-16 h-16 rounded-2xl bg-indigo-100 dark:bg-indigo-900/50 flex items-center justify-center shrink-0">
-                              <Package className="w-8 h-8 text-indigo-600 dark:text-indigo-400" />
+                            <div className="w-16 h-16 rounded-2xl bg-info/10 flex items-center justify-center shrink-0">
+                              <Package className="w-8 h-8 text-info" />
                             </div>
                             <div className="flex-1 flex flex-col justify-center">
                               <div className="flex items-center gap-2 mb-2">
-                                <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider bg-indigo-200 text-indigo-800 dark:bg-indigo-800 dark:text-indigo-200">
+                                <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider bg-indigo-200 text-info">
                                   Live Course Bundle
                                 </span>
                                 <span className="text-xs font-semibold text-muted-foreground">
@@ -657,14 +657,14 @@ export default function TeacherDashboard() {
                                 <p className="text-muted-foreground text-sm line-clamp-2">{bundle.description}</p>
                               )}
                             </div>
-                            <div className="md:w-64 flex flex-col justify-center items-end border-t md:border-t-0 md:border-l border-indigo-200/50 dark:border-indigo-800/30 pt-4 md:pt-0 md:pl-6 text-right">
+                            <div className="md:w-64 flex flex-col justify-center items-end border-t md:border-t-0 md:border-l border-info/20 pt-4 md:pt-0 md:pl-6 text-right">
                               <div className="text-2xl font-bold text-primary mb-1">
                                 {bundle.totalPrice > 0 ? `${bundle.totalPrice} LYD` : 'Free'}
                               </div>
                               <div className="text-xs text-muted-foreground">Total Course Price</div>
                               <Button 
                                 variant="outline" 
-                                className="mt-4 w-full gap-2 border-indigo-300 hover:bg-indigo-200/50 dark:border-indigo-700 dark:hover:bg-indigo-800/50"
+                                className="mt-4 w-full gap-2 border-info/40 hover:bg-indigo-200/50 dark:hover:bg-indigo-800/50"
                                 onClick={() => toggleCourseExpand(bundle.id)}
                               >
                                 {isExpanded ? (
@@ -676,7 +676,7 @@ export default function TeacherDashboard() {
                             </div>
                           </div>
                           {isExpanded && (
-                            <div className="bg-background/80 backdrop-blur-sm p-4 pt-1 border-t border-indigo-200/50 dark:border-indigo-800/30 grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div className="bg-background/80 backdrop-blur-sm p-4 pt-1 border-t border-info/20 grid grid-cols-1 md:grid-cols-2 gap-4">
                               {sessions.map((s: any) => renderMySessionCard(s, true))}
                             </div>
                           )}
@@ -723,7 +723,7 @@ export default function TeacherDashboard() {
                   </div>
                   <div className={`shrink-0 px-3 py-1.5 rounded-full text-xs font-bold ${
                     (user as any)?.isTutoringEnabled
-                      ? 'bg-green-100 text-green-700 border border-green-200'
+                      ? 'bg-success/10 text-success border border-success/30'
                       : 'bg-muted text-muted-foreground border border-border'
                   }`}>
                     {(user as any)?.isTutoringEnabled ? '✓ Active' : 'Not Registered'}
@@ -744,7 +744,7 @@ export default function TeacherDashboard() {
                 )}
 
                 {(user as any)?.tutoringSuspendedUntil && new Date((user as any).tutoringSuspendedUntil) > new Date() && (
-                  <div className="mt-4 p-3 bg-orange-50 border border-orange-200 rounded-xl text-sm text-orange-800">
+                  <div className="mt-4 p-3 bg-warning/10 border border-warning/30 rounded-xl text-sm text-warning">
                     ⚠️ Your tutoring is suspended until <strong>{new Date((user as any).tutoringSuspendedUntil).toLocaleDateString()}</strong> due to a no-show report.
                   </div>
                 )}
@@ -967,17 +967,17 @@ function TeacherEarningsTab({ api, user, totalRevenue, initialEarningsData }: { 
             <p className="text-sm text-muted-foreground mb-1">Total Earned</p>
             <div className="text-2xl font-bold">{earningsData.total.toFixed(2)} LYD</div>
           </div>
-          <div className="bg-green-50 border border-green-200 rounded-2xl p-4">
-            <p className="text-sm text-green-700 mb-1">Available to Withdraw</p>
-            <div className="text-2xl font-bold text-green-800">{earningsData.available.toFixed(2)} LYD</div>
+          <div className="bg-success/10 border border-success/30 rounded-2xl p-4">
+            <p className="text-sm text-success mb-1">Available to Withdraw</p>
+            <div className="text-2xl font-bold text-success">{earningsData.available.toFixed(2)} LYD</div>
           </div>
-          <div className="bg-amber-50 border border-amber-200 rounded-2xl p-4">
-            <p className="text-sm text-amber-700 mb-1">Pending Clearance</p>
-            <div className="text-2xl font-bold text-amber-800">{earningsData.pending.toFixed(2)} LYD</div>
+          <div className="bg-warning/10 border border-warning/30 rounded-2xl p-4">
+            <p className="text-sm text-warning mb-1">Pending Clearance</p>
+            <div className="text-2xl font-bold text-warning">{earningsData.pending.toFixed(2)} LYD</div>
           </div>
-          <div className="bg-blue-50 border border-blue-200 rounded-2xl p-4">
-            <p className="text-sm text-blue-700 mb-1">Total Withdrawn</p>
-            <div className="text-2xl font-bold text-blue-800">{earningsData.paid.toFixed(2)} LYD</div>
+          <div className="bg-info/10 border border-info/30 rounded-2xl p-4">
+            <p className="text-sm text-info mb-1">Total Withdrawn</p>
+            <div className="text-2xl font-bold text-info">{earningsData.paid.toFixed(2)} LYD</div>
           </div>
         </div>
       )}
@@ -1024,7 +1024,7 @@ function TeacherEarningsTab({ api, user, totalRevenue, initialEarningsData }: { 
                 required
               />
               <p className="text-xs text-muted-foreground mt-1">
-                Available: <span className="font-bold text-green-600">{availableToWithdraw.toFixed(2)} LYD</span>
+                Available: <span className="font-bold text-success">{availableToWithdraw.toFixed(2)} LYD</span>
               </p>
             </div>
             <div>
@@ -1067,7 +1067,7 @@ function TeacherEarningsTab({ api, user, totalRevenue, initialEarningsData }: { 
             <h3 className="font-bold text-lg">Sales Ledger (Earnings)</h3>
           </div>
           {loading ? (
-            <div className="p-8 text-center text-muted-foreground">Loading...</div>
+            <div className="space-y-3 p-4"><Skeleton className="h-20 w-full rounded-2xl" /><Skeleton className="h-20 w-full rounded-2xl" /></div>
           ) : !earningsData || earningsData.entries.length === 0 ? (
             <div className="p-8 text-center text-muted-foreground">No earnings recorded yet.</div>
           ) : (
@@ -1089,10 +1089,10 @@ function TeacherEarningsTab({ api, user, totalRevenue, initialEarningsData }: { 
                       <td className="px-5 py-3 whitespace-nowrap">{new Date(e.createdAt).toLocaleDateString()}</td>
                       <td className="px-5 py-3">{e.itemName || 'Course/Session'}</td>
                       <td className="px-5 py-3">{e.gross.toFixed(2)}</td>
-                      <td className="px-5 py-3 text-red-500">-{e.platformFee.toFixed(2)}</td>
-                      <td className="px-5 py-3 font-bold text-green-600">+{e.net.toFixed(2)}</td>
+                      <td className="px-5 py-3 text-destructive">-{e.platformFee.toFixed(2)}</td>
+                      <td className="px-5 py-3 font-bold text-success">+{e.net.toFixed(2)}</td>
                       <td className="px-5 py-3">
-                        <Badge variant={e.status === 'paid' ? 'default' : e.status === 'available' ? 'outline' : 'secondary'} className={e.status === 'paid' ? 'bg-blue-500 hover:bg-blue-600 text-white' : e.status === 'available' ? 'text-green-600 border-green-200 bg-green-50' : ''}>
+                        <Badge variant={e.status === 'paid' ? 'default' : e.status === 'available' ? 'outline' : 'secondary'} className={e.status === 'paid' ? 'bg-info/100 hover:bg-info text-white' : e.status === 'available' ? 'text-success border-success/30 bg-success/10' : ''}>
                           {e.status}
                         </Badge>
                       </td>
@@ -1110,7 +1110,7 @@ function TeacherEarningsTab({ api, user, totalRevenue, initialEarningsData }: { 
             <h3 className="font-bold text-lg">Withdrawal History</h3>
           </div>
           {loading ? (
-            <div className="p-8 text-center text-muted-foreground">Loading...</div>
+            <div className="space-y-3 p-4"><Skeleton className="h-20 w-full rounded-2xl" /><Skeleton className="h-20 w-full rounded-2xl" /></div>
           ) : withdrawals.length === 0 ? (
             <div className="p-8 text-center text-muted-foreground">No withdrawal requests found.</div>
           ) : (
@@ -1131,7 +1131,7 @@ function TeacherEarningsTab({ api, user, totalRevenue, initialEarningsData }: { 
                       <td className="px-5 py-3 font-bold">{parseFloat(w.amount).toFixed(2)} LYD</td>
                       <td className="px-5 py-3 capitalize">{w.paymentMethod.replace('_', ' ')}</td>
                       <td className="px-5 py-3">
-                        <Badge variant={w.status === 'approved' ? 'default' : w.status === 'rejected' ? 'destructive' : 'outline'} className={w.status === 'approved' ? 'bg-green-500 hover:bg-green-600 text-white' : w.status === 'pending' ? 'bg-amber-100 text-amber-700 hover:bg-amber-100' : ''}>
+                        <Badge variant={w.status === 'approved' ? 'default' : w.status === 'rejected' ? 'destructive' : 'outline'} className={w.status === 'approved' ? 'bg-success/100 hover:bg-success text-white' : w.status === 'pending' ? 'bg-warning/10 text-warning hover:bg-warning/15' : ''}>
                           {w.status}
                         </Badge>
                       </td>
@@ -1215,7 +1215,7 @@ function TeacherPromoteTab({ api, user }: { api: any; user: any }) {
         <h2 className="text-xl font-display font-bold mb-4">Analytics Overview</h2>
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           <div className="bg-card rounded-2xl border border-border p-5 shadow-sm flex items-center gap-4">
-            <div className="w-12 h-12 rounded-full bg-blue-100 flex items-center justify-center text-blue-600">
+            <div className="w-12 h-12 rounded-full bg-info/10 flex items-center justify-center text-info">
               <Eye className="w-6 h-6" />
             </div>
             <div>
@@ -1224,7 +1224,7 @@ function TeacherPromoteTab({ api, user }: { api: any; user: any }) {
             </div>
           </div>
           <div className="bg-card rounded-2xl border border-border p-5 shadow-sm flex items-center gap-4">
-            <div className="w-12 h-12 rounded-full bg-amber-100 flex items-center justify-center text-amber-600">
+            <div className="w-12 h-12 rounded-full bg-warning/10 flex items-center justify-center text-warning">
               <Star className="w-6 h-6" />
             </div>
             <div>
@@ -1233,7 +1233,7 @@ function TeacherPromoteTab({ api, user }: { api: any; user: any }) {
             </div>
           </div>
           <div className="bg-card rounded-2xl border border-border p-5 shadow-sm flex items-center gap-4">
-            <div className="w-12 h-12 rounded-full bg-green-100 flex items-center justify-center text-green-600">
+            <div className="w-12 h-12 rounded-full bg-success/10 flex items-center justify-center text-success">
               <Megaphone className="w-6 h-6" />
             </div>
             <div>
@@ -1250,7 +1250,7 @@ function TeacherPromoteTab({ api, user }: { api: any; user: any }) {
           <div className="p-6 border-b border-border bg-gradient-to-br from-blue-50 to-transparent">
             <div className="flex justify-between items-start mb-2">
               <h3 className="text-xl font-bold font-display">Upgrade Plan</h3>
-              <Badge className="bg-blue-500 hover:bg-blue-600 capitalize">{user.tier ?? 'free'} PLAN</Badge>
+              <Badge className="bg-info/100 hover:bg-info capitalize">{user.tier ?? 'free'} PLAN</Badge>
             </div>
             <p className="text-muted-foreground text-sm">Pay only the difference when you upgrade to a higher tier.</p>
           </div>
@@ -1270,11 +1270,11 @@ function TeacherPromoteTab({ api, user }: { api: any; user: any }) {
                 return (
                   <div key={t} className="flex items-center justify-between p-3 border rounded-xl bg-muted/30">
                     <div className="flex items-center gap-2">
-                      <CheckCircle className={`w-4 h-4 ${isCurrent ? 'text-green-500' : 'text-muted-foreground'}`} />
+                      <CheckCircle className={`w-4 h-4 ${isCurrent ? 'text-success' : 'text-muted-foreground'}`} />
                       <span className="capitalize font-medium">{t}</span>
                     </div>
                     {isCurrent ? (
-                      <span className="text-sm font-bold text-green-600">Current</span>
+                      <span className="text-sm font-bold text-success">Current</span>
                     ) : (
                       <Button 
                         size="sm" 
@@ -1312,7 +1312,7 @@ function TeacherPromoteTab({ api, user }: { api: any; user: any }) {
                 </Button>
               </div>
               <div className="border border-border rounded-xl p-4 flex flex-col items-center text-center">
-                <TrendingUp className="w-8 h-8 text-blue-500 mb-2 opacity-80" />
+                <TrendingUp className="w-8 h-8 text-info mb-2 opacity-80" />
                 <h4 className="font-bold text-sm">Search Featured</h4>
                 <p className="text-xs text-muted-foreground mt-1 mb-4 flex-1">Always appear at the top of category searches.</p>
                 <Button variant="outline" size="sm" className="w-full text-xs" onClick={() => handleBuyAd('featured_search')} disabled={loadingAd}>
@@ -1328,7 +1328,7 @@ function TeacherPromoteTab({ api, user }: { api: any; user: any }) {
                   {ads.map((ad, i) => (
                     <div key={i} className="flex justify-between items-center bg-muted/50 p-3 rounded-xl border border-border/50 text-sm">
                       <div className="flex items-center gap-2">
-                        <Badge variant="outline" className={ad.isActive ? "bg-green-100 text-green-700" : ""}>
+                        <Badge variant="outline" className={ad.isActive ? "bg-success/10 text-success" : ""}>
                           {ad.isActive ? 'Active' : 'Ended'}
                         </Badge>
                         <span className="font-medium capitalize">{ad.adType.replace('_', ' ')}</span>
@@ -1368,9 +1368,9 @@ function TeacherSubscriptionsTab({ api }: { api: any }) {
   }
 
   const cards = [
-    { label: 'Active Subscriptions', value: stats.totals?.active ?? 0, color: 'text-green-600', bg: 'bg-green-100' },
-    { label: 'Expired', value: stats.totals?.expired ?? 0, color: 'text-red-600', bg: 'bg-red-100' },
-    { label: 'Renewed', value: stats.totals?.renewed ?? 0, color: 'text-blue-600', bg: 'bg-blue-100' },
+    { label: 'Active Subscriptions', value: stats.totals?.active ?? 0, color: 'text-success', bg: 'bg-success/10' },
+    { label: 'Expired', value: stats.totals?.expired ?? 0, color: 'text-destructive', bg: 'bg-destructive/10' },
+    { label: 'Renewed', value: stats.totals?.renewed ?? 0, color: 'text-info', bg: 'bg-info/10' },
     { label: 'Total Enrollments', value: stats.totals?.total ?? 0, color: 'text-primary', bg: 'bg-primary/10' },
   ];
 
@@ -1403,9 +1403,9 @@ function TeacherSubscriptionsTab({ api }: { api: any }) {
                   <div className="font-medium text-sm text-foreground truncate">{c.title}</div>
                 </div>
                 <div className="flex gap-2 text-xs font-bold">
-                  <span className="px-2.5 py-1 rounded-full bg-green-100 text-green-700">{c.active} active</span>
-                  <span className="px-2.5 py-1 rounded-full bg-red-100 text-red-700">{c.expired} expired</span>
-                  <span className="px-2.5 py-1 rounded-full bg-blue-100 text-blue-700">{c.renewed} renewed</span>
+                  <span className="px-2.5 py-1 rounded-full bg-success/10 text-success">{c.active} active</span>
+                  <span className="px-2.5 py-1 rounded-full bg-destructive/10 text-destructive">{c.expired} expired</span>
+                  <span className="px-2.5 py-1 rounded-full bg-info/10 text-info">{c.renewed} renewed</span>
                 </div>
               </div>
             ))}

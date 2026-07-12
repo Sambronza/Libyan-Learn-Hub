@@ -43,7 +43,7 @@ function StarPicker({
             <Star
               className={`${dim} transition-colors duration-150 ${
                 active
-                  ? 'fill-amber-400 text-amber-400'
+                  ? 'fill-amber-400 text-warning'
                   : 'fill-transparent text-muted-foreground/40'
               }`}
             />
@@ -108,7 +108,7 @@ export function FeedbackModal({
               exit={{ opacity: 0 }}
               className="flex flex-col items-center justify-center py-12 px-8 text-center"
             >
-              <div className="w-16 h-16 rounded-full bg-green-100 dark:bg-green-900/30 flex items-center justify-center mb-4">
+              <div className="w-16 h-16 rounded-full bg-success/10 flex items-center justify-center mb-4">
                 <span className="text-3xl">🎉</span>
               </div>
               <h3 className="text-xl font-bold mb-2">Thank you!</h3>

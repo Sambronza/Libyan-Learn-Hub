@@ -221,7 +221,7 @@ export function PostCard({ post, showAuthor, onDeleted }: {
         <button
           onClick={toggleLike}
           className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-sm font-medium transition-colors ${
-            liked ? 'text-rose-600 bg-rose-500/10' : 'text-muted-foreground hover:bg-muted'
+            liked ? 'text-destructive bg-destructive/10' : 'text-muted-foreground hover:bg-muted'
           }`}
         >
           <Heart className={`w-4 h-4 ${liked ? 'fill-rose-500' : ''}`} />
@@ -431,7 +431,7 @@ function CommentItem({ comment, postOwnerId, onReply, onChanged }: {
         </div>
         <div className="flex items-center gap-3 mt-1 ps-1">
           <button onClick={toggleLike}
-            className={`flex items-center gap-1 text-[11px] font-medium ${liked ? 'text-rose-600' : 'text-muted-foreground hover:text-foreground'}`}>
+            className={`flex items-center gap-1 text-[11px] font-medium ${liked ? 'text-destructive' : 'text-muted-foreground hover:text-foreground'}`}>
             <Heart className={`w-3 h-3 ${liked ? 'fill-rose-500' : ''}`} />
             {likesCount > 0 && likesCount}
           </button>

@@ -232,8 +232,8 @@ export default function SessionRoom() {
         </div>
         <div className="flex-1 flex items-center justify-center">
           <div className="text-center max-w-md px-6 bg-slate-800 p-8 rounded-2xl border border-red-500/30">
-            <AlertCircle className="w-16 h-16 text-red-500 mx-auto mb-4" />
-            <h2 className="text-2xl font-bold text-red-400 mb-2">Session Cancelled</h2>
+            <AlertCircle className="w-16 h-16 text-destructive mx-auto mb-4" />
+            <h2 className="text-2xl font-bold text-destructive mb-2">Session Cancelled</h2>
             <p className="text-white/70 mb-6">This live session has been cancelled by the teacher.</p>
             {session.cancellationReason && (
               <div className="bg-slate-900/50 p-4 rounded-xl text-sm text-white/80 mb-6 text-left border border-white/5">
@@ -273,7 +273,7 @@ export default function SessionRoom() {
               </Button>
             )}
             {session.isFull && (
-              <div className="bg-red-500/10 border border-red-500/30 rounded-xl p-4 text-red-400">
+              <div className="bg-destructive/10 border border-red-500/30 rounded-xl p-4 text-destructive">
                 Session is full — no seats available
               </div>
             )}
@@ -286,10 +286,10 @@ export default function SessionRoom() {
       <div className="flex-1 flex items-center justify-center bg-slate-800 p-4 overflow-y-auto min-h-full">
         <div className="text-center max-w-md w-full bg-slate-900/50 p-6 md:p-8 rounded-3xl border border-white/5 relative overflow-hidden shrink-0 my-auto">
           {session.status === 'live' && !session.isTeacher && (
-             <div className="absolute top-0 left-0 w-full h-1 bg-red-500 animate-pulse" />
+             <div className="absolute top-0 left-0 w-full h-1 bg-destructive/100 animate-pulse" />
           )}
           
-          <Radio className={`w-20 h-20 mx-auto mb-6 ${session.status === 'live' ? 'text-red-500 animate-pulse' : 'text-primary/50'}`} />
+          <Radio className={`w-20 h-20 mx-auto mb-6 ${session.status === 'live' ? 'text-destructive animate-pulse' : 'text-primary/50'}`} />
           
           <h2 className="text-2xl font-bold mb-2">
             {session.isTeacher ? 'Ready to Teach?' : (session.status === 'live' ? 'Session is Live!' : 'Waiting Room')}
@@ -312,8 +312,8 @@ export default function SessionRoom() {
             </Button>
           ) : tooEarlyUntil ? (
             <div className="space-y-3">
-              <div className="bg-amber-500/10 border border-amber-500/30 rounded-xl p-4 text-left">
-                <p className="text-amber-400 font-bold text-sm mb-1">⏰ Session not started yet</p>
+              <div className="bg-warning/10 border border-amber-500/30 rounded-xl p-4 text-left">
+                <p className="text-warning font-bold text-sm mb-1">⏰ Session not started yet</p>
                 <p className="text-white/70 text-sm">
                   Scheduled for{' '}
                   <span className="text-white font-medium">
@@ -328,7 +328,7 @@ export default function SessionRoom() {
             </div>
           ) : (
             <div className="bg-slate-800 border border-white/10 rounded-xl p-4 flex items-center justify-center gap-3">
-              <span className="w-3 h-3 rounded-full bg-amber-500 animate-pulse" />
+              <span className="w-3 h-3 rounded-full bg-warning/100 animate-pulse" />
               <span className="text-white/80 font-medium">Waiting for teacher...</span>
             </div>
           )}
@@ -347,8 +347,8 @@ export default function SessionRoom() {
           </Button>
           <div>
             <div className="flex items-center gap-2 mb-0.5">
-              <span className={`w-2.5 h-2.5 rounded-full ${session.status === 'live' ? 'bg-red-500 animate-pulse shadow-[0_0_8px_rgba(239,68,68,0.8)]' : 'bg-amber-500'}`} />
-              <span className={`text-xs font-bold uppercase tracking-widest ${session.status === 'live' ? 'text-red-400' : 'text-amber-400'}`}>
+              <span className={`w-2.5 h-2.5 rounded-full ${session.status === 'live' ? 'bg-destructive/100 animate-pulse shadow-[0_0_8px_rgba(239,68,68,0.8)]' : 'bg-warning/100'}`} />
+              <span className={`text-xs font-bold uppercase tracking-widest ${session.status === 'live' ? 'text-destructive' : 'text-warning'}`}>
                 {session.status === 'live' ? 'Live' : session.status}
               </span>
             </div>
@@ -356,7 +356,7 @@ export default function SessionRoom() {
           </div>
         </div>
         <div className="flex items-center gap-6 text-sm text-white/70">
-          <Button variant="ghost" size="sm" className="hidden sm:flex px-2 text-white/50 hover:text-red-400 gap-1.5 h-8 hover:bg-red-500/10 rounded-lg transition-colors" onClick={() => setReportSession(true)}>
+          <Button variant="ghost" size="sm" className="hidden sm:flex px-2 text-white/50 hover:text-destructive gap-1.5 h-8 hover:bg-destructive/10 rounded-lg transition-colors" onClick={() => setReportSession(true)}>
              <Flag className="w-3.5 h-3.5" /> <span className="sr-only sm:not-sr-only font-medium">Report</span>
           </Button>
           <div className="hidden md:flex items-center gap-4 border-l border-white/10 pl-6">
@@ -368,11 +368,11 @@ export default function SessionRoom() {
             <Button 
               variant={isRecording ? 'outline' : 'secondary'} 
               size="sm" 
-              className={`ml-2 gap-2 h-8 ${isRecording ? 'border-red-500 text-red-500 hover:bg-red-500/10 animate-pulse' : 'bg-white/10 hover:bg-white/20 text-white'}`}
+              className={`ml-2 gap-2 h-8 ${isRecording ? 'border-red-500 text-destructive hover:bg-destructive/10 animate-pulse' : 'bg-white/10 hover:bg-white/20 text-white'}`}
               onClick={isRecording ? stopRecording : startRecording}
               disabled={isUploading}
             >
-              {isUploading ? <Radio className="w-4 h-4 animate-pulse" /> : (isRecording ? <Square className="w-4 h-4 fill-current" /> : <Circle className="w-4 h-4 text-red-500 fill-current" />)}
+              {isUploading ? <Radio className="w-4 h-4 animate-pulse" /> : (isRecording ? <Square className="w-4 h-4 fill-current" /> : <Circle className="w-4 h-4 text-destructive fill-current" />)}
               {isUploading ? 'Saving...' : (isRecording ? 'Stop Rec' : 'Record')}
             </Button>
           )}
@@ -493,7 +493,7 @@ export default function SessionRoom() {
                   {session.isTeacher && (
                     <button
                       onClick={() => markAnswered(q.id)}
-                      className="text-xs text-green-400 hover:text-green-300 hover:bg-green-400/10 px-2 py-1 rounded-md flex items-center gap-1.5 transition-colors font-medium"
+                      className="text-xs text-success hover:text-green-300 hover:bg-green-400/10 px-2 py-1 rounded-md flex items-center gap-1.5 transition-colors font-medium"
                     >
                       <CheckCircle className="w-3.5 h-3.5" /> Answered
                     </button>
@@ -512,7 +512,7 @@ export default function SessionRoom() {
                 <div className="space-y-2">
                   {answered.map((q: any) => (
                     <div key={q.id} className="bg-slate-800/80 rounded-xl p-3 opacity-60 border border-white/5 border-l-2 border-l-green-500/50">
-                      <div className="flex items-center gap-1.5 text-green-400 text-[10px] mb-1.5 font-medium uppercase tracking-wider">
+                      <div className="flex items-center gap-1.5 text-success text-[10px] mb-1.5 font-medium uppercase tracking-wider">
                         <CheckCircle className="w-3 h-3" /> Answered
                       </div>
                       <p className="text-sm text-white/70 line-clamp-2">{q.question}</p>

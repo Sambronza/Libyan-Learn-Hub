@@ -52,8 +52,8 @@ export default function AcademyDashboard() {
             
             {hasPendingApp ? (
               <div className="space-y-6">
-                <div className="w-20 h-20 rounded-full bg-blue-100 flex items-center justify-center mx-auto mb-6">
-                  <Clock3 className="w-10 h-10 text-blue-600" />
+                <div className="w-20 h-20 rounded-full bg-info/10 flex items-center justify-center mx-auto mb-6">
+                  <Clock3 className="w-10 h-10 text-info" />
                 </div>
                 <h1 className="text-3xl font-display font-bold text-foreground">
                   {isRtl ? 'طلبك قيد المراجعة' : 'Application Under Review'}
@@ -63,18 +63,18 @@ export default function AcademyDashboard() {
                     ? `لقد استلمنا طلب التحاقك ببرنامج ${latestApp?.programNameAr || ''}. فريقنا يقوم حالياً بمراجعة طلبك والمستندات المرفقة وسنعلمك بالنتيجة قريباً استعد لبدء رحلتك الأكاديمية!`
                     : `We've received your application to the ${latestApp?.programName || ''} program. Our team is reviewing it and will notify you soon. Get ready to start your academic journey!`}
                 </p>
-                <div className="inline-flex items-center gap-2 px-4 py-2 bg-blue-50 text-blue-700 rounded-full text-sm font-medium border border-blue-200 mt-4">
+                <div className="inline-flex items-center gap-2 px-4 py-2 bg-info/10 text-info rounded-full text-sm font-medium border border-info/30 mt-4">
                   <span className="relative flex h-3 w-3">
                     <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-blue-400 opacity-75"></span>
-                    <span className="relative inline-flex rounded-full h-3 w-3 bg-blue-500"></span>
+                    <span className="relative inline-flex rounded-full h-3 w-3 bg-info/100"></span>
                   </span>
                   {isRtl ? 'الطلب قيد المعالجة' : 'Processing Application'}
                 </div>
               </div>
             ) : latestApp?.status === 'rejected' ? (
               <div className="space-y-6">
-                <div className="w-20 h-20 rounded-full bg-red-100 flex items-center justify-center mx-auto mb-6">
-                  <AlertCircle className="w-10 h-10 text-red-600" />
+                <div className="w-20 h-20 rounded-full bg-destructive/10 flex items-center justify-center mx-auto mb-6">
+                  <AlertCircle className="w-10 h-10 text-destructive" />
                 </div>
                 <h1 className="text-3xl font-display font-bold text-foreground">
                   {isRtl ? 'حالة الطلب' : 'Application Status'}
@@ -85,7 +85,7 @@ export default function AcademyDashboard() {
                     : `We're sorry, your application to the ${latestApp?.programName || ''} program was not accepted. Please review the notes or contact administration.`}
                 </p>
                 {latestApp.reviewNotes && (
-                  <div className="bg-red-50 text-red-800 p-4 rounded-xl border border-red-200 mt-4 max-w-md mx-auto text-sm text-start">
+                  <div className="bg-destructive/10 text-destructive p-4 rounded-xl border border-destructive/30 mt-4 max-w-md mx-auto text-sm text-start">
                      <strong>{isRtl ? 'ملاحظات الإدارة: ' : 'Admin Notes: '}</strong>
                      {latestApp.reviewNotes}
                   </div>
@@ -146,10 +146,10 @@ export default function AcademyDashboard() {
             </div>
             <div>
               <div className="flex items-center gap-2 mb-1">
-                <span className="px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider bg-amber-500 text-white">
+                <span className="px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider bg-warning/100 text-white">
                    {isRtl ? 'طالب أكاديمية' : 'Academy Student'}
                 </span>
-                <span className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider ${current?.status === 'active' ? 'bg-emerald-100 text-emerald-700 border border-emerald-200' : 'bg-muted text-muted-foreground border border-border'}`}>
+                <span className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider ${current?.status === 'active' ? 'bg-success/10 text-success border border-success/30' : 'bg-muted text-muted-foreground border border-border'}`}>
                    {current?.status === 'active' ? (isRtl ? 'نشط' : 'Active') : current?.status}
                 </span>
               </div>
@@ -165,8 +165,8 @@ export default function AcademyDashboard() {
           {/* Academic Info Banner */}
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mt-8">
             <div className="bg-card rounded-2xl p-4 border border-border shadow-sm flex items-center gap-4">
-              <div className="w-10 h-10 rounded-xl bg-orange-100 flex items-center justify-center">
-                <Calendar className="w-5 h-5 text-orange-600" />
+              <div className="w-10 h-10 rounded-xl bg-warning/10 flex items-center justify-center">
+                <Calendar className="w-5 h-5 text-warning" />
               </div>
               <div>
                 <div className="text-xs text-muted-foreground font-medium mb-0.5">{isRtl ? 'الفصل الدراسي' : 'Current Semester'}</div>
@@ -175,8 +175,8 @@ export default function AcademyDashboard() {
             </div>
             
             <div className="bg-card rounded-2xl p-4 border border-border shadow-sm flex items-center gap-4">
-              <div className="w-10 h-10 rounded-xl bg-blue-100 flex items-center justify-center">
-                <BookOpen className="w-5 h-5 text-blue-600" />
+              <div className="w-10 h-10 rounded-xl bg-info/10 flex items-center justify-center">
+                <BookOpen className="w-5 h-5 text-info" />
               </div>
               <div>
                 <div className="text-xs text-muted-foreground font-medium mb-0.5">{isRtl ? 'المقررات' : 'Registered Subjects'}</div>
@@ -185,8 +185,8 @@ export default function AcademyDashboard() {
             </div>
 
             <div className="bg-card rounded-2xl p-4 border border-border shadow-sm flex items-center gap-4">
-              <div className="w-10 h-10 rounded-xl bg-emerald-100 flex items-center justify-center">
-                <CheckCircle2 className="w-5 h-5 text-emerald-600" />
+              <div className="w-10 h-10 rounded-xl bg-success/10 flex items-center justify-center">
+                <CheckCircle2 className="w-5 h-5 text-success" />
               </div>
               <div>
                 <div className="text-xs text-muted-foreground font-medium mb-0.5">{isRtl ? 'المعدل التراكمي' : 'Current GPA'}</div>
@@ -195,8 +195,8 @@ export default function AcademyDashboard() {
             </div>
 
             <div className="bg-card rounded-2xl p-4 border border-border shadow-sm flex items-center gap-4">
-              <div className="w-10 h-10 rounded-xl bg-purple-100 flex items-center justify-center">
-                <MapPin className="w-5 h-5 text-purple-600" />
+              <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center">
+                <MapPin className="w-5 h-5 text-primary" />
               </div>
               <div>
                 <div className="text-xs text-muted-foreground font-medium mb-0.5">{isRtl ? 'مركز الاختبار' : 'Exam Center'}</div>
@@ -223,13 +223,13 @@ export default function AcademyDashboard() {
                 <div key={reg.id} className="bg-card border border-border rounded-2xl overflow-hidden hover:shadow-lg hover:border-amber-500/30 transition-all flex flex-col h-full group">
                   <div className="p-6 flex-1">
                     <div className="flex justify-between items-start mb-4">
-                      <div className="w-12 h-12 rounded-xl bg-amber-50 flex items-center justify-center">
-                        <FileText className="w-6 h-6 text-amber-600 shadow-sm" />
+                      <div className="w-12 h-12 rounded-xl bg-warning/10 flex items-center justify-center">
+                        <FileText className="w-6 h-6 text-warning shadow-sm" />
                       </div>
                       <span className={`px-2.5 py-1 rounded-md text-[11px] font-bold ${
-                        reg.grade && Number(reg.grade) >= 50 ? 'bg-emerald-100 text-emerald-700' :
-                        reg.status === 'completed' ? 'bg-blue-100 text-blue-700' :
-                        'bg-amber-100 text-amber-700'
+                        reg.grade && Number(reg.grade) >= 50 ? 'bg-success/10 text-success' :
+                        reg.status === 'completed' ? 'bg-info/10 text-info' :
+                        'bg-warning/10 text-warning'
                       }`}>
                         {reg.grade ? `${reg.grade}%` : (isRtl ? 'قيد الدراسة' : 'In Progress')}
                       </span>
@@ -252,7 +252,7 @@ export default function AcademyDashboard() {
                   </div>
                   
                   <div className="p-4 border-t border-border bg-muted/20">
-                    <Button variant="secondary" className="w-full bg-amber-50 text-amber-700 hover:bg-amber-100 gap-2 border border-amber-200">
+                    <Button variant="secondary" className="w-full bg-warning/10 text-warning hover:bg-warning/15 gap-2 border border-warning/30">
                       <PlayCircle className="w-4 h-4" />
                       {isRtl ? 'دخول قاعة الدروس' : 'Enter Classroom'}
                     </Button>

@@ -46,7 +46,7 @@ export default function Teachers() {
             <Button
               variant={tutorOnly ? "default" : "outline"}
               onClick={() => setTutorOnly(!tutorOnly)}
-              className={`gap-2 ${tutorOnly ? 'bg-violet-600 hover:bg-violet-700 text-white' : 'border-violet-200 text-violet-700 hover:bg-violet-50 dark:border-violet-700 dark:text-violet-400 dark:hover:bg-violet-950'}`}
+              className={`gap-2 ${tutorOnly ? 'bg-violet-600 hover:bg-violet-700 text-white' : 'border-primary/30 text-primary hover:bg-primary/10 dark:hover:bg-violet-950'}`}
             >
               {language === 'ar' ? 'دروس خصوصية فقط' : '1-on-1 Tutors Only'}
             </Button>
@@ -92,7 +92,7 @@ export default function Teachers() {
                     {/* Top badges — absolutely positioned over the image */}
                     <div className="absolute top-3 left-3 z-20 flex items-center gap-1.5 flex-wrap">
                       {teacher.isSponsored && (
-                        <span className="inline-flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-full bg-amber-500/90 text-white backdrop-blur-sm shadow">
+                        <span className="inline-flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-full bg-warning/90 text-white backdrop-blur-sm shadow">
                           <Crown className="w-2.5 h-2.5" /> {language === 'ar' ? 'مميز' : 'Sponsored'}
                         </span>
                       )}

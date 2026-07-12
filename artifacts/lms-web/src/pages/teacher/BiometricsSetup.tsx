@@ -287,7 +287,7 @@ export default function BiometricsSetup() {
                 step === s
                   ? "bg-primary scale-125"
                   : (["intro", "face", "voice", "done"] as const).indexOf(step) > i
-                    ? "bg-green-500"
+                    ? "bg-success/100"
                     : "bg-muted"
               }`}
             />
@@ -340,7 +340,7 @@ export default function BiometricsSetup() {
               <>
                 <div
                   className={`absolute inset-2 border-4 border-dashed rounded-[100%] pointer-events-none transition-colors duration-500 ${
-                    capturedCount === POSES.length ? "border-green-500/80 bg-green-500/10" : "border-primary/40"
+                    capturedCount === POSES.length ? "border-green-500/80 bg-success/10" : "border-primary/40"
                   }`}
                 />
                 {/* Progress ring label */}
@@ -361,14 +361,14 @@ export default function BiometricsSetup() {
                 <div key={p.id} className="flex flex-col items-center gap-1.5">
                   <div
                     className={`w-10 h-10 rounded-full flex items-center justify-center transition-all duration-300 ${
-                      isCaptured ? "bg-green-500 scale-110" : "bg-muted animate-pulse"
+                      isCaptured ? "bg-success/100 scale-110" : "bg-muted animate-pulse"
                     }`}
                   >
                     {isCaptured
                       ? <CheckCircle className="w-5 h-5 text-white" />
                       : <Camera className="w-4 h-4 text-muted-foreground" />}
                   </div>
-                  <span className={`text-xs font-medium text-center ${isCaptured ? "text-green-500" : "text-muted-foreground"}`}>
+                  <span className={`text-xs font-medium text-center ${isCaptured ? "text-success" : "text-muted-foreground"}`}>
                     {p.label}
                   </span>
                 </div>
@@ -443,7 +443,7 @@ export default function BiometricsSetup() {
       {/* ── DONE ── */}
       {step === "done" && (
         <div className="flex flex-col items-center space-y-5 bg-card p-8 rounded-xl border shadow-sm text-center">
-          <CheckCircle className="w-20 h-20 text-green-500" />
+          <CheckCircle className="w-20 h-20 text-success" />
           <h2 className="text-2xl font-semibold">Verification Complete 🎉</h2>
           <p className="text-muted-foreground max-w-sm">
             Your biometric identity profile has been successfully saved. You can now create and upload courses.

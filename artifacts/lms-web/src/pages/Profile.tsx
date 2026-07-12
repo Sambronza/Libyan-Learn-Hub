@@ -362,7 +362,7 @@ export default function Profile() {
                 <div className="text-xs text-muted-foreground">Enrolled</div>
               </div>
               <div className="bg-muted/30 border border-border rounded-2xl p-4 min-w-[140px] flex-1 text-center">
-                <Trophy className="w-6 h-6 text-green-500 mx-auto mb-2" />
+                <Trophy className="w-6 h-6 text-success mx-auto mb-2" />
                 <div className="text-2xl font-bold">
                   {summary?.filter((s: any) => s.overallProgress >= 100).length || 0}
                 </div>

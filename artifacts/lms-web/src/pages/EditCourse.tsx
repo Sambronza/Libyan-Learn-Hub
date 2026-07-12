@@ -1,3 +1,4 @@
+import { PageSkeleton } from '@/components/ui/skeleton';
 import React, { useEffect, useState } from 'react';
 import { PageContainer } from '@/components/layout/PageContainer';
 import { useAuth } from '@/contexts/AuthContext';
@@ -95,7 +96,7 @@ export default function EditCourse() {
   };
 
   if (authLoading || courseLoading) {
-    return <PageContainer><div className="p-20 text-center">Loading...</div></PageContainer>;
+    return <PageContainer><PageSkeleton /></PageContainer>;
   }
   if (!user || user.role !== 'teacher') return null;
 
@@ -109,8 +110,8 @@ export default function EditCourse() {
             </Button>
           </Link>
           <div className="flex items-center gap-3">
-            <div className="w-12 h-12 rounded-2xl bg-amber-100 flex items-center justify-center">
-              <Edit className="w-6 h-6 text-amber-600" />
+            <div className="w-12 h-12 rounded-2xl bg-warning/10 flex items-center justify-center">
+              <Edit className="w-6 h-6 text-warning" />
             </div>
             <div>
               <h1 className="text-2xl font-display font-bold text-foreground">Edit Course</h1>
@@ -223,7 +224,7 @@ export default function EditCourse() {
               </div>
             </div>
             <div className="pt-2">
-              <p className="text-sm text-muted-foreground bg-blue-50 text-blue-800 p-3 rounded-md border border-blue-100">
+              <p className="text-sm text-muted-foreground bg-info/10 text-info p-3 rounded-md border border-info/30">
                 To change the publication status of this course, please contact an administrator.
               </p>
             </div>

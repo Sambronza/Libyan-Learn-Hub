@@ -84,7 +84,7 @@ export function ScreenProtection({ children, className = '' }: ScreenProtectionP
             transition={{ duration: 0.08 }}
             className="absolute inset-0 z-[300] flex flex-col items-center justify-center bg-black"
           >
-            <ShieldAlert className="w-16 h-16 text-red-500 mb-6 animate-pulse" />
+            <ShieldAlert className="w-16 h-16 text-destructive mb-6 animate-pulse" />
             <h2 className="text-2xl font-bold text-white mb-2 text-center px-4">Content Hidden</h2>
             <p className="text-white/60 max-w-sm text-center px-4 text-sm leading-relaxed">
               Return to this tab to continue watching. Screen recording or opening other applications

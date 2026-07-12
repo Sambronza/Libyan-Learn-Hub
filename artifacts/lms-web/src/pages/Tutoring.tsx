@@ -1,3 +1,4 @@
+import { PageSkeleton } from '@/components/ui/skeleton';
 import React, { useState } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useLocation, Link } from 'wouter';
@@ -47,18 +48,18 @@ function getGradeRate(level: string, educationType?: string | null): number {
 }
 
 const STATUS_COLORS: Record<string, string> = {
-  pending:                 'bg-yellow-100 text-yellow-800 border-yellow-200',
-  accepted:                'bg-green-100 text-green-800 border-green-200',
-  rescheduled_by_teacher:  'bg-blue-100 text-blue-800 border-blue-200',
-  declined:                'bg-red-100 text-red-800 border-red-200',
+  pending:                 'bg-warning/10 text-warning border-warning/30',
+  accepted:                'bg-success/10 text-success border-success/30',
+  rescheduled_by_teacher:  'bg-info/10 text-info border-info/30',
+  declined:                'bg-destructive/10 text-destructive border-destructive/30',
   cancelled:               'bg-gray-100 text-gray-700 border-gray-200',
-  completed:               'bg-purple-100 text-purple-800 border-purple-200',
-  completed_pending_review:'bg-indigo-100 text-indigo-800 border-indigo-200',
-  approved:                'bg-emerald-100 text-emerald-800 border-emerald-200',
-  rejected:                'bg-red-100 text-red-800 border-red-200',
-  partially_approved:      'bg-teal-100 text-teal-800 border-teal-200',
-  cancelled_no_show:       'bg-orange-100 text-orange-800 border-orange-200',
-  terminated_due_to_report:'bg-red-100 text-red-800 border-red-300',
+  completed:               'bg-primary/10 text-purple-800 border-primary/30',
+  completed_pending_review:'bg-info/10 text-info border-info/30',
+  approved:                'bg-success/10 text-success border-success/30',
+  rejected:                'bg-destructive/10 text-destructive border-destructive/30',
+  partially_approved:      'bg-success/10 text-secondary border-secondary/30',
+  cancelled_no_show:       'bg-warning/10 text-warning border-warning/30',
+  terminated_due_to_report:'bg-destructive/10 text-destructive border-destructive/30',
 };
 
 const STATUS_LABELS: Record<string, string> = {
@@ -277,7 +278,7 @@ function FeedbackModal({ requestId, open, onClose }: { requestId: number | null;
                 <button
                   key={star}
                   onClick={() => setRating(star)}
-                  className={`p-2 rounded-full transition-colors ${rating >= star ? 'text-yellow-500 hover:text-yellow-600' : 'text-gray-300 hover:text-gray-400'}`}
+                  className={`p-2 rounded-full transition-colors ${rating >= star ? 'text-warning hover:text-warning' : 'text-gray-300 hover:text-gray-400'}`}
                 >
                   <svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24 24" fill={rating >= star ? "currentColor" : "none"} stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
                 </button>
@@ -557,7 +558,7 @@ function RequestSessionModal({ open, onClose }: { open: boolean; onClose: () => 
             name="isUrgent"
             control={control}
             render={({ field }) => (
-              <label className={`flex items-center gap-3 cursor-pointer p-3 rounded-xl border transition-colors ${field.value ? 'border-red-300 bg-red-50 dark:bg-red-950/30' : 'border-border bg-muted/30 hover:bg-muted/50'}`}>
+              <label className={`flex items-center gap-3 cursor-pointer p-3 rounded-xl border transition-colors ${field.value ? 'border-destructive/30 bg-destructive/10' : 'border-border bg-muted/30 hover:bg-muted/50'}`}>
                 <input
                   type="checkbox"
                   checked={!!field.value}
@@ -657,7 +658,7 @@ function RequestCard({
           {/* Status + badges */}
           <div className="flex flex-wrap items-center gap-2 mb-2">
             <Badge className={STATUS_COLORS[r.status]}>{STATUS_LABELS[r.status] || r.status}</Badge>
-            {r.isUrgent && <Badge className="bg-red-100 text-red-800 border-red-200">🚨 Urgent</Badge>}
+            {r.isUrgent && <Badge className="bg-destructive/10 text-destructive border-destructive/30">🚨 Urgent</Badge>}
             <span className="text-xs text-muted-foreground font-mono">#{r.id}</span>
           </div>
 
@@ -688,7 +689,7 @@ function RequestCard({
               <span>Preferred: {new Date(r.preferredAt).toLocaleString()}</span>
             </div>
             {r.proposedAt && (
-              <div className="flex items-center gap-1.5 text-blue-600 font-medium">
+              <div className="flex items-center gap-1.5 text-info font-medium">
                 <Clock className="w-4 h-4 shrink-0" />
                 <span>Proposed: {new Date(r.proposedAt).toLocaleString()}</span>
               </div>
@@ -708,7 +709,7 @@ function RequestCard({
 
           {/* Meeting link (if accepted) */}
           {r.status === 'accepted' && r.meetingUrl && (
-            <Button asChild size="sm" className="bg-green-600 hover:bg-green-700 gap-2">
+            <Button asChild size="sm" className="bg-success hover:bg-success/90 gap-2">
               <Link href={`/tutoring/room/${r.id}`}>
                 <ExternalLink className="w-3.5 h-3.5" /> Join Meeting
               </Link>
@@ -718,13 +719,13 @@ function RequestCard({
           {/* Teacher actions */}
           {isTeacher && r.status === 'pending' && (
             <div className="flex flex-col gap-2">
-              <Button size="sm" className="bg-green-600 hover:bg-green-700" onClick={() => onTeacherAction(r.id, 'accept')}>
+              <Button size="sm" className="bg-success hover:bg-success/90" onClick={() => onTeacherAction(r.id, 'accept')}>
                 ✓ Accept
               </Button>
               <Button size="sm" variant="outline" onClick={() => onProposeTime(r)}>
                 📅 Propose Time
               </Button>
-              <Button size="sm" variant="ghost" className="text-red-600 hover:text-red-700 hover:bg-red-50" onClick={() => onTeacherAction(r.id, 'decline')}>
+              <Button size="sm" variant="ghost" className="text-destructive hover:text-destructive hover:bg-destructive/10" onClick={() => onTeacherAction(r.id, 'decline')}>
                 ✗ Decline
               </Button>
             </div>
@@ -733,10 +734,10 @@ function RequestCard({
           {/* Student: accept/decline proposed time */}
           {!isTeacher && r.status === 'rescheduled_by_teacher' && (
             <div className="flex flex-col gap-2">
-              <Button size="sm" className="bg-blue-600 hover:bg-blue-700" onClick={() => onStudentAction(r.id, 'accept-proposed-time')}>
+              <Button size="sm" className="bg-info hover:bg-info/90" onClick={() => onStudentAction(r.id, 'accept-proposed-time')}>
                 ✓ Accept New Time
               </Button>
-              <Button size="sm" variant="ghost" className="text-red-600 hover:text-red-700 hover:bg-red-50" onClick={() => onStudentAction(r.id, 'cancel')}>
+              <Button size="sm" variant="ghost" className="text-destructive hover:text-destructive hover:bg-destructive/10" onClick={() => onStudentAction(r.id, 'cancel')}>
                 ✗ Decline &amp; Refund
               </Button>
             </div>
@@ -744,7 +745,7 @@ function RequestCard({
 
           {/* Student: cancel pending request */}
           {!isTeacher && r.status === 'pending' && (
-            <Button size="sm" variant="outline" className="text-red-600 border-red-200 hover:bg-red-50" onClick={() => onStudentAction(r.id, 'cancel')}>
+            <Button size="sm" variant="outline" className="text-destructive border-destructive/30 hover:bg-destructive/10" onClick={() => onStudentAction(r.id, 'cancel')}>
               Cancel &amp; Refund
             </Button>
           )}
@@ -812,7 +813,7 @@ export default function Tutoring() {
   };
 
   if (authLoading) {
-    return <PageContainer><div className="p-20 text-center text-muted-foreground">Loading...</div></PageContainer>;
+    return <PageContainer><PageSkeleton /></PageContainer>;
   }
 
   const showLoginModal = !user;
@@ -898,7 +899,7 @@ export default function Tutoring() {
         <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
           {/* Pending count banner for students */}
           {!isTeacher && requests.filter((r: any) => r.status === 'pending').length > 0 && (
-            <div className="mb-5 flex items-center gap-3 px-4 py-3 rounded-xl bg-yellow-50 border border-yellow-200 text-yellow-800 text-sm font-medium">
+            <div className="mb-5 flex items-center gap-3 px-4 py-3 rounded-xl bg-warning/10 border border-warning/30 text-warning text-sm font-medium">
               <Clock className="w-4 h-4 shrink-0" />
               You have <strong>{requests.filter((r: any) => r.status === 'pending').length}</strong> pending session{requests.filter((r: any) => r.status === 'pending').length > 1 ? 's' : ''} awaiting teacher response.
             </div>

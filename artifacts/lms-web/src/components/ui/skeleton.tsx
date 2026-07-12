@@ -46,3 +46,24 @@ export function StatCardSkeleton() {
     </div>
   );
 }
+
+/** Generic full-page loading skeleton: header block + content grid. */
+export function PageSkeleton() {
+  return (
+    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10 animate-pulse" aria-busy="true" aria-label="Loading">
+      <div className="flex items-center gap-4 mb-8">
+        <Skeleton className="w-16 h-16 rounded-2xl" />
+        <div className="space-y-2">
+          <Skeleton className="h-7 w-56" />
+          <Skeleton className="h-4 w-36" />
+        </div>
+      </div>
+      <Skeleton className="h-40 w-full rounded-2xl mb-6" />
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        <Skeleton className="h-48 rounded-2xl" />
+        <Skeleton className="h-48 rounded-2xl" />
+        <Skeleton className="h-48 rounded-2xl hidden lg:block" />
+      </div>
+    </div>
+  );
+}

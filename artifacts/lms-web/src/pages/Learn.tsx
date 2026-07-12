@@ -347,7 +347,7 @@ export default function Learn() {
 
                   {activeIsCompleted && (
                     <div className="mt-8 pt-8 border-t border-border flex justify-end">
-                      <div className="flex items-center gap-2 text-green-600 font-semibold text-sm">
+                      <div className="flex items-center gap-2 text-success font-semibold text-sm">
                         <CheckCircle2 className="w-5 h-5" />
                         {language === 'ar' ? 'مكتمل' : 'Lesson completed'}
                       </div>
@@ -404,8 +404,8 @@ export default function Learn() {
                   {/* Type icon */}
                   <div className="mt-0.5 shrink-0">
                     {l.type === 'video'
-                      ? <PlayCircle className={`w-4 h-4 ${isDone ? 'text-green-500' : ''}`} />
-                      : <FileText className={`w-4 h-4 ${isDone ? 'text-green-500' : ''}`} />
+                      ? <PlayCircle className={`w-4 h-4 ${isDone ? 'text-success' : ''}`} />
+                      : <FileText className={`w-4 h-4 ${isDone ? 'text-success' : ''}`} />
                     }
                   </div>
                   {/* Title + duration */}
@@ -418,7 +418,7 @@ export default function Learn() {
                   {/* Completion checkmark */}
                   {isDone && (
                     <div className="shrink-0 mt-0.5">
-                      <CheckCircle2 className="w-4 h-4 text-green-500" />
+                      <CheckCircle2 className="w-4 h-4 text-success" />
                     </div>
                   )}
                 </button>
@@ -499,7 +499,7 @@ function CertificateClaim({ courseId, language }: { courseId: number; language: 
     return (
       <a
         href={`${import.meta.env.BASE_URL.replace(/\/$/, '')}/certificate/${state.certificate.code}`}
-        className="mt-3 flex items-center justify-center gap-2 w-full py-2 rounded-xl bg-amber-500/10 border border-amber-500/40 text-amber-600 text-xs font-bold hover:bg-amber-500/20 transition-colors"
+        className="mt-3 flex items-center justify-center gap-2 w-full py-2 rounded-xl bg-warning/10 border border-amber-500/40 text-warning text-xs font-bold hover:bg-warning/20 transition-colors"
       >
         🎓 {isAr ? 'عرض شهادتك' : 'View your certificate'}
       </a>

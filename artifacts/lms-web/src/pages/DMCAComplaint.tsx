@@ -81,8 +81,8 @@ export default function DMCAComplaint() {
     return (
       <PageContainer>
         <div className="max-w-2xl mx-auto py-24 px-4 text-center">
-          <div className="w-20 h-20 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-6">
-            <CheckCircle2 className="w-10 h-10 text-green-600" />
+          <div className="w-20 h-20 bg-success/10 rounded-full flex items-center justify-center mx-auto mb-6">
+            <CheckCircle2 className="w-10 h-10 text-success" />
           </div>
           <h1 className="text-3xl font-display font-bold mb-4">
             {t('تم استلام البلاغ', 'Complaint Received')}
@@ -119,13 +119,13 @@ export default function DMCAComplaint() {
       </div>
 
       <div className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
-        <div className="bg-amber-50 border border-amber-200 rounded-xl p-5 mb-8 flex items-start gap-3" dir={dir}>
-          <AlertCircle className="w-6 h-6 text-amber-600 shrink-0 mt-0.5" />
+        <div className="bg-warning/10 border border-warning/30 rounded-xl p-5 mb-8 flex items-start gap-3" dir={dir}>
+          <AlertCircle className="w-6 h-6 text-warning shrink-0 mt-0.5" />
           <div>
             <h3 className="font-bold text-amber-900 mb-1">
               {t('ملاحظة قانونية هامة', 'Important Legal Notice')}
             </h3>
-            <p className="text-sm text-amber-800 leading-relaxed">
+            <p className="text-sm text-warning leading-relaxed">
               {t(
                 'تقديم بلاغ كاذب أو مضلل قد يعرضك للمساءلة القانونية ويؤدي إلى حظر حسابك. يرجى التأكد من أنك المالك الشرعي للمحتوى أو مخول بالتصرف نيابة عنه.',
                 'Submitting a false or misleading report may expose you to legal liability and result in a ban of your account. Please ensure you are the legitimate owner of the content or authorized to act on their behalf.'

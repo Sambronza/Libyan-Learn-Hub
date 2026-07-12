@@ -158,8 +158,8 @@ export default function Checkout() {
       <div className="max-w-2xl mx-auto px-4 py-16">
         {step === 'done' ? (
           <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} className="text-center py-20">
-            <div className="w-20 h-20 rounded-full bg-green-100 flex items-center justify-center mx-auto mb-6">
-              <CheckCircle className="w-10 h-10 text-green-500" />
+            <div className="w-20 h-20 rounded-full bg-success/10 flex items-center justify-center mx-auto mb-6">
+              <CheckCircle className="w-10 h-10 text-success" />
             </div>
             <h2 className="text-3xl font-display font-bold text-foreground mb-3">
               {isFree ? 'تم التسجيل بنجاح!' : 'تم استلام طلب الدفع!'}
@@ -212,7 +212,7 @@ export default function Checkout() {
                       {isAr ? 'اختر مدة الاشتراك' : 'Choose Subscription Duration'}
                     </h2>
                     {isRenewal && (
-                      <div className="bg-blue-50 border border-blue-200 rounded-2xl p-4 mb-4 text-sm text-blue-700">
+                      <div className="bg-info/10 border border-info/30 rounded-2xl p-4 mb-4 text-sm text-info">
                         {isAr
                           ? 'تجديد الاشتراك: ستُضاف المدة الجديدة إلى تاريخ انتهاء اشتراكك الحالي — لن تخسر أي أيام متبقية.'
                           : 'Renewal: the new period will be added on top of your current expiry date — no remaining days are lost.'}
@@ -237,7 +237,7 @@ export default function Checkout() {
                               {available ? `${p} LYD` : (isAr ? 'غير متاح' : 'N/A')}
                             </div>
                             {m === 12 && available && (
-                              <div className="text-[10px] text-green-600 font-bold mt-1">{isAr ? 'أفضل قيمة' : 'Best value'}</div>
+                              <div className="text-[10px] text-success font-bold mt-1">{isAr ? 'أفضل قيمة' : 'Best value'}</div>
                             )}
                           </button>
                         );
@@ -259,7 +259,7 @@ export default function Checkout() {
                       </Button>
                     </div>
                     {coupon && (
-                      <p className="text-xs text-green-600 font-bold mt-2">
+                      <p className="text-xs text-success font-bold mt-2">
                         {isAr ? `تم تطبيق الخصم: -${coupon.discount} د.ل — السعر الجديد ${coupon.finalAmount} د.ل` : `Discount applied: −${coupon.discount} LYD — new price ${coupon.finalAmount} LYD`}
                       </p>
                     )}
@@ -268,11 +268,11 @@ export default function Checkout() {
                 )}
                 <h2 className="text-xl font-display font-bold text-foreground mb-4">اختر طريقة الدفع</h2>
                 {isFree ? (
-                  <div className="bg-green-50 border border-green-200 rounded-2xl p-6 mb-6 flex items-center gap-4">
-                    <CheckCircle className="w-8 h-8 text-green-500 flex-shrink-0" />
+                  <div className="bg-success/10 border border-success/30 rounded-2xl p-6 mb-6 flex items-center gap-4">
+                    <CheckCircle className="w-8 h-8 text-success flex-shrink-0" />
                     <div>
-                      <p className="font-bold text-green-800">هذه الدورة مجانية!</p>
-                      <p className="text-sm text-green-600">يمكنك التسجيل مباشرة بدون أي رسوم.</p>
+                      <p className="font-bold text-success">هذه الدورة مجانية!</p>
+                      <p className="text-sm text-success">يمكنك التسجيل مباشرة بدون أي رسوم.</p>
                     </div>
                   </div>
                 ) : (
@@ -314,9 +314,9 @@ export default function Checkout() {
                   </div>
                 )}
 
-                <div className="bg-amber-50 border border-amber-200 rounded-2xl p-4 mb-6 flex gap-3">
-                  <AlertCircle className="w-5 h-5 text-amber-600 flex-shrink-0 mt-0.5" />
-                  <p className="text-sm text-amber-700">
+                <div className="bg-warning/10 border border-warning/30 rounded-2xl p-4 mb-6 flex gap-3">
+                  <AlertCircle className="w-5 h-5 text-warning flex-shrink-0 mt-0.5" />
+                  <p className="text-sm text-warning">
                     {isFree
                       ? 'الدورة مجانية تماماً — ستحصل على وصول فوري بعد الضغط على "سجّل الآن".'
                       : 'سيتم توجيهك إلى بوابة الدفع الآمنة لإتمام الدفع ببطاقتك أو محفظتك الإلكترونية.'}
