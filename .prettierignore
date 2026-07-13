@@ -1,0 +1,21 @@
+# Dependencies & build output
+node_modules
+dist
+build
+static-build
+.eas
+
+# Generated code (owned by codegen, not hand-edited)
+lib/api-zod/src
+lib/api-client-react/src
+lib/db/dist
+
+# Lockfiles & data
+pnpm-lock.yaml
+*.lock
+database_backup.json
+*.zip
+
+# Native / mobile artifacts
+artifacts/lms-mobile/android
+artifacts/lms-mobile/ios
