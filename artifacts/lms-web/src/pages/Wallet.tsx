@@ -19,6 +19,7 @@ import {
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { useApi } from "@/hooks/useApi";
 import { format } from "date-fns";
+import { ar as arLocale } from "date-fns/locale";
 import { PageContainer } from "@/components/layout/PageContainer";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -41,6 +42,16 @@ interface RechargeTransaction extends WalletTransaction {
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
+/** Localized currency label. */
+function currency(ar: boolean) {
+  return ar ? "د.ل" : "LYD";
+}
+
+/** Localized date/time formatting (Arabic locale in RTL). */
+function formatDateTime(dateStr: string, ar: boolean) {
+  return format(new Date(dateStr), "MMM d, yyyy h:mm a", ar ? { locale: arLocale } : undefined);
+}
+
 function buildWalletQuery(from: string, to: string): string {
   const params = new URLSearchParams();
   if (from) params.set("from", from);
@@ -60,14 +71,15 @@ function buildRechargeQuery(from: string, to: string): string {
 // ─── Sub-components ───────────────────────────────────────────────────────────
 
 function DateRangeFilter({
-  from, to, onChange, onClear, language,
+  from, to, onChange, onClear,
 }: {
   from: string;
   to: string;
   onChange: (from: string, to: string) => void;
   onClear: () => void;
-  language: string;
 }) {
+  const { language } = useLanguage();
+  const ar = language === "ar";
   const hasFilter = from || to;
   return (
     <div className="flex flex-wrap items-center gap-2">
@@ -77,16 +89,16 @@ function DateRangeFilter({
         value={from}
         onChange={(e) => onChange(e.target.value, to)}
         className="h-8 w-36 text-sm"
-        aria-label={language === "ar" ? "فلتر من تاريخ" : "Filter from date"}
+        aria-label={ar ? "من تاريخ" : "Filter from date"}
         id="wallet-filter-from"
       />
-      <span className="text-muted-foreground text-sm">→</span>
+      <span className="text-muted-foreground text-sm">{ar ? "←" : "→"}</span>
       <Input
         type="date"
         value={to}
         onChange={(e) => onChange(from, e.target.value)}
         className="h-8 w-36 text-sm"
-        aria-label={language === "ar" ? "فلتر إلى تاريخ" : "Filter to date"}
+        aria-label={ar ? "إلى تاريخ" : "Filter to date"}
         id="wallet-filter-to"
       />
       {hasFilter && (
@@ -95,17 +107,19 @@ function DateRangeFilter({
           size="sm"
           onClick={onClear}
           className="h-8 px-2 text-muted-foreground hover:text-foreground"
-          aria-label={language === "ar" ? "مسح فلتر التاريخ" : "Clear date filter"}
+          aria-label={ar ? "مسح الفلتر" : "Clear date filter"}
         >
           <X className="h-3.5 w-3.5 mr-1" />
-          {language === "ar" ? "مسح" : "Clear"}
+          {ar ? "مسح" : "Clear"}
         </Button>
       )}
     </div>
   );
 }
 
-function TransactionRow({ tx, language }: { tx: WalletTransaction; language: string }) {
+function TransactionRow({ tx }: { tx: WalletTransaction }) {
+  const { language } = useLanguage();
+  const ar = language === "ar";
   const isCredit = tx.type === "credit";
   return (
     <motion.div
@@ -129,28 +143,30 @@ function TransactionRow({ tx, language }: { tx: WalletTransaction; language: str
         </div>
         <div className="min-w-0">
           <p className="font-medium truncate">
-            {tx.description || (isCredit
-              ? (language === "ar" ? "إيداع" : "Credit")
-              : (language === "ar" ? "خصم" : "Debit"))}
+            {tx.description || (isCredit ? (ar ? "إيداع" : "Credit") : (ar ? "خصم" : "Debit"))}
           </p>
           <p className="text-xs text-muted-foreground">
-            {format(new Date(tx.createdAt), "MMM d, yyyy h:mm a")}
+            {formatDateTime(tx.createdAt, ar)}
           </p>
         </div>
       </div>
       <div
         className={`font-bold shrink-0 ${
-          isCredit ? "text-success" : "text-destructive"
+          isCredit
+            ? "text-success"
+            : "text-destructive"
         }`}
       >
         {isCredit ? "+" : "-"}
-        {parseFloat(tx.amount).toFixed(2)} LYD
+        {parseFloat(tx.amount).toFixed(2)} {currency(ar)}
       </div>
     </motion.div>
   );
 }
 
-function RechargeRow({ tx, language }: { tx: RechargeTransaction; language: string }) {
+function RechargeRow({ tx }: { tx: RechargeTransaction }) {
+  const { language } = useLanguage();
+  const ar = language === "ar";
   return (
     <motion.div
       initial={{ opacity: 0, y: 8 }}
@@ -163,11 +179,11 @@ function RechargeRow({ tx, language }: { tx: RechargeTransaction; language: stri
         </div>
         <div className="min-w-0">
           <p className="font-medium truncate">
-            {tx.description || (language === "ar" ? "شحن المحفظة" : "Wallet Recharge")}
+            {tx.description || (ar ? "شحن المحفظة" : "Wallet Recharge")}
           </p>
           <div className="flex flex-wrap gap-x-3 gap-y-0.5 mt-0.5">
             <p className="text-xs text-muted-foreground">
-              {format(new Date(tx.createdAt), "MMM d, yyyy h:mm a")}
+              {formatDateTime(tx.createdAt, ar)}
             </p>
             <span className="text-xs text-muted-foreground">·</span>
             <p className="text-xs text-muted-foreground">
@@ -179,7 +195,7 @@ function RechargeRow({ tx, language }: { tx: RechargeTransaction; language: stri
         </div>
       </div>
       <div className="font-bold shrink-0 text-success">
-        +{parseFloat(tx.amount).toFixed(2)} LYD
+        +{parseFloat(tx.amount).toFixed(2)} {currency(ar)}
       </div>
     </motion.div>
   );
@@ -202,8 +218,7 @@ type ActiveTab = "all" | "recharge";
 export default function Wallet() {
   const { toast } = useToast();
   const { language } = useLanguage();
-  const isAr = language === "ar";
-
+  const ar = language === "ar";
   const [code, setCode] = useState("");
   const [activeTab, setActiveTab] = useState<ActiveTab>("all");
   const [filterFrom, setFilterFrom] = useState("");
@@ -247,9 +262,9 @@ export default function Wallet() {
       api.post("/payments/redeem-code", data),
     onSuccess: () => {
       toast({
-        title: isAr ? "تم بنجاح" : "Success",
-        description: isAr
-          ? "تم استرداد البطاقة المدفوعة مسبقاً بنجاح! تم تحديث رصيدك."
+        title: ar ? "تم بنجاح" : "Success",
+        description: ar
+          ? "تم استخدام البطاقة المدفوعة مسبقًا بنجاح! تم تحديث رصيدك."
           : "Prepaid card redeemed successfully! Your balance has been updated.",
       });
       setCode("");
@@ -257,8 +272,8 @@ export default function Wallet() {
     },
     onError: (error: any) => {
       toast({
-        title: isAr ? "خطأ" : "Error",
-        description: error.message || (isAr ? "فشل استرداد البطاقة" : "Failed to redeem card"),
+        title: ar ? "خطأ" : "Error",
+        description: error.message || (ar ? "فشل استخدام البطاقة" : "Failed to redeem card"),
         variant: "destructive",
       });
     },
@@ -295,18 +310,16 @@ export default function Wallet() {
 
   return (
     <PageContainer>
-      <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-8" dir={isAr ? "rtl" : "ltr"}>
+      <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           className="mb-8"
         >
-          <h1 className="text-3xl font-bold tracking-tight mb-2">
-            {isAr ? "محفظتي" : "My Wallet"}
-          </h1>
+          <h1 className="text-3xl font-bold tracking-tight mb-2">{ar ? "محفظتي" : "My Wallet"}</h1>
           <p className="text-muted-foreground">
-            {isAr
-              ? "إدارة رصيدك، استرداد البطاقات المدفوعة مسبقاً، وعرض سجل المعاملات."
+            {ar
+              ? "إدارة رصيدك، واستخدام البطاقات المدفوعة مسبقًا، وعرض سجل المعاملات."
               : "Manage your balance, redeem prepaid cards, and view transaction history."}
           </p>
         </motion.div>
@@ -321,19 +334,16 @@ export default function Wallet() {
               </div>
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
-                  <WalletIcon className="h-5 w-5" />
-                  {isAr ? "الرصيد الحالي" : "Current Balance"}
+                  <WalletIcon className="h-5 w-5" /> {ar ? "الرصيد الحالي" : "Current Balance"}
                 </CardTitle>
               </CardHeader>
               <CardContent>
                 <div className="text-5xl font-bold mb-2">
                   {balance}{" "}
-                  <span className="text-2xl opacity-80">LYD</span>
+                  <span className="text-2xl opacity-80">{currency(ar)}</span>
                 </div>
                 <p className="opacity-80 text-sm">
-                  {isAr
-                    ? "متاح للدورات والدروس الخصوصية"
-                    : "Available for courses and tutoring"}
+                  {ar ? "متاح للدورات والدروس الخصوصية" : "Available for courses and tutoring"}
                 </p>
               </CardContent>
             </Card>
@@ -342,19 +352,18 @@ export default function Wallet() {
             <Card>
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
-                  <CreditCard className="h-5 w-5" />
-                  {isAr ? "استرداد بطاقة مدفوعة مسبقاً" : "Redeem Prepaid Card"}
+                  <CreditCard className="h-5 w-5" /> {ar ? "استخدام بطاقة مدفوعة مسبقًا" : "Redeem Prepaid Card"}
                 </CardTitle>
               </CardHeader>
               <CardContent>
                 <form onSubmit={handleRedeem} className="space-y-4">
                   <div className="space-y-2">
                     <label htmlFor="code" className="text-sm font-medium">
-                      {isAr ? "رمز البطاقة" : "Card Code"}
+                      {ar ? "رمز البطاقة" : "Card Code"}
                     </label>
                     <Input
                       id="code"
-                      placeholder="e.g. XXXX-XXXX-XXXX-XXXX"
+                      placeholder={ar ? "مثال: XXXX-XXXX-XXXX-XXXX" : "e.g. XXXX-XXXX-XXXX-XXXX"}
                       value={code}
                       onChange={(e) => setCode(e.target.value)}
                       className="font-mono"
@@ -368,9 +377,7 @@ export default function Wallet() {
                     disabled={!code.trim() || isRedeeming}
                     id="wallet-redeem-btn"
                   >
-                    {isRedeeming
-                      ? (isAr ? "جاري الاسترداد…" : "Redeeming…")
-                      : (isAr ? "استرداد الآن" : "Redeem Now")}
+                    {isRedeeming ? (ar ? "جارٍ التنفيذ…" : "Redeeming…") : (ar ? "استخدام الآن" : "Redeem Now")}
                   </Button>
                 </form>
               </CardContent>
@@ -380,9 +387,7 @@ export default function Wallet() {
             {referralData?.code && (
               <Card>
                 <CardContent className="pt-6">
-                  <p className="text-sm font-bold mb-1">
-                    🎁 {isAr ? "ادعُ أصدقاءك، واكسب رصيداً" : "Invite friends, earn credit"}
-                  </p>
+                  <p className="text-sm font-bold mb-1">🎁 {ar ? "ادعُ أصدقاءك واكسب رصيدًا" : "Invite friends, earn credit"}</p>
                   <p className="text-xs text-muted-foreground mb-3">{referralData.message}</p>
                   <div className="flex gap-2">
                     <code className="flex-1 bg-muted rounded-lg px-3 py-2 text-center font-mono font-bold tracking-widest" dir="ltr">
@@ -392,10 +397,10 @@ export default function Wallet() {
                       variant="outline"
                       onClick={() => {
                         navigator.clipboard?.writeText(referralData.code);
-                        toast({ title: isAr ? "تم نسخ رمز الإحالة!" : "Referral code copied!" });
+                        toast({ title: ar ? "تم نسخ رمز الإحالة!" : "Referral code copied!" });
                       }}
                     >
-                      {isAr ? "نسخ" : "Copy"}
+                      {ar ? "نسخ" : "Copy"}
                     </Button>
                   </div>
                 </CardContent>
@@ -410,29 +415,25 @@ export default function Wallet() {
                 className="grid grid-cols-2 gap-3"
               >
                 <div className="rounded-xl border bg-card p-4 text-center">
-                  <p className="text-xs text-muted-foreground mb-1">
-                    {isAr ? "إجمالي الوارد" : "Total In"}
-                  </p>
+                  <p className="text-xs text-muted-foreground mb-1">{ar ? "إجمالي الوارد" : "Total In"}</p>
                   <p className="text-lg font-bold text-success">
                     +
                     {transactions
                       .filter((t) => t.type === "credit")
                       .reduce((s, t) => s + parseFloat(t.amount), 0)
                       .toFixed(2)}{" "}
-                    <span className="text-xs">LYD</span>
+                    <span className="text-xs">{currency(ar)}</span>
                   </p>
                 </div>
                 <div className="rounded-xl border bg-card p-4 text-center">
-                  <p className="text-xs text-muted-foreground mb-1">
-                    {isAr ? "إجمالي الصادر" : "Total Out"}
-                  </p>
+                  <p className="text-xs text-muted-foreground mb-1">{ar ? "إجمالي الصادر" : "Total Out"}</p>
                   <p className="text-lg font-bold text-destructive">
                     -
                     {transactions
                       .filter((t) => t.type === "debit")
                       .reduce((s, t) => s + parseFloat(t.amount), 0)
                       .toFixed(2)}{" "}
-                    <span className="text-xs">LYD</span>
+                    <span className="text-xs">{currency(ar)}</span>
                   </p>
                 </div>
               </motion.div>
@@ -456,7 +457,7 @@ export default function Wallet() {
                       }`}
                     >
                       <Tag className="h-4 w-4" />
-                      {isAr ? "جميع المعاملات" : "All Transactions"}
+                      {ar ? "كل المعاملات" : "All Transactions"}
                       {transactions.length > 0 && (
                         <span className="ml-1 rounded-full bg-muted px-1.5 py-0.5 text-xs font-medium text-muted-foreground">
                           {transactions.length}
@@ -473,7 +474,7 @@ export default function Wallet() {
                       }`}
                     >
                       <History className="h-4 w-4" />
-                      {isAr ? "سجل الشحن" : "Recharge History"}
+                      {ar ? "سجل الشحن" : "Recharge History"}
                     </button>
                   </div>
 
@@ -483,7 +484,6 @@ export default function Wallet() {
                     to={filterTo}
                     onChange={handleDateChange}
                     onClear={handleDateClear}
-                    language={language}
                   />
                 </div>
               </CardHeader>
@@ -502,19 +502,19 @@ export default function Wallet() {
                         <EmptyState
                           message={
                             hasFilter
-                              ? (isAr ? "لا توجد معاملات في هذه الفترة الزمنية." : "No transactions in this date range.")
-                              : (isAr ? "لا توجد معاملات." : "No transactions found.")
+                              ? (ar ? "لا توجد معاملات في هذا النطاق الزمني." : "No transactions in this date range.")
+                              : (ar ? "لا توجد معاملات." : "No transactions found.")
                           }
                           sub={
                             hasFilter
-                              ? (isAr ? "حاول تعديل فلتر التاريخ." : "Try adjusting the date filter.")
-                              : (isAr ? "استرد بطاقة مدفوعة مسبقاً للبدء!" : "Redeem a prepaid card to get started!")
+                              ? (ar ? "جرّب تعديل نطاق التاريخ." : "Try adjusting the date filter.")
+                              : (ar ? "استخدم بطاقة مدفوعة مسبقًا للبدء!" : "Redeem a prepaid card to get started!")
                           }
                         />
                       ) : (
                         <div className="space-y-3">
                           {transactions.map((tx) => (
-                            <TransactionRow key={tx.id} tx={tx} language={language} />
+                            <TransactionRow key={tx.id} tx={tx} />
                           ))}
                         </div>
                       )}
@@ -537,13 +537,13 @@ export default function Wallet() {
                         <EmptyState
                           message={
                             hasFilter
-                              ? (isAr ? "لا توجد عمليات شحن في هذه الفترة الزمنية." : "No recharges in this date range.")
-                              : (isAr ? "لا يوجد سجل شحن بعد." : "No recharge history yet.")
+                              ? (ar ? "لا توجد عمليات شحن في هذا النطاق الزمني." : "No recharges in this date range.")
+                              : (ar ? "لا يوجد سجل شحن بعد." : "No recharge history yet.")
                           }
                           sub={
                             hasFilter
-                              ? (isAr ? "حاول تعديل فلتر التاريخ." : "Try adjusting the date filter.")
-                              : (isAr ? "ستظهر هنا عمليات استرداد بطاقاتك المدفوعة مسبقاً." : "Your prepaid card redemptions will appear here.")
+                              ? (ar ? "جرّب تعديل نطاق التاريخ." : "Try adjusting the date filter.")
+                              : (ar ? "ستظهر هنا عمليات استخدام البطاقات المدفوعة مسبقًا." : "Your prepaid card redemptions will appear here.")
                           }
                         />
                       ) : (
@@ -551,12 +551,12 @@ export default function Wallet() {
                           {/* Header row */}
                           <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground px-1">
                             <Receipt className="h-3.5 w-3.5" />
-                            {isAr
-                              ? `${recharges.length} عملية شحن${hasFilter ? " (مفلتر)" : ""}`
+                            {ar
+                              ? `${recharges.length} عملية شحن${hasFilter ? " (مُصفّاة)" : ""}`
                               : `${recharges.length} recharge${recharges.length !== 1 ? "s" : ""}${hasFilter ? " (filtered)" : ""}`}
                           </div>
                           {recharges.map((tx) => (
-                            <RechargeRow key={tx.id} tx={tx} language={language} />
+                            <RechargeRow key={tx.id} tx={tx} />
                           ))}
                         </div>
                       )}
