@@ -1,4 +1,5 @@
 import { Router } from "express";
+import { serverError } from "../lib/http.js";
 import { db } from "@workspace/db";
 import { advertisementsTable, usersTable, paymentsTable } from "@workspace/db";
 import { eq, and, gte, lte, desc, count } from "drizzle-orm";
@@ -9,7 +10,7 @@ const router = Router();
 // ── Teacher: Create ad ───────────────────────────────────────────
 router.post("/", requireAuth, requireRole("teacher", "admin"), async (req, res) => {
   try {
-    const { userId } = (req as any).user;
+    const { userId } = req.user!;
     const { adType, startDate, endDate, budgetPaid, paymentId } = req.body;
 
     if (!adType || !startDate || !endDate) {
@@ -37,7 +38,7 @@ router.post("/", requireAuth, requireRole("teacher", "admin"), async (req, res) 
 
     res.json(ad);
   } catch (err: any) {
-    res.status(500).json({ error: "Server error", message: err.message });
+    serverError(res, err);
   }
 });
 
@@ -67,20 +68,20 @@ router.get("/active", async (_req, res) => {
 
     res.json(activeAds);
   } catch (err: any) {
-    res.status(500).json({ error: "Server error", message: err.message });
+    serverError(res, err);
   }
 });
 
 // ── Teacher: Get own ads ─────────────────────────────────────────
 router.get("/my", requireAuth, requireRole("teacher", "admin"), async (req, res) => {
   try {
-    const { userId } = (req as any).user;
+    const { userId } = req.user!;
     const ads = await db.select().from(advertisementsTable)
       .where(eq(advertisementsTable.teacherId, userId))
       .orderBy(desc(advertisementsTable.createdAt));
     res.json(ads);
   } catch (err: any) {
-    res.status(500).json({ error: "Server error", message: err.message });
+    serverError(res, err);
   }
 });
 
@@ -96,7 +97,7 @@ router.post("/:id/click", async (req, res) => {
     }).where(eq(advertisementsTable.id, adId));
     res.json({ success: true });
   } catch (err: any) {
-    res.status(500).json({ error: "Server error", message: err.message });
+    serverError(res, err);
   }
 });
 

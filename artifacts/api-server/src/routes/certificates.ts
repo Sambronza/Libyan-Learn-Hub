@@ -1,4 +1,5 @@
 import { Router } from "express";
+import { serverError } from "../lib/http.js";
 import crypto from "crypto";
 import { db } from "@workspace/db";
 import {
@@ -65,7 +66,7 @@ async function checkFullWatch(userId: number, courseId: number): Promise<{
 /** Eligibility status for the current student (drives the client UI). */
 router.get("/courses/:courseId/eligibility", requireAuth, async (req, res) => {
   try {
-    const { userId, role } = (req as any).user;
+    const { userId, role } = req.user!;
     const courseId = parseInt(req.params.courseId as string);
 
     const [course] = await db.select().from(coursesTable).where(eq(coursesTable.id, courseId)).limit(1);
@@ -123,14 +124,14 @@ router.get("/courses/:courseId/eligibility", requireAuth, async (req, res) => {
       quizPassed,
     });
   } catch (err: any) {
-    res.status(500).json({ error: "Server error", message: err.message });
+    serverError(res, err);
   }
 });
 
 /** Issue the certificate (validates everything server-side). */
 router.post("/courses/:courseId/issue", requireAuth, async (req, res) => {
   try {
-    const { userId, role } = (req as any).user;
+    const { userId, role } = req.user!;
     const courseId = parseInt(req.params.courseId as string);
 
     const [course] = await db.select().from(coursesTable).where(eq(coursesTable.id, courseId)).limit(1);
@@ -232,18 +233,18 @@ router.post("/courses/:courseId/issue", requireAuth, async (req, res) => {
 
     res.status(201).json({ success: true, certificate });
   } catch (err: any) {
-    res.status(500).json({ error: "Server error", message: err.message });
+    serverError(res, err);
   }
 });
 
 /** The student's certificates. */
 router.get("/my", requireAuth, async (req, res) => {
   try {
-    const { userId } = (req as any).user;
+    const { userId } = req.user!;
     const certs = await db.select().from(certificatesTable).where(eq(certificatesTable.userId, userId));
     res.json(certs);
   } catch (err: any) {
-    res.status(500).json({ error: "Server error", message: err.message });
+    serverError(res, err);
   }
 });
 
@@ -275,7 +276,7 @@ router.get("/verify/:code", async (req, res) => {
       },
     });
   } catch (err: any) {
-    res.status(500).json({ error: "Server error", message: err.message });
+    serverError(res, err);
   }
 });
 

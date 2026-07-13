@@ -1,4 +1,5 @@
 import { Router } from "express";
+import { serverError } from "../lib/http.js";
 import { db } from "@workspace/db";
 import {
   liveSessionFeedbackTable,
@@ -24,7 +25,7 @@ const router = Router();
  */
 router.get("/live-session/:sessionId/mine", requireAuth, async (req, res) => {
   try {
-    const { userId } = (req as any).user;
+    const { userId } = req.user!;
     const sessionId = parseParam(req.params.sessionId);
 
     const [existing] = await db
@@ -40,7 +41,7 @@ router.get("/live-session/:sessionId/mine", requireAuth, async (req, res) => {
 
     res.json({ submitted: !!existing, feedback: existing || null });
   } catch (err: any) {
-    res.status(500).json({ error: "Server error", message: err.message });
+    serverError(res, err);
   }
 });
 
@@ -51,7 +52,7 @@ router.get("/live-session/:sessionId/mine", requireAuth, async (req, res) => {
  */
 router.post("/live-session/:sessionId", requireAuth, async (req, res) => {
   try {
-    const { userId } = (req as any).user;
+    const { userId } = req.user!;
     const sessionId = parseParam(req.params.sessionId);
     const { contentRating, technicalRating, comment } = req.body;
 
@@ -101,7 +102,7 @@ router.post("/live-session/:sessionId", requireAuth, async (req, res) => {
 
     res.json({ success: true, feedback });
   } catch (err: any) {
-    res.status(500).json({ error: "Server error", message: err.message });
+    serverError(res, err);
   }
 });
 
@@ -115,7 +116,7 @@ router.post("/live-session/:sessionId", requireAuth, async (req, res) => {
  */
 router.get("/course/:courseId/mine", requireAuth, async (req, res) => {
   try {
-    const { userId } = (req as any).user;
+    const { userId } = req.user!;
     const courseId = parseParam(req.params.courseId);
 
     const [existing] = await db
@@ -131,7 +132,7 @@ router.get("/course/:courseId/mine", requireAuth, async (req, res) => {
 
     res.json({ submitted: !!existing, review: existing || null });
   } catch (err: any) {
-    res.status(500).json({ error: "Server error", message: err.message });
+    serverError(res, err);
   }
 });
 
@@ -142,7 +143,7 @@ router.get("/course/:courseId/mine", requireAuth, async (req, res) => {
  */
 router.post("/course/:courseId", requireAuth, async (req, res) => {
   try {
-    const { userId } = (req as any).user;
+    const { userId } = req.user!;
     const courseId = parseParam(req.params.courseId);
     const { rating, comment } = req.body;
 
@@ -196,7 +197,7 @@ router.post("/course/:courseId", requireAuth, async (req, res) => {
 
     res.json({ success: true, review });
   } catch (err: any) {
-    res.status(500).json({ error: "Server error", message: err.message });
+    serverError(res, err);
   }
 });
 
@@ -210,7 +211,7 @@ router.post("/course/:courseId", requireAuth, async (req, res) => {
  */
 router.get("/tutoring/:requestId/mine", requireAuth, async (req, res) => {
   try {
-    const { userId } = (req as any).user;
+    const { userId } = req.user!;
     const requestId = parseParam(req.params.requestId);
 
     const [tRequest] = await db
@@ -230,7 +231,7 @@ router.get("/tutoring/:requestId/mine", requireAuth, async (req, res) => {
       review: tRequest.studentReview,
     });
   } catch (err: any) {
-    res.status(500).json({ error: "Server error", message: err.message });
+    serverError(res, err);
   }
 });
 
@@ -241,7 +242,7 @@ router.get("/tutoring/:requestId/mine", requireAuth, async (req, res) => {
  */
 router.post("/tutoring/:requestId", requireAuth, async (req, res) => {
   try {
-    const { userId } = (req as any).user;
+    const { userId } = req.user!;
     const requestId = parseParam(req.params.requestId);
     const { rating, comment } = req.body;
 
@@ -279,7 +280,7 @@ router.post("/tutoring/:requestId", requireAuth, async (req, res) => {
 
     res.json({ success: true, rating: updated.studentRating, review: updated.studentReview });
   } catch (err: any) {
-    res.status(500).json({ error: "Server error", message: err.message });
+    serverError(res, err);
   }
 });
 

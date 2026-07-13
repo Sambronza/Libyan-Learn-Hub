@@ -1,4 +1,5 @@
 import { Router } from "express";
+import { serverError } from "../lib/http.js";
 import { db } from "@workspace/db";
 import { copyrightComplaintsTable, usersTable } from "@workspace/db";
 import { eq, desc } from "drizzle-orm";
@@ -28,7 +29,7 @@ router.post("/", async (req, res) => {
 
     res.status(201).json(complaint);
   } catch (err: any) {
-    res.status(500).json({ error: "Server error", message: err.message });
+    serverError(res, err);
   }
 });
 
@@ -53,7 +54,7 @@ router.get("/", requireAuth, requireRole("admin"), async (_req, res) => {
 
     res.json(complaints);
   } catch (err: any) {
-    res.status(500).json({ error: "Server error", message: err.message });
+    serverError(res, err);
   }
 });
 
@@ -61,7 +62,7 @@ router.get("/", requireAuth, requireRole("admin"), async (_req, res) => {
 router.patch("/:id", requireAuth, requireRole("admin"), async (req, res) => {
   try {
     const id = parseParam(req.params.id);
-    const { userId } = (req as any).user;
+    const { userId } = req.user!;
     const { status, adminNotes } = req.body;
 
     await db.update(copyrightComplaintsTable).set({
@@ -73,7 +74,7 @@ router.patch("/:id", requireAuth, requireRole("admin"), async (req, res) => {
 
     res.json({ success: true });
   } catch (err: any) {
-    res.status(500).json({ error: "Server error", message: err.message });
+    serverError(res, err);
   }
 });
 

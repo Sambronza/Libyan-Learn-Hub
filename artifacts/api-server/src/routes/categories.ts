@@ -1,4 +1,5 @@
 import { Router } from "express";
+import { serverError } from "../lib/http.js";
 import { db } from "@workspace/db";
 import { categoriesTable, coursesTable } from "@workspace/db";
 import { eq, count } from "drizzle-orm";
@@ -43,7 +44,7 @@ router.get("/", async (_req, res) => {
     );
     res.json(result);
   } catch (err: any) {
-    res.status(500).json({ error: "Server error", message: err.message });
+    serverError(res, err);
   }
 });
 

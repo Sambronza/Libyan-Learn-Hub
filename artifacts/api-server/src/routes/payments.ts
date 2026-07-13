@@ -1,4 +1,5 @@
 import { Router } from "express";
+import { serverError } from "../lib/http.js";
 import { db } from "@workspace/db";
 import {
   paymentsTable,
@@ -79,7 +80,7 @@ async function creditTeacher(paymentId: number, teacherId: number, amount: numbe
 
 router.post("/create-session", requireAuth, async (req, res) => {
   try {
-    const { userId } = (req as any).user;
+    const { userId } = req.user!;
     const { type, itemId } = req.body; // type: 'course' or 'session', itemId: number
 
     let amount = 0;
@@ -267,14 +268,14 @@ router.post("/create-session", requireAuth, async (req, res) => {
 
     res.json({ url: checkout.url });
   } catch (err: any) {
-    res.status(500).json({ error: "Server error", message: err.message });
+    serverError(res, err);
   }
 });
 
 // --- Subscription Plan Upgrades ---
 router.post("/upgrade-plan", requireAuth, async (req, res) => {
   try {
-    const { userId } = (req as any).user;
+    const { userId } = req.user!;
     const { targetTier } = req.body;
 
     if (!targetTier || !["bronze", "golden", "diamond"].includes(targetTier)) {
@@ -313,7 +314,7 @@ router.post("/upgrade-plan", requireAuth, async (req, res) => {
     const checkout = await provider.createCheckout(payment);
     res.json({ url: checkout.url, amount: difference });
   } catch (err: any) {
-    res.status(500).json({ error: "Server error", message: err.message });
+    serverError(res, err);
   }
 });
 
@@ -355,7 +356,7 @@ router.get("/mock-gateway", requireAuth, (req, res) => {
 
 router.get("/callback", requireAuth, async (req, res) => {
   try {
-    const { userId } = (req as any).user;
+    const { userId } = req.user!;
     const paymentId = parseInt(req.query.paymentId as string);
     const status = req.query.status as string; // 'success' or 'cancel'
 
@@ -464,7 +465,7 @@ router.get("/callback", requireAuth, async (req, res) => {
 
 router.post("/refund-requests", requireAuth, async (req, res) => {
   try {
-    const { userId } = (req as any).user;
+    const { userId } = req.user!;
     const { courseId, reason } = req.body;
     if (!courseId) { res.status(400).json({ error: "courseId is required" }); return; }
 
@@ -522,20 +523,20 @@ router.post("/refund-requests", requireAuth, async (req, res) => {
       messageAr: "تم إرسال طلب الاسترجاع. سيقوم المشرف بمراجعته.",
     });
   } catch (err: any) {
-    res.status(500).json({ error: "Server error", message: err.message });
+    serverError(res, err);
   }
 });
 
 router.get("/refund-requests/my", requireAuth, async (req, res) => {
   try {
-    const { userId } = (req as any).user;
+    const { userId } = req.user!;
     const { refundRequestsTable } = await import("@workspace/db");
     const requests = await db.select().from(refundRequestsTable)
       .where(eq(refundRequestsTable.userId, userId))
       .orderBy(desc(refundRequestsTable.createdAt));
     res.json(requests);
   } catch (err: any) {
-    res.status(500).json({ error: "Server error", message: err.message });
+    serverError(res, err);
   }
 });
 
@@ -543,7 +544,7 @@ router.get("/refund-requests/my", requireAuth, async (req, res) => {
 
 router.post("/redeem-code", requireAuth, async (req, res) => {
   try {
-    const { userId } = (req as any).user;
+    const { userId } = req.user!;
     const { code } = req.body;
 
     if (!code) {
@@ -596,7 +597,7 @@ router.post("/redeem-code", requireAuth, async (req, res) => {
 
     res.json({ success: true, message: "Card redeemed successfully", value: card.value });
   } catch (err: any) {
-    res.status(500).json({ error: "Server error", message: err.message });
+    serverError(res, err);
   }
 });
 
@@ -604,7 +605,7 @@ router.post("/redeem-code", requireAuth, async (req, res) => {
 
 router.post("/withdrawals", requireAuth, async (req, res) => {
   try {
-    const { userId } = (req as any).user;
+    const { userId } = req.user!;
     const { amount, paymentMethod, details } = req.body;
 
     if (!amount || parseFloat(amount) <= 0) {
@@ -646,13 +647,13 @@ router.post("/withdrawals", requireAuth, async (req, res) => {
 
     res.status(201).json({ success: true, request });
   } catch (err: any) {
-    res.status(500).json({ error: "Server error", message: err.message });
+    serverError(res, err);
   }
 });
 
 router.get("/withdrawals/me", requireAuth, async (req, res) => {
   try {
-    const { userId } = (req as any).user;
+    const { userId } = req.user!;
     const requests = await db
       .select()
       .from(withdrawalRequestsTable)
@@ -664,24 +665,24 @@ router.get("/withdrawals/me", requireAuth, async (req, res) => {
       amount: parseFloat(r.amount as string),
     })));
   } catch (err: any) {
-    res.status(500).json({ error: "Server error", message: err.message });
+    serverError(res, err);
   }
 });
 
 
 router.get("/", requireAuth, async (req, res) => {
   try {
-    const { userId } = (req as any).user;
+    const { userId } = req.user!;
     const payments = await db.select().from(paymentsTable).where(eq(paymentsTable.userId, userId));
     res.json(payments.map(p => ({ ...p, amount: parseFloat(p.amount) })));
   } catch (err: any) {
-    res.status(500).json({ error: "Server error", message: err.message });
+    serverError(res, err);
   }
 });
 
 router.get("/earnings", requireAuth, async (req, res) => {
   try {
-    const { userId } = (req as any).user;
+    const { userId } = req.user!;
     
     // Get teacher's wallet balance
     const [teacher] = await db.select().from(usersTable).where(eq(usersTable.id, userId)).limit(1);
@@ -741,7 +742,7 @@ router.get("/earnings", requireAuth, async (req, res) => {
       entries,
     });
   } catch (err: any) {
-    res.status(500).json({ error: "Server error", message: err.message });
+    serverError(res, err);
   }
 });
 

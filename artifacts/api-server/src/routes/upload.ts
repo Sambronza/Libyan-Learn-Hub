@@ -1,21 +1,14 @@
 import { Router } from "express";
+import { serverError } from "../lib/http.js";
 import multer from "multer";
-import { v2 as cloudinary } from "cloudinary";
 import { requireAuth, requireRole } from "../lib/auth.js";
-import { Readable } from "stream";
 import { db, usersTable } from "@workspace/db";
 import { eq } from "drizzle-orm";
 import { getEffectiveStorageLimit } from "../lib/plans.js";
 import type { TeacherTier } from "../lib/plans.js";
+import { cloudinary, uploadToCloudinary } from "../lib/cloudinary.js";
 
 const router = Router();
-
-// Configure Cloudinary
-cloudinary.config({
-  cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
-  api_key: process.env.CLOUDINARY_API_KEY,
-  api_secret: process.env.CLOUDINARY_API_SECRET,
-});
 
 // Multer memory storage (files go straight to Cloudinary, not disk)
 const storage = multer.memoryStorage();
@@ -69,20 +62,6 @@ const imageUpload = multer({
   },
 });
 
-// Helper: upload buffer to Cloudinary
-function uploadToCloudinary(
-  buffer: Buffer,
-  options: Record<string, any>
-): Promise<any> {
-  return new Promise((resolve, reject) => {
-    const stream = cloudinary.uploader.upload_stream(options, (err, result) => {
-      if (err) return reject(err);
-      resolve(result);
-    });
-    Readable.from(buffer).pipe(stream);
-  });
-}
-
 // ── Upload Image ─────────────────────────────────────────────────
 router.post(
   "/image",
@@ -110,7 +89,7 @@ router.post(
       });
     } catch (err: any) {
       console.error("Image upload error:", err);
-      res.status(500).json({ error: "Failed to upload image", message: err.message });
+      serverError(res, err, "Failed to upload image");
     }
   }
 );
@@ -130,7 +109,7 @@ router.post(
 
       // ── Storage limit check ───────────────────────────────────
       const teacher = await db.query.usersTable.findFirst({
-        where: eq(usersTable.id, (req as any).user.userId),
+        where: eq(usersTable.id, req.user!.userId),
         columns: { tier: true, storageUsed: true, isBonusUnlocked: true },
       });
       if (teacher) {
@@ -177,7 +156,7 @@ router.post(
       // ── Update storageUsed in DB ───────────────────────────────
       await db.update(usersTable)
         .set({ storageUsed: (teacher?.storageUsed ?? 0) + result.bytes })
-        .where(eq(usersTable.id, (req as any).user.userId));
+        .where(eq(usersTable.id, req.user!.userId));
       // ─────────────────────────────────────────────────────────
 
       res.json({
@@ -191,7 +170,7 @@ router.post(
       });
     } catch (err: any) {
       console.error("Video upload error:", err);
-      res.status(500).json({ error: "Failed to upload video", message: err.message });
+      serverError(res, err, "Failed to upload video");
     }
   }
 );
@@ -211,7 +190,7 @@ router.post(
 
       // ── Storage limit check ───────────────────────────────────
       const teacher = await db.query.usersTable.findFirst({
-        where: eq(usersTable.id, (req as any).user.userId),
+        where: eq(usersTable.id, req.user!.userId),
         columns: { tier: true, storageUsed: true, isBonusUnlocked: true },
       });
       if (teacher) {
@@ -244,7 +223,7 @@ router.post(
       // ── Update storageUsed in DB ───────────────────────────────
       await db.update(usersTable)
         .set({ storageUsed: (teacher?.storageUsed ?? 0) + result.bytes })
-        .where(eq(usersTable.id, (req as any).user.userId));
+        .where(eq(usersTable.id, req.user!.userId));
       // ─────────────────────────────────────────────────────────
 
       res.json({
@@ -256,7 +235,7 @@ router.post(
       });
     } catch (err: any) {
       console.error("Document upload error:", err);
-      res.status(500).json({ error: "Failed to upload document", message: err.message });
+      serverError(res, err, "Failed to upload document");
     }
   }
 );
@@ -279,20 +258,20 @@ router.delete(
       // ── Decrement storageUsed on delete ───────────────────────
       if (fileSizeBytes > 0) {
         const teacher = await db.query.usersTable.findFirst({
-          where: eq(usersTable.id, (req as any).user.userId),
+          where: eq(usersTable.id, req.user!.userId),
           columns: { storageUsed: true },
         });
         const newUsage = Math.max(0, (teacher?.storageUsed ?? 0) - fileSizeBytes);
         await db.update(usersTable)
           .set({ storageUsed: newUsage })
-          .where(eq(usersTable.id, (req as any).user.userId));
+          .where(eq(usersTable.id, req.user!.userId));
       }
       // ─────────────────────────────────────────────────────────
 
       res.json({ success: true });
     } catch (err: any) {
       console.error("Delete upload error:", err);
-      res.status(500).json({ error: "Failed to delete file", message: err.message });
+      serverError(res, err, "Failed to delete file");
     }
   }
 );

@@ -1,4 +1,5 @@
 import { Router } from "express";
+import { serverError } from "../lib/http.js";
 import { db } from "@workspace/db";
 import { reportsTable, usersTable, coursesTable, liveSessionsTable, lessonsTable } from "@workspace/db";
 import { eq, desc } from "drizzle-orm";
@@ -9,7 +10,7 @@ const router = Router();
 
 router.post("/", requireAuth, async (req, res) => {
   try {
-    const { userId } = (req as any).user;
+    const { userId } = req.user!;
     const { type, reason, description, targetId, reportedUserId } = req.body;
     const [report] = await db.insert(reportsTable).values({
       reporterId: userId,
@@ -18,7 +19,7 @@ router.post("/", requireAuth, async (req, res) => {
     }).returning();
     res.status(201).json(report);
   } catch (err: any) {
-    res.status(500).json({ error: "Server error", message: err.message });
+    serverError(res, err);
   }
 });
 
@@ -40,14 +41,14 @@ router.get("/", requireAuth, requireRole("admin"), async (_req, res) => {
     }));
     res.json(result);
   } catch (err: any) {
-    res.status(500).json({ error: "Server error", message: err.message });
+    serverError(res, err);
   }
 });
 
 router.put("/:reportId/status", requireAuth, requireRole("admin"), async (req, res) => {
   try {
     const reportId = parseParam(req.params.reportId);
-    const { userId } = (req as any).user;
+    const { userId } = req.user!;
     const { status, adminNote } = req.body;
     const [updated] = await db.update(reportsTable)
       .set({ status, adminNote, resolvedById: userId, updatedAt: new Date() })
@@ -55,7 +56,7 @@ router.put("/:reportId/status", requireAuth, requireRole("admin"), async (req, r
       .returning();
     res.json(updated);
   } catch (err: any) {
-    res.status(500).json({ error: "Server error", message: err.message });
+    serverError(res, err);
   }
 });
 

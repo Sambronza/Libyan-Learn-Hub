@@ -1,15 +1,16 @@
 import { Router } from "express";
+import { serverError } from "../lib/http.js";
 import { db } from "@workspace/db";
 import { lessonsTable, enrollmentsTable, coursesTable } from "@workspace/db";
 import { eq, and } from "drizzle-orm";
 import jwt from "jsonwebtoken";
 import https from "https";
 import http from "http";
-import { requireAuth } from "../lib/auth.js";
+import { requireAuth, getJwtSecret } from "../lib/auth.js";
 import { requireActiveEnrollment, SUBSCRIPTION_EXPIRED_ERROR, NOT_ENROLLED_ERROR } from "../lib/subscriptions.js";
 
 const router = Router();
-const JWT_SECRET = process.env.JWT_SECRET || "default_super_secret_jwt_key_for_dev_only";
+const JWT_SECRET = getJwtSecret();
 
 // 1. Endpoint to generate a short-lived playback token for a specific lesson
 router.post("/generate-token", async (req, res) => {
@@ -23,9 +24,7 @@ router.post("/generate-token", async (req, res) => {
     if (authHeader && authHeader.startsWith("Bearer ")) {
       const token = authHeader.slice(7);
       try {
-        // Fallback to auth.ts secret if JWT_SECRET missing
-        const SECRET = process.env.JWT_SECRET || "lms-libya-secret-2024-dev";
-        const payload = jwt.verify(token, SECRET) as any;
+        const payload = jwt.verify(token, JWT_SECRET) as any;
         userId = payload.userId;
         role = payload.role;
       } catch {}
@@ -72,7 +71,7 @@ router.post("/generate-token", async (req, res) => {
       isHls 
     });
   } catch (err: any) {
-    res.status(500).json({ error: "Server error", message: err.message });
+    serverError(res, err);
   }
 });
 

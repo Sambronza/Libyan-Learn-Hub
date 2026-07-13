@@ -9,6 +9,7 @@ vi.mock('../lib/auth.js', () => ({
     req.user = { userId: 1, role: 'student' };
     next();
   },
+  getJwtSecret: () => 'test-secret',
 }));
 
 // Mock drizzle-orm
@@ -65,8 +66,10 @@ const app = express();
 app.use(express.json());
 app.use('/api/video', videoRouter);
 
-const PLAYBACK_SECRET = process.env.JWT_SECRET || 'default_super_secret_jwt_key_for_dev_only';
-const AUTH_SECRET = process.env.JWT_SECRET || 'lms-libya-secret-2024-dev';
+// The app now uses a single JWT secret everywhere (getJwtSecret, mocked above).
+// Sign both auth and playback tokens with that same value.
+const PLAYBACK_SECRET = 'test-secret';
+const AUTH_SECRET = 'test-secret';
 
 function authHeader(payload = { userId: 1, role: 'student' }) {
   return `Bearer ${jwt.sign(payload, AUTH_SECRET)}`;

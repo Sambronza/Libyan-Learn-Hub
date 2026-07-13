@@ -1,4 +1,5 @@
 import { Router, type IRouter } from "express";
+import { serverError } from "../lib/http.js";
 import { db, libraryResourcesTable, usersTable, categoriesTable } from "@workspace/db";
 import { eq, and, or, ilike, desc, type SQL } from "drizzle-orm";
 import { requireAuth, requireRole } from "../lib/auth.js";
@@ -73,14 +74,14 @@ router.get("/", async (req, res) => {
 
     res.json(rows);
   } catch (err: any) {
-    res.status(500).json({ error: "Server error", message: err.message });
+    serverError(res, err);
   }
 });
 
 // ── Create (admins and APPROVED teachers only) ──────────────────────────────
 router.post("/", requireAuth, requireRole("teacher", "admin"), async (req, res) => {
   try {
-    const { userId, role } = (req as any).user;
+    const { userId, role } = req.user!;
 
     // Teachers must be admin-approved to publish library material.
     // "approved" covers the current registration workflow; isVerified is the
@@ -157,14 +158,14 @@ router.post("/", requireAuth, requireRole("teacher", "admin"), async (req, res) 
 
     res.status(201).json(created);
   } catch (err: any) {
-    res.status(500).json({ error: "Server error", message: err.message });
+    serverError(res, err);
   }
 });
 
 // ── Delete (admin, or the teacher who uploaded it) ──────────────────────────
 router.delete("/:id", requireAuth, requireRole("teacher", "admin"), async (req, res) => {
   try {
-    const { userId, role } = (req as any).user;
+    const { userId, role } = req.user!;
     const id = parseInt(req.params.id as string);
     if (isNaN(id)) {
       res.status(400).json({ error: "Invalid resource id" });
@@ -187,7 +188,7 @@ router.delete("/:id", requireAuth, requireRole("teacher", "admin"), async (req, 
 
     res.json({ success: true });
   } catch (err: any) {
-    res.status(500).json({ error: "Server error", message: err.message });
+    serverError(res, err);
   }
 });
 

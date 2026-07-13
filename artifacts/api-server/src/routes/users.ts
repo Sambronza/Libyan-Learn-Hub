@@ -1,4 +1,5 @@
 import { Router } from "express";
+import { serverError } from "../lib/http.js";
 import { db } from "@workspace/db";
 import { usersTable, coursesTable, enrollmentsTable, reviewsTable } from "@workspace/db";
 import { eq, count, avg, sql } from "drizzle-orm";
@@ -32,7 +33,7 @@ router.get("/teachers", async (_req, res) => {
     const result = await Promise.all(teachers.map(buildTeacherProfile));
     res.json(result);
   } catch (err: any) {
-    res.status(500).json({ error: "Server error", message: err.message });
+    serverError(res, err);
   }
 });
 
@@ -42,13 +43,13 @@ router.get("/teachers/:teacherId", async (req, res) => {
     if (!teacher || teacher.role !== "teacher") { res.status(404).json({ error: "Teacher not found" }); return; }
     res.json(await buildTeacherProfile(teacher));
   } catch (err: any) {
-    res.status(500).json({ error: "Server error", message: err.message });
+    serverError(res, err);
   }
 });
 
 router.put("/users/profile", requireAuth, async (req, res) => {
   try {
-    const { userId } = (req as any).user;
+    const { userId } = req.user!;
     const { fullName, fullNameAr, bio, bioAr, avatarUrl, language } = req.body;
     const [user] = await db.update(usersTable)
       .set({ fullName, fullNameAr, bio, bioAr, avatarUrl, language, updatedAt: new Date() })
@@ -67,13 +68,13 @@ router.put("/users/profile", requireAuth, async (req, res) => {
       createdAt: user.createdAt,
     });
   } catch (err: any) {
-    res.status(500).json({ error: "Server error", message: err.message });
+    serverError(res, err);
   }
 });
 
 router.put("/users/email", requireAuth, async (req, res) => {
   try {
-    const { userId } = (req as any).user;
+    const { userId } = req.user!;
     const { newEmail } = req.body;
 
     if (!newEmail || typeof newEmail !== 'string' || !newEmail.includes('@')) {
@@ -105,7 +106,7 @@ router.put("/users/email", requireAuth, async (req, res) => {
       }
     });
   } catch (err: any) {
-    res.status(500).json({ error: "Server error", message: err.message });
+    serverError(res, err);
   }
 });
 

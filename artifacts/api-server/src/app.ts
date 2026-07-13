@@ -3,6 +3,8 @@ import cors from "cors";
 import helmet from "helmet";
 import { rateLimit } from "express-rate-limit";
 import router from "./routes";
+import { logger } from "./lib/logger.js";
+import { errorHandler } from "./lib/http.js";
 
 const app: Express = express();
 
@@ -68,21 +70,18 @@ app.use((req, res, next) => {
   
   // Log cold start if it's the very first request
   if (isColdStart) {
-    console.log(`[Cold Start] First request received: ${req.method} ${req.url}`);
+    logger.info(`[Cold Start] First request received: ${req.method} ${req.url}`);
     isColdStart = false;
   }
 
-  // Hook into response finish to log duration
+  // Hook into response finish to log slow requests
   res.on('finish', () => {
     const duration = Date.now() - start;
     if (duration > 1000) {
-      console.warn(`[Performance] SLOW REQUEST: ${req.method} ${req.originalUrl} took ${duration}ms`);
-    } else {
-      // Optional: log all requests if needed for debugging
-      // console.log(`[Performance] ${req.method} ${req.originalUrl} took ${duration}ms`);
+      logger.warn(`[Performance] SLOW REQUEST: ${req.method} ${req.originalUrl} took ${duration}ms`);
     }
   });
-  
+
   next();
 });
 
@@ -93,5 +92,9 @@ app.get(["/api", "/api/"], (_req, res) => {
 });
 
 app.use("/api", router);
+
+// Central error handler — last middleware, catches anything a route throws or
+// forwards via next(err). Keeps internal details out of client responses.
+app.use(errorHandler);
 
 export default app;

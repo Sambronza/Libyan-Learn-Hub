@@ -1,4 +1,5 @@
 import { Router } from "express";
+import { serverError } from "../lib/http.js";
 import { db } from "@workspace/db";
 import {
   liveSessionsTable, sessionRegistrationsTable, sessionQuestionsTable, usersTable, paymentsTable
@@ -14,7 +15,7 @@ const router = Router();
 // Get session detail + registration status + seat count
 router.get("/sessions/:id", requireAuth, async (req, res) => {
   try {
-    const { userId } = (req as any).user;
+    const { userId } = req.user!;
     const sessionId = parseParam(req.params.id);
     const [session] = await db.select().from(liveSessionsTable).where(eq(liveSessionsTable.id, sessionId)).limit(1);
     if (!session) { res.status(404).json({ error: "Session not found" }); return; }
@@ -39,14 +40,14 @@ router.get("/sessions/:id", requireAuth, async (req, res) => {
       isTeacher: session.teacherId === userId,
     });
   } catch (err: any) {
-    res.status(500).json({ error: "Server error", message: err.message });
+    serverError(res, err);
   }
 });
 
 // Register for a session (claim a seat) — handles both free and paid sessions
 router.post("/sessions/:id/register", requireAuth, async (req, res) => {
   try {
-    const { userId } = (req as any).user;
+    const { userId } = req.user!;
     const sessionId = parseParam(req.params.id);
     const [session] = await db.select().from(liveSessionsTable).where(eq(liveSessionsTable.id, sessionId)).limit(1);
     if (!session) { res.status(404).json({ error: "Session not found" }); return; }
@@ -117,14 +118,14 @@ router.post("/sessions/:id/register", requireAuth, async (req, res) => {
 
     res.json({ success: true });
   } catch (err: any) {
-    res.status(500).json({ error: "Server error", message: err.message });
+    serverError(res, err);
   }
 });
 
 // Join session — returns embedded room info (only if registered or teacher)
 router.post("/sessions/:id/join", requireAuth, async (req, res) => {
   try {
-    const { userId } = (req as any).user;
+    const { userId } = req.user!;
     const sessionId = parseParam(req.params.id);
     const [session] = await db.select().from(liveSessionsTable).where(eq(liveSessionsTable.id, sessionId)).limit(1);
     if (!session) { res.status(404).json({ error: "Session not found" }); return; }
@@ -222,7 +223,7 @@ router.post("/sessions/:id/join", requireAuth, async (req, res) => {
 
     res.json({ roomId, sessionId, isTeacher, token, livekitUrl });
   } catch (err: any) {
-    res.status(500).json({ error: "Server error", message: err.message });
+    serverError(res, err);
   }
 });
 
@@ -252,20 +253,20 @@ router.get("/sessions/:id/questions", requireAuth, async (req, res) => {
     
     res.json(result);
   } catch (err: any) {
-    res.status(500).json({ error: "Server error", message: err.message });
+    serverError(res, err);
   }
 });
 
 // Q&A — submit question
 router.post("/sessions/:id/questions", requireAuth, async (req, res) => {
   try {
-    const { userId } = (req as any).user;
+    const { userId } = req.user!;
     const sessionId = parseParam(req.params.id);
     const { question } = req.body;
     const [q] = await db.insert(sessionQuestionsTable).values({ sessionId, userId, question }).returning();
     res.status(201).json(q);
   } catch (err: any) {
-    res.status(500).json({ error: "Server error", message: err.message });
+    serverError(res, err);
   }
 });
 
@@ -280,14 +281,14 @@ router.post("/sessions/:id/questions/:qId/upvote", requireAuth, async (req, res)
       .where(eq(sessionQuestionsTable.id, qId));
     res.json({ success: true });
   } catch (err: any) {
-    res.status(500).json({ error: "Server error", message: err.message });
+    serverError(res, err);
   }
 });
 
 // Q&A — mark answered (teacher only)
 router.post("/sessions/:id/questions/:qId/answer", requireAuth, async (req, res) => {
   try {
-    const { userId } = (req as any).user;
+    const { userId } = req.user!;
     const sessionId = parseParam(req.params.id);
     const [session] = await db.select().from(liveSessionsTable).where(eq(liveSessionsTable.id, sessionId)).limit(1);
     if (!session) { res.status(404).json({ error: "Session not found" }); return; }
@@ -296,14 +297,14 @@ router.post("/sessions/:id/questions/:qId/answer", requireAuth, async (req, res)
     await db.update(sessionQuestionsTable).set({ answered: true }).where(eq(sessionQuestionsTable.id, parseParam(req.params.qId)));
     res.json({ success: true });
   } catch (err: any) {
-    res.status(500).json({ error: "Server error", message: err.message });
+    serverError(res, err);
   }
 });
 
 // Save Recording URL
 router.post("/sessions/:id/recording", requireAuth, async (req, res) => {
   try {
-    const { userId } = (req as any).user;
+    const { userId } = req.user!;
     const sessionId = parseParam(req.params.id);
     const { recordingUrl } = req.body;
 
@@ -320,7 +321,7 @@ router.post("/sessions/:id/recording", requireAuth, async (req, res) => {
 
     res.json({ success: true, recordingUrl });
   } catch (err: any) {
-    res.status(500).json({ error: "Server error", message: err.message });
+    serverError(res, err);
   }
 });
 

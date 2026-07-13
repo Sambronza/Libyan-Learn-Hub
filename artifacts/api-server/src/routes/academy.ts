@@ -102,7 +102,7 @@ router.get("/programs/:id", async (req, res) => {
 // POST /academy/apply — Submit an application
 router.post("/apply", requireAuth, async (req, res) => {
   try {
-    const userId = (req as any).user.userId;
+    const userId = req.user!.userId;
     const { programId, gradeLevel, previousSchool, previousSchoolAr, documentsUrl, parentName, parentNameAr, parentPhone, parentEmail, notes } = req.body;
 
     if (!programId || !gradeLevel) {
@@ -151,7 +151,7 @@ router.post("/apply", requireAuth, async (req, res) => {
 // GET /academy/my-application — Check application status
 router.get("/my-application", requireAuth, async (req, res) => {
   try {
-    const userId = (req as any).user.userId;
+    const userId = req.user!.userId;
 
     const applications = await db
       .select({
@@ -179,7 +179,7 @@ router.get("/my-application", requireAuth, async (req, res) => {
 // GET /academy/my-enrollment — Get current enrollment with subjects
 router.get("/my-enrollment", requireAuth, async (req, res) => {
   try {
-    const userId = (req as any).user.userId;
+    const userId = req.user!.userId;
 
     const enrollments = await db
       .select({
@@ -241,7 +241,7 @@ router.get("/my-enrollment", requireAuth, async (req, res) => {
 // POST /academy/parent/link — Request to link to a student
 router.post("/parent/link", requireAuth, async (req, res) => {
   try {
-    const parentUserId = (req as any).user.userId;
+    const parentUserId = req.user!.userId;
     const { studentEmail, relationship } = req.body;
 
     if (!studentEmail) {
@@ -298,7 +298,7 @@ router.post("/parent/link", requireAuth, async (req, res) => {
 // GET /academy/parent/children — List linked students
 router.get("/parent/children", requireAuth, async (req, res) => {
   try {
-    const parentUserId = (req as any).user.userId;
+    const parentUserId = req.user!.userId;
 
     const children = await db
       .select({
@@ -323,7 +323,7 @@ router.get("/parent/children", requireAuth, async (req, res) => {
 // GET /academy/parent/child/:studentId/progress — View child's progress
 router.get("/parent/child/:studentId/progress", requireAuth, async (req, res) => {
   try {
-    const parentUserId = (req as any).user.userId;
+    const parentUserId = req.user!.userId;
     const studentId = parseParam(req.params.studentId);
 
     // Verify link exists and is approved
@@ -431,7 +431,7 @@ router.get("/admin/applications", requireAuth, requireRole("admin"), async (req,
 router.put("/admin/applications/:id", requireAuth, requireRole("admin"), async (req, res) => {
   try {
     const applicationId = parseParam(req.params.id);
-    const adminId = (req as any).user.userId;
+    const adminId = req.user!.userId;
     const { status, reviewNotes } = req.body;
 
     if (!["approved", "rejected", "waitlisted"].includes(status)) {

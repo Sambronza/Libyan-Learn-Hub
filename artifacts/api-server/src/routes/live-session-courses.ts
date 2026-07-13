@@ -1,4 +1,5 @@
 import { Router } from "express";
+import { serverError } from "../lib/http.js";
 import { db } from "@workspace/db";
 import {
   liveSessionCoursesTable,
@@ -41,7 +42,7 @@ router.post(
   requireRole("teacher", "admin"),
   async (req, res): Promise<any> => {
     try {
-      const { userId } = (req as any).user;
+      const { userId } = req.user!;
 
       // ── Biometrics check ─────────────────────────────────────────────────
       const [teacherUser] = await db
@@ -171,7 +172,7 @@ router.get(
   requireRole("teacher", "admin"),
   async (req, res) => {
     try {
-      const { userId, role } = (req as any).user;
+      const { userId, role } = req.user!;
 
       const courses =
         role === "admin"
@@ -208,7 +209,7 @@ router.get(
 
       res.json(result);
     } catch (err: any) {
-      res.status(500).json({ error: "Server error", message: err.message });
+      serverError(res, err);
     }
   }
 );
@@ -266,7 +267,7 @@ router.get("/:id", async (req, res) => {
       })),
     });
   } catch (err: any) {
-    res.status(500).json({ error: "Server error", message: err.message });
+    serverError(res, err);
   }
 });
 

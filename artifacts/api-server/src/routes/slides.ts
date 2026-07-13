@@ -1,4 +1,5 @@
 import { Router } from "express";
+import { serverError } from "../lib/http.js";
 import { db } from "@workspace/db";
 import { slidesTable, lessonsTable } from "@workspace/db";
 import { eq, asc } from "drizzle-orm";
@@ -17,7 +18,7 @@ router.get("/lesson/:lessonId", async (req, res) => {
       .orderBy(asc(slidesTable.order));
     res.json(slides);
   } catch (err: any) {
-    res.status(500).json({ error: "Server error", message: err.message });
+    serverError(res, err);
   }
 });
 

@@ -31,5 +31,8 @@ jobs:
       - name: Typecheck API server
         run: pnpm --filter @workspace/api-server exec tsc -p tsconfig.json --noEmit
 
+      - name: Typecheck web app
+        run: pnpm --filter @workspace/lms-web exec tsc -p tsconfig.json --noEmit
+
       - name: API server tests
         run: pnpm --filter @workspace/api-server exec vitest run

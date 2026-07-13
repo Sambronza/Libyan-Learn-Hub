@@ -1,4 +1,5 @@
 import { Router, type IRouter } from "express";
+import { serverError } from "../lib/http.js";
 import { rateLimit } from "express-rate-limit";
 import {
   db, teacherPostsTable, followsTable, usersTable, coursesTable, notificationsTable,
@@ -7,8 +8,7 @@ import {
 } from "@workspace/db";
 import { requireActiveEnrollment } from "../lib/subscriptions.js";
 import { eq, and, desc, asc, count, inArray } from "drizzle-orm";
-import jwt from "jsonwebtoken";
-import { requireAuth, requireRole } from "../lib/auth.js";
+import { requireAuth, requireRole, getOptionalUserId } from "../lib/auth.js";
 import { deleteFromCloudinaryByUrl } from "../lib/cloudinary.js";
 import { sendPushToUsers } from "../lib/expo-notifications.js";
 
@@ -35,18 +35,6 @@ const BLOCKED_WORDS = [
 function containsBlockedWord(text: string): boolean {
   const lower = text.toLowerCase();
   return BLOCKED_WORDS.some((w) => lower.includes(w));
-}
-
-/** Parse the Bearer token if present without rejecting anonymous requests. */
-function optionalUserId(req: any): number | null {
-  const h = req.headers.authorization;
-  if (!h?.startsWith("Bearer ")) return null;
-  try {
-    const SECRET = process.env.JWT_SECRET || "lms-libya-secret-2024-dev";
-    return (jwt.verify(h.slice(7), SECRET) as any).userId ?? null;
-  } catch {
-    return null;
-  }
 }
 
 const postColumns = {
@@ -103,16 +91,16 @@ router.get("/posts/teacher/:teacherId", async (req, res) => {
       .orderBy(desc(teacherPostsTable.createdAt))
       .limit(50);
 
-    res.json(await enrichPosts(posts, optionalUserId(req)));
+    res.json(await enrichPosts(posts, getOptionalUserId(req)));
   } catch (err: any) {
-    res.status(500).json({ error: "Server error", message: err.message });
+    serverError(res, err);
   }
 });
 
 // ── Feed: posts from teachers the caller follows ─────────────────────────────
 router.get("/feed", requireAuth, async (req, res) => {
   try {
-    const { userId } = (req as any).user;
+    const { userId } = req.user!;
 
     const followed = await db.select({ teacherId: followsTable.teacherId })
       .from(followsTable).where(eq(followsTable.followerId, userId));
@@ -127,14 +115,14 @@ router.get("/feed", requireAuth, async (req, res) => {
 
     res.json(await enrichPosts(posts, userId));
   } catch (err: any) {
-    res.status(500).json({ error: "Server error", message: err.message });
+    serverError(res, err);
   }
 });
 
 // ── Create a post (approved teachers and admins) ─────────────────────────────
 router.post("/posts", requireAuth, requireRole("teacher", "admin"), async (req, res) => {
   try {
-    const { userId, role } = (req as any).user;
+    const { userId, role } = req.user!;
 
     if (role === "teacher") {
       const [teacher] = await db.select({
@@ -222,14 +210,14 @@ router.post("/posts", requireAuth, requireRole("teacher", "admin"), async (req, 
 
     res.status(201).json(post);
   } catch (err: any) {
-    res.status(500).json({ error: "Server error", message: err.message });
+    serverError(res, err);
   }
 });
 
 // ── Delete a post (author or admin) ──────────────────────────────────────────
 router.delete("/posts/:id", requireAuth, requireRole("teacher", "admin"), async (req, res) => {
   try {
-    const { userId, role } = (req as any).user;
+    const { userId, role } = req.user!;
     const id = parseInt(req.params.id as string);
     if (isNaN(id)) return void res.status(400).json({ error: "Invalid post id" });
 
@@ -245,7 +233,7 @@ router.delete("/posts/:id", requireAuth, requireRole("teacher", "admin"), async 
 
     res.json({ success: true });
   } catch (err: any) {
-    res.status(500).json({ error: "Server error", message: err.message });
+    serverError(res, err);
   }
 });
 
@@ -259,7 +247,7 @@ router.get("/follow/state/:teacherId", async (req, res) => {
       .from(followsTable).where(eq(followsTable.teacherId, teacherId));
 
     let following = false;
-    const callerId = optionalUserId(req);
+    const callerId = getOptionalUserId(req);
     if (callerId) {
       const [row] = await db.select({ id: followsTable.id }).from(followsTable)
         .where(and(eq(followsTable.followerId, callerId), eq(followsTable.teacherId, teacherId)))
@@ -269,14 +257,14 @@ router.get("/follow/state/:teacherId", async (req, res) => {
 
     res.json({ followersCount: Number(followersCount), following });
   } catch (err: any) {
-    res.status(500).json({ error: "Server error", message: err.message });
+    serverError(res, err);
   }
 });
 
 // ── Follow / unfollow a teacher ──────────────────────────────────────────────
 router.post("/follow/:teacherId", requireAuth, async (req, res) => {
   try {
-    const { userId } = (req as any).user;
+    const { userId } = req.user!;
     const teacherId = parseInt(req.params.teacherId as string);
     if (isNaN(teacherId)) return void res.status(400).json({ error: "Invalid teacher id" });
     if (teacherId === userId) return void res.status(400).json({ error: "You cannot follow yourself" });
@@ -293,13 +281,13 @@ router.post("/follow/:teacherId", requireAuth, async (req, res) => {
 
     res.status(201).json({ success: true });
   } catch (err: any) {
-    res.status(500).json({ error: "Server error", message: err.message });
+    serverError(res, err);
   }
 });
 
 router.delete("/follow/:teacherId", requireAuth, async (req, res) => {
   try {
-    const { userId } = (req as any).user;
+    const { userId } = req.user!;
     const teacherId = parseInt(req.params.teacherId as string);
     if (isNaN(teacherId)) return void res.status(400).json({ error: "Invalid teacher id" });
 
@@ -308,7 +296,7 @@ router.delete("/follow/:teacherId", requireAuth, async (req, res) => {
 
     res.json({ success: true });
   } catch (err: any) {
-    res.status(500).json({ error: "Server error", message: err.message });
+    serverError(res, err);
   }
 });
 
@@ -346,7 +334,7 @@ router.get("/posts/:postId/comments", async (req, res) => {
         .from(commentLikesTable).where(inArray(commentLikesTable.commentId, ids))
         .groupBy(commentLikesTable.commentId);
       likeMap = new Map(likeCounts.map((r) => [r.commentId, Number(r.value)]));
-      const callerId = optionalUserId(req);
+      const callerId = getOptionalUserId(req);
       if (callerId) {
         const mine = await db.select({ commentId: commentLikesTable.commentId }).from(commentLikesTable)
           .where(and(inArray(commentLikesTable.commentId, ids), eq(commentLikesTable.userId, callerId)));
@@ -360,14 +348,14 @@ router.get("/posts/:postId/comments", async (req, res) => {
       likedByMe: likedSet.has(c.id),
     })));
   } catch (err: any) {
-    res.status(500).json({ error: "Server error", message: err.message });
+    serverError(res, err);
   }
 });
 
 // ── Add a comment (any authenticated user) ───────────────────────────────────
 router.post("/posts/:postId/comments", requireAuth, commentLimiter, async (req, res) => {
   try {
-    const { userId } = (req as any).user;
+    const { userId } = req.user!;
     const postId = parseInt(req.params.postId as string);
     if (isNaN(postId)) return void res.status(400).json({ error: "Invalid post id" });
 
@@ -444,14 +432,14 @@ router.post("/posts/:postId/comments", requireAuth, commentLimiter, async (req, 
 
     res.status(201).json(comment);
   } catch (err: any) {
-    res.status(500).json({ error: "Server error", message: err.message });
+    serverError(res, err);
   }
 });
 
 // ── Delete a comment (author, post owner, or admin) ──────────────────────────
 router.delete("/comments/:id", requireAuth, async (req, res) => {
   try {
-    const { userId, role } = (req as any).user;
+    const { userId, role } = req.user!;
     const id = parseInt(req.params.id as string);
     if (isNaN(id)) return void res.status(400).json({ error: "Invalid comment id" });
 
@@ -471,14 +459,14 @@ router.delete("/comments/:id", requireAuth, async (req, res) => {
     await db.delete(postCommentsTable).where(eq(postCommentsTable.id, id));
     res.json({ success: true });
   } catch (err: any) {
-    res.status(500).json({ error: "Server error", message: err.message });
+    serverError(res, err);
   }
 });
 
 // ── Toggle like on a post ────────────────────────────────────────────────────
 router.post("/posts/:postId/like", requireAuth, async (req, res) => {
   try {
-    const { userId } = (req as any).user;
+    const { userId } = req.user!;
     const postId = parseInt(req.params.postId as string);
     if (isNaN(postId)) return void res.status(400).json({ error: "Invalid post id" });
 
@@ -498,14 +486,14 @@ router.post("/posts/:postId/like", requireAuth, async (req, res) => {
       .where(eq(postLikesTable.postId, postId));
     res.json({ liked: !existing, likesCount: Number(value) });
   } catch (err: any) {
-    res.status(500).json({ error: "Server error", message: err.message });
+    serverError(res, err);
   }
 });
 
 // ── Toggle like on a comment ─────────────────────────────────────────────────
 router.post("/comments/:id/like", requireAuth, async (req, res) => {
   try {
-    const { userId } = (req as any).user;
+    const { userId } = req.user!;
     const commentId = parseInt(req.params.id as string);
     if (isNaN(commentId)) return void res.status(400).json({ error: "Invalid comment id" });
 
@@ -525,14 +513,14 @@ router.post("/comments/:id/like", requireAuth, async (req, res) => {
       .where(eq(commentLikesTable.commentId, commentId));
     res.json({ liked: !existing, likesCount: Number(value) });
   } catch (err: any) {
-    res.status(500).json({ error: "Server error", message: err.message });
+    serverError(res, err);
   }
 });
 
 // ── Toggle comments on/off for a post (owner or admin) ───────────────────────
 router.patch("/posts/:id/comments-enabled", requireAuth, requireRole("teacher", "admin"), async (req, res) => {
   try {
-    const { userId, role } = (req as any).user;
+    const { userId, role } = req.user!;
     const id = parseInt(req.params.id as string);
     if (isNaN(id)) return void res.status(400).json({ error: "Invalid post id" });
 
@@ -550,14 +538,14 @@ router.patch("/posts/:id/comments-enabled", requireAuth, requireRole("teacher", 
 
     res.json({ commentsEnabled: updated.commentsEnabled });
   } catch (err: any) {
-    res.status(500).json({ error: "Server error", message: err.message });
+    serverError(res, err);
   }
 });
 
 // ── Report a comment → existing admin reports queue ──────────────────────────
 router.post("/comments/:id/report", requireAuth, async (req, res) => {
   try {
-    const { userId } = (req as any).user;
+    const { userId } = req.user!;
     const commentId = parseInt(req.params.id as string);
     if (isNaN(commentId)) return void res.status(400).json({ error: "Invalid comment id" });
 
@@ -582,7 +570,7 @@ router.post("/comments/:id/report", requireAuth, async (req, res) => {
 
     res.status(201).json({ success: true });
   } catch (err: any) {
-    res.status(500).json({ error: "Server error", message: err.message });
+    serverError(res, err);
   }
 });
 
@@ -597,7 +585,7 @@ async function canAccessDiscussion(userId: number, role: string, courseId: numbe
 // ── Read the discussion ──────────────────────────────────────────────────────
 router.get("/course/:courseId/discussion", requireAuth, async (req, res) => {
   try {
-    const { userId, role } = (req as any).user;
+    const { userId, role } = req.user!;
     const courseId = parseInt(req.params.courseId as string);
     if (isNaN(courseId)) return void res.status(400).json({ error: "Invalid course id" });
 
@@ -632,14 +620,14 @@ router.get("/course/:courseId/discussion", requireAuth, async (req, res) => {
 
     res.json({ teacherId: course?.teacherId ?? null, messages });
   } catch (err: any) {
-    res.status(500).json({ error: "Server error", message: err.message });
+    serverError(res, err);
   }
 });
 
 // ── Post a message (optionally sharing a link or Library resource) ───────────
 router.post("/course/:courseId/discussion", requireAuth, commentLimiter, async (req, res) => {
   try {
-    const { userId, role } = (req as any).user;
+    const { userId, role } = req.user!;
     const courseId = parseInt(req.params.courseId as string);
     if (isNaN(courseId)) return void res.status(400).json({ error: "Invalid course id" });
 
@@ -707,14 +695,14 @@ router.post("/course/:courseId/discussion", requireAuth, commentLimiter, async (
 
     res.status(201).json(message);
   } catch (err: any) {
-    res.status(500).json({ error: "Server error", message: err.message });
+    serverError(res, err);
   }
 });
 
 // ── Delete a message (author, course teacher, or admin) ──────────────────────
 router.delete("/discussion-messages/:id", requireAuth, async (req, res) => {
   try {
-    const { userId, role } = (req as any).user;
+    const { userId, role } = req.user!;
     const id = parseInt(req.params.id as string);
     if (isNaN(id)) return void res.status(400).json({ error: "Invalid message id" });
 
@@ -733,14 +721,14 @@ router.delete("/discussion-messages/:id", requireAuth, async (req, res) => {
     await db.delete(courseDiscussionMessagesTable).where(eq(courseDiscussionMessagesTable.id, id));
     res.json({ success: true });
   } catch (err: any) {
-    res.status(500).json({ error: "Server error", message: err.message });
+    serverError(res, err);
   }
 });
 
 // ── "Share to my class": a teacher's own courses (for the Library dialog) ────
 router.get("/my-teaching-courses", requireAuth, requireRole("teacher", "admin"), async (req, res) => {
   try {
-    const { userId } = (req as any).user;
+    const { userId } = req.user!;
     const courses = await db.select({
       id: coursesTable.id,
       title: coursesTable.title,
@@ -750,7 +738,7 @@ router.get("/my-teaching-courses", requireAuth, requireRole("teacher", "admin"),
       .orderBy(desc(coursesTable.createdAt));
     res.json(courses);
   } catch (err: any) {
-    res.status(500).json({ error: "Server error", message: err.message });
+    serverError(res, err);
   }
 });
 

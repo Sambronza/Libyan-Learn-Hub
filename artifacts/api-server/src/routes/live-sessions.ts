@@ -1,4 +1,5 @@
 import { Router } from "express";
+import { serverError } from "../lib/http.js";
 import { db } from "@workspace/db";
 import { liveSessionsTable, usersTable, enrollmentsTable, sessionRegistrationsTable, liveSessionCoursesTable } from "@workspace/db";
 import { eq, gte, count, and } from "drizzle-orm";
@@ -145,13 +146,13 @@ router.get("/", async (req, res) => {
     const result = await Promise.all(sessions.map(s => formatSession(s, userId, teacherCache, courseCache)));
     res.json(result);
   } catch (err: any) {
-    res.status(500).json({ error: "Server error", message: err.message });
+    serverError(res, err);
   }
 });
 
 router.post("/", requireAuth, requireRole("teacher", "admin"), async (req, res) => {
   try {
-    const { userId } = (req as any).user;
+    const { userId } = req.user!;
     const { courseId, title, titleAr, description, scheduledAt, durationMinutes, maxParticipants, meetingUrl, price = 0 } = req.body;
 
     // ── Session duration limit check ──────────────────────────────
@@ -199,13 +200,13 @@ router.get("/:sessionId", async (req, res) => {
     if (!session) { res.status(404).json({ error: "Session not found" }); return; }
     res.json(await formatSession(session, userId));
   } catch (err: any) {
-    res.status(500).json({ error: "Server error", message: err.message });
+    serverError(res, err);
   }
 });
 
 router.post("/:sessionId/join", requireAuth, async (req, res) => {
   try {
-    const { userId } = (req as any).user;
+    const { userId } = req.user!;
     const sessionId = parseParam(req.params.sessionId);
     const [session] = await db.select().from(liveSessionsTable).where(eq(liveSessionsTable.id, sessionId)).limit(1);
     
@@ -227,13 +228,13 @@ router.post("/:sessionId/join", requireAuth, async (req, res) => {
       message: "Success",
     });
   } catch (err: any) {
-    res.status(500).json({ error: "Server error", message: err.message });
+    serverError(res, err);
   }
 });
 
 router.post("/:sessionId/cancel", requireAuth, requireRole("teacher", "admin"), async (req, res) => {
   try {
-    const { userId, role } = (req as any).user;
+    const { userId, role } = req.user!;
     const { reason, notifyStudents } = req.body;
     
     const [session] = await db.select().from(liveSessionsTable).where(eq(liveSessionsTable.id, parseParam(req.params.sessionId))).limit(1);
@@ -267,13 +268,13 @@ router.post("/:sessionId/cancel", requireAuth, requireRole("teacher", "admin"), 
       session: await formatSession(updatedSession, userId)
     });
   } catch (err: any) {
-    res.status(500).json({ error: "Server error", message: err.message });
+    serverError(res, err);
   }
 });
 
 router.post("/:sessionId/end", requireAuth, requireRole("teacher", "admin"), async (req, res) => {
   try {
-    const { userId, role } = (req as any).user;
+    const { userId, role } = req.user!;
     const { recordingUrl } = req.body;
     
     const [session] = await db.select().from(liveSessionsTable).where(eq(liveSessionsTable.id, parseParam(req.params.sessionId))).limit(1);
@@ -304,13 +305,13 @@ router.post("/:sessionId/end", requireAuth, requireRole("teacher", "admin"), asy
       session: await formatSession(updatedSession, userId)
     });
   } catch (err: any) {
-    res.status(500).json({ error: "Server error", message: err.message });
+    serverError(res, err);
   }
 });
 
 router.delete("/:sessionId", requireAuth, requireRole("teacher", "admin"), async (req, res) => {
   try {
-    const { userId, role } = (req as any).user;
+    const { userId, role } = req.user!;
     
     const [session] = await db.select().from(liveSessionsTable).where(eq(liveSessionsTable.id, parseParam(req.params.sessionId))).limit(1);
     
@@ -331,7 +332,7 @@ router.delete("/:sessionId", requireAuth, requireRole("teacher", "admin"), async
       message: "Session deleted successfully"
     });
   } catch (err: any) {
-    res.status(500).json({ error: "Server error", message: err.message });
+    serverError(res, err);
   }
 });
 

@@ -1,4 +1,5 @@
 import { Router } from "express";
+import { serverError } from "../lib/http.js";
 import { db } from "@workspace/db";
 import {
   coursesTable,
@@ -12,7 +13,7 @@ import {
   sectionsTable,
 } from "@workspace/db";
 import { eq, and, or, ilike, count, avg, sum, sql, desc } from "drizzle-orm";
-import { requireAuth, requireRole } from "../lib/auth.js";
+import { requireAuth, requireRole, getJwtSecret } from "../lib/auth.js";
 import { parseParam } from "../lib/utils.js";
 import { deleteFromCloudinaryByUrl } from "../lib/cloudinary.js";
 import { parsePlanPrices, hasIncompletePlanPrices } from "../lib/subscriptions.js";
@@ -122,14 +123,14 @@ router.get("/", async (req, res) => {
       totalPages: Math.ceil(Number(total) / limitNum),
     });
   } catch (err: any) {
-    res.status(500).json({ error: "Server error", message: err.message });
+    serverError(res, err);
   }
 });
 
 // ── Bulk creation: course + default section + lessons in one shot ─────────────
 router.post("/bulk", requireAuth, requireRole("teacher", "admin"), async (req, res): Promise<any> => {
   try {
-    const { userId } = (req as any).user;
+    const { userId } = req.user!;
 
     // Validate biometrics
     const [teacherUser] = await db.select().from(usersTable).where(eq(usersTable.id, userId)).limit(1);
@@ -235,7 +236,7 @@ router.post("/bulk", requireAuth, requireRole("teacher", "admin"), async (req, r
 
 router.post("/", requireAuth, requireRole("teacher", "admin"), async (req, res) => {
   try {
-    const { userId } = (req as any).user;
+    const { userId } = req.user!;
     const { title, titleAr, description, descriptionAr, thumbnailUrl, level, language, categoryId } = req.body;
     const planPrices = parsePlanPrices(req.body);
     if (planPrices.error) {
@@ -346,14 +347,14 @@ router.get("/:courseId", async (req, res) => {
       userProgress,
     });
   } catch (err: any) {
-    res.status(500).json({ error: "Server error", message: err.message });
+    serverError(res, err);
   }
 });
 
 router.put("/:courseId", requireAuth, requireRole("teacher", "admin"), async (req, res) => {
   try {
     const courseId = parseParam(req.params.courseId);
-    const { userId, role } = (req as any).user;
+    const { userId, role } = req.user!;
     const [course] = await db.select().from(coursesTable).where(eq(coursesTable.id, courseId)).limit(1);
     if (!course) { res.status(404).json({ error: "Course not found" }); return; }
     if (course.teacherId !== userId && role !== "admin") { res.status(403).json({ error: "Forbidden" }); return; }
@@ -424,14 +425,14 @@ router.put("/:courseId", requireAuth, requireRole("teacher", "admin"), async (re
 
     res.json(buildCourseResult(updated, teacher, reviewData, Number(enrollData.value), lessonData));
   } catch (err: any) {
-    res.status(500).json({ error: "Server error", message: err.message });
+    serverError(res, err);
   }
 });
 
 router.put("/:courseId/submit", requireAuth, requireRole("teacher", "admin"), async (req, res) => {
   try {
     const courseId = parseParam(req.params.courseId);
-    const { userId, role } = (req as any).user;
+    const { userId, role } = req.user!;
     
     const [course] = await db.select().from(coursesTable).where(eq(coursesTable.id, courseId)).limit(1);
     if (!course) { res.status(404).json({ error: "Course not found" }); return; }
@@ -480,7 +481,7 @@ router.put("/:courseId/submit", requireAuth, requireRole("teacher", "admin"), as
 
     res.json({ success: true, status: updated.status });
   } catch (err: any) {
-    res.status(500).json({ error: "Server error", message: err.message });
+    serverError(res, err);
   }
 });
 
@@ -488,7 +489,7 @@ router.put("/:courseId/submit", requireAuth, requireRole("teacher", "admin"), as
 router.delete("/:courseId", requireAuth, requireRole("teacher", "admin"), async (req, res) => {
   try {
     const courseId = parseParam(req.params.courseId);
-    const { userId, role } = (req as any).user;
+    const { userId, role } = req.user!;
     const [course] = await db.select().from(coursesTable).where(eq(coursesTable.id, courseId)).limit(1);
     if (!course) { res.status(404).json({ error: "Course not found" }); return; }
     if (course.teacherId !== userId && role !== "admin") { res.status(403).json({ error: "Forbidden" }); return; }
@@ -508,7 +509,7 @@ router.delete("/:courseId", requireAuth, requireRole("teacher", "admin"), async 
     await db.delete(coursesTable).where(eq(coursesTable.id, courseId));
     res.json({ success: true, message: "Course deleted" });
   } catch (err: any) {
-    res.status(500).json({ error: "Server error", message: err.message });
+    serverError(res, err);
   }
 });
 
@@ -553,7 +554,7 @@ router.get("/:courseId/lessons", async (req, res) => {
       ...(isOwnerOrAdmin ? { videoUrl: l.videoUrl, videoFilePath: l.videoFilePath, documentFilePath: l.documentFilePath } : {}),
     })));
   } catch (err: any) {
-    res.status(500).json({ error: "Server error", message: err.message });
+    serverError(res, err);
   }
 });
 
@@ -585,7 +586,7 @@ router.get("/:courseId/lessons/:lessonId", requireAuth, async (req, res) => {
   try {
     const courseId = parseParam(req.params.courseId);
     const lessonId = parseParam(req.params.lessonId);
-    const { userId } = (req as any).user;
+    const { userId } = req.user!;
     const [lesson] = await db.select().from(lessonsTable)
       .where(and(eq(lessonsTable.id, lessonId), eq(lessonsTable.courseId, courseId)))
       .limit(1);
@@ -607,7 +608,7 @@ router.get("/:courseId/lessons/:lessonId", requireAuth, async (req, res) => {
       .limit(1);
 
     // Raw storage URLs only for the course teacher / admin
-    const { role } = (req as any).user;
+    const { role } = req.user!;
     const [ownCourse] = await db.select().from(coursesTable).where(eq(coursesTable.id, courseId)).limit(1);
     const isOwnerOrAdmin = role === "admin" || ownCourse?.teacherId === userId;
 
@@ -615,8 +616,7 @@ router.get("/:courseId/lessons/:lessonId", requireAuth, async (req, res) => {
     let secureDocUrl: string | null = null;
     if (lesson.documentFilePath) {
       const jwt = (await import("jsonwebtoken")).default;
-      const SECRET = process.env.JWT_SECRET || "default_super_secret_jwt_key_for_dev_only";
-      const docToken = jwt.sign({ userId, lessonId, action: "document" }, SECRET, { expiresIn: "6h" });
+      const docToken = jwt.sign({ userId, lessonId, action: "document" }, getJwtSecret(), { expiresIn: "6h" });
       secureDocUrl = `/api/video/secure-doc/${lessonId}?token=${docToken}`;
     }
 
@@ -641,7 +641,7 @@ router.get("/:courseId/lessons/:lessonId", requireAuth, async (req, res) => {
       ...(isOwnerOrAdmin ? { videoUrl: lesson.videoUrl, videoFilePath: lesson.videoFilePath, documentFilePath: lesson.documentFilePath } : {}),
     });
   } catch (err: any) {
-    res.status(500).json({ error: "Server error", message: err.message });
+    serverError(res, err);
   }
 });
 
@@ -674,7 +674,7 @@ router.put("/:courseId/lessons/:lessonId", requireAuth, requireRole("teacher", "
       .returning();
     res.json(updated);
   } catch (err: any) {
-    res.status(500).json({ error: "Server error", message: err.message });
+    serverError(res, err);
   }
 });
 
@@ -693,14 +693,14 @@ router.delete("/:courseId/lessons/:lessonId", requireAuth, requireRole("teacher"
     await db.delete(lessonsTable).where(eq(lessonsTable.id, lessonId));
     res.json({ success: true, message: "Lesson deleted" });
   } catch (err: any) {
-    res.status(500).json({ error: "Server error", message: err.message });
+    serverError(res, err);
   }
 });
 
 router.post("/:courseId/enroll", requireAuth, async (req, res) => {
   try {
     const courseId = parseParam(req.params.courseId);
-    const { userId } = (req as any).user;
+    const { userId } = req.user!;
     const existing = await db.select().from(enrollmentsTable)
       .where(and(eq(enrollmentsTable.courseId, courseId), eq(enrollmentsTable.userId, userId)))
       .limit(1);
@@ -718,7 +718,7 @@ router.post("/:courseId/enroll", requireAuth, async (req, res) => {
       completedAt: enrollment.completedAt,
     });
   } catch (err: any) {
-    res.status(500).json({ error: "Server error", message: err.message });
+    serverError(res, err);
   }
 });
 
@@ -745,14 +745,14 @@ router.get("/:courseId/reviews", async (req, res) => {
     );
     res.json(result);
   } catch (err: any) {
-    res.status(500).json({ error: "Server error", message: err.message });
+    serverError(res, err);
   }
 });
 
 router.post("/:courseId/reviews", requireAuth, async (req, res) => {
   try {
     const courseId = parseParam(req.params.courseId);
-    const { userId } = (req as any).user;
+    const { userId } = req.user!;
     const { rating, comment } = req.body;
     const [review] = await db.insert(reviewsTable).values({ courseId, userId, rating, comment }).returning();
     const [user] = await db.select().from(usersTable).where(eq(usersTable.id, userId)).limit(1);
@@ -769,7 +769,7 @@ router.post("/:courseId/reviews", requireAuth, async (req, res) => {
       }
     });
   } catch (err: any) {
-    res.status(500).json({ error: "Server error", message: err.message });
+    serverError(res, err);
   }
 });
 

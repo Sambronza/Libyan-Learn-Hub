@@ -1,4 +1,5 @@
 import { Router } from "express";
+import { serverError } from "../lib/http.js";
 import { db } from "@workspace/db";
 import {
   quizzesTable,
@@ -22,7 +23,7 @@ router.get("/course/:courseId", async (req, res) => {
       .orderBy(asc(quizzesTable.type));
     res.json(quizzes);
   } catch (err: any) {
-    res.status(500).json({ error: "Server error", message: err.message });
+    serverError(res, err);
   }
 });
 
@@ -63,7 +64,7 @@ router.get("/:quizId", async (req, res) => {
 
     res.json({ ...quiz, questions: questionsWithOptions });
   } catch (err: any) {
-    res.status(500).json({ error: "Server error", message: err.message });
+    serverError(res, err);
   }
 });
 
@@ -123,7 +124,7 @@ router.put("/:quizId", requireAuth, requireRole("teacher", "admin"), async (req,
 router.post("/:quizId/attempt", requireAuth, async (req, res) => {
   try {
     const quizId = parseParam(req.params.quizId);
-    const { userId } = (req as any).user;
+    const { userId } = req.user!;
     const { answers } = req.body;
 
     const questions = await db
@@ -195,7 +196,7 @@ router.post("/:quizId/attempt", requireAuth, async (req, res) => {
 router.get("/:quizId/attempts", requireAuth, async (req, res) => {
   try {
     const quizId = parseParam(req.params.quizId);
-    const { userId, role } = (req as any).user;
+    const { userId, role } = req.user!;
     const whereClause = role === "student"
       ? and(eq(quizAttemptsTable.quizId, quizId), eq(quizAttemptsTable.userId, userId))
       : eq(quizAttemptsTable.quizId, quizId);
@@ -208,7 +209,7 @@ router.get("/:quizId/attempts", requireAuth, async (req, res) => {
 
     res.json(attempts);
   } catch (err: any) {
-    res.status(500).json({ error: "Server error", message: err.message });
+    serverError(res, err);
   }
 });
 

@@ -1,4 +1,5 @@
 import { Router } from "express";
+import { serverError } from "../lib/http.js";
 import { db } from "@workspace/db";
 import { enrollmentsTable, coursesTable, usersTable, reviewsTable, lessonsTable } from "@workspace/db";
 import { eq, avg, count, sum, inArray } from "drizzle-orm";
@@ -10,7 +11,7 @@ const router = Router();
 
 router.get("/", requireAuth, async (req, res) => {
   try {
-    const { userId } = (req as any).user;
+    const { userId } = req.user!;
     const enrollments = await db.select().from(enrollmentsTable).where(eq(enrollmentsTable.userId, userId));
     const result = await Promise.all(
       enrollments.map(async (e) => {
@@ -60,14 +61,14 @@ router.get("/", requireAuth, async (req, res) => {
     );
     res.json(result);
   } catch (err: any) {
-    res.status(500).json({ error: "Server error", message: err.message });
+    serverError(res, err);
   }
 });
 
 // ── POST /enrollments — Enroll student in a course ───────────────────────────
 router.post("/", requireAuth, async (req, res) => {
   try {
-    const { userId, role } = (req as any).user;
+    const { userId, role } = req.user!;
     const { courseId } = req.body;
 
     if (!courseId) {
@@ -156,7 +157,7 @@ router.post("/", requireAuth, async (req, res) => {
 
     res.status(201).json(enrollment);
   } catch (err: any) {
-    res.status(500).json({ error: "Server error", message: err.message });
+    serverError(res, err);
   }
 });
 

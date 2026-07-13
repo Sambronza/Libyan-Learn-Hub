@@ -1,4 +1,5 @@
 import { Router } from "express";
+import { serverError } from "../lib/http.js";
 import { db } from "@workspace/db";
 import {
   usersTable, coursesTable, paymentsTable, enrollmentsTable,
@@ -59,7 +60,7 @@ router.get("/stats", async (_req, res) => {
       pendingEarnings: parseFloat(pendingEarnings.total as string),
     });
   } catch (err: any) {
-    res.status(500).json({ error: "Server error", message: err.message });
+    serverError(res, err);
   }
 });
 
@@ -135,7 +136,7 @@ router.get("/analytics", async (_req, res) => {
 
     res.json({ weeks, series, snapshot });
   } catch (err: any) {
-    res.status(500).json({ error: "Server error", message: err.message });
+    serverError(res, err);
   }
 });
 
@@ -146,7 +147,7 @@ router.get("/settings", async (_req, res) => {
     const settings = await db.select().from(platformSettingsTable);
     res.json(settings);
   } catch (err: any) {
-    res.status(500).json({ error: "Server error", message: err.message });
+    serverError(res, err);
   }
 });
 
@@ -174,7 +175,7 @@ router.put("/settings", async (req, res) => {
     }
     res.json({ success: true, setting: updated });
   } catch (err: any) {
-    res.status(500).json({ error: "Server error", message: err.message });
+    serverError(res, err);
   }
 });
 
@@ -206,7 +207,7 @@ router.get("/audit-logs", async (req, res) => {
     const [{ total }] = await db.select({ total: count() }).from(auditLogsTable);
     res.json({ logs: result, total: Number(total), limit, offset });
   } catch (err: any) {
-    res.status(500).json({ error: "Server error", message: err.message });
+    serverError(res, err);
   }
 });
 
@@ -240,7 +241,7 @@ router.get("/users", async (_req, res) => {
     }));
     res.json(result);
   } catch (err: any) {
-    res.status(500).json({ error: "Server error", message: err.message });
+    serverError(res, err);
   }
 });
 
@@ -248,7 +249,7 @@ router.post("/users/:userId/verify", async (req, res) => {
   try {
     const userId = parseInt(req.params.userId);
     const { isVerified } = req.body;
-    const adminId = (req as any).user.userId;
+    const adminId = req.user!.userId;
     const [updated] = await db.update(usersTable)
       .set({ isVerified: !!isVerified, updatedAt: new Date() })
       .where(eq(usersTable.id, userId))
@@ -257,7 +258,7 @@ router.post("/users/:userId/verify", async (req, res) => {
     await logAudit({ adminId, action: "user.verified", targetType: "user", targetId: userId, details: { isVerified: !!isVerified }, ip: req.ip });
     res.json({ success: true, isVerified: updated.isVerified });
   } catch (err: any) {
-    res.status(500).json({ error: "Server error", message: err.message });
+    serverError(res, err);
   }
 });
 
@@ -265,7 +266,7 @@ router.put("/users/:userId/role", async (req, res) => {
   try {
     const userId = parseInt(req.params.userId);
     const { role } = req.body;
-    const { userId: adminId } = (req as any).user;
+    const { userId: adminId } = req.user!;
 
     if (userId === adminId) {
       res.status(400).json({ error: "Cannot change your own role. Please ask another administrator to do this if needed." });
@@ -283,21 +284,21 @@ router.put("/users/:userId/role", async (req, res) => {
     await logAudit({ adminId, action: "user.role_changed", targetType: "user", targetId: userId, details: { newRole: role }, ip: req.ip });
     res.json({ success: true, user: { id: updated.id, role: updated.role } });
   } catch (err: any) {
-    res.status(500).json({ error: "Server error", message: err.message });
+    serverError(res, err);
   }
 });
 
 router.delete("/users/:userId", async (req, res) => {
   try {
     const userId = parseInt(req.params.userId);
-    const { userId: adminId } = (req as any).user;
+    const { userId: adminId } = req.user!;
     if (userId === adminId) { res.status(400).json({ error: "Cannot delete yourself" }); return; }
     const [target] = await db.select({ fullName: usersTable.fullName, email: usersTable.email }).from(usersTable).where(eq(usersTable.id, userId)).limit(1);
     await db.delete(usersTable).where(eq(usersTable.id, userId));
     await logAudit({ adminId, action: "user.deleted", targetType: "user", targetId: userId, details: { email: target?.email, fullName: target?.fullName }, ip: req.ip });
     res.json({ success: true });
   } catch (err: any) {
-    res.status(500).json({ error: "Server error", message: err.message });
+    serverError(res, err);
   }
 });
 
@@ -307,7 +308,7 @@ router.post("/users/create", async (req, res) => {
     const existing = await db.select().from(usersTable).where(eq(usersTable.email, email)).limit(1);
     if (existing.length > 0) { res.status(400).json({ error: "Email already registered" }); return; }
     const passwordHash = await bcrypt.hash(password, 10);
-    const adminId = (req as any).user.userId;
+    const adminId = req.user!.userId;
     const [user] = await db.insert(usersTable).values({
       email, passwordHash, fullName, role: role as any, language: "ar",
     }).returning();
@@ -355,7 +356,7 @@ router.get("/courses", async (req, res) => {
     }));
     res.json(result);
   } catch (err: any) {
-    res.status(500).json({ error: "Server error", message: err.message });
+    serverError(res, err);
   }
 });
 
@@ -363,7 +364,7 @@ router.put("/courses/:courseId/publish", async (req, res) => {
   try {
     const courseId = parseInt(req.params.courseId);
     const { isPublished } = req.body; // kept for backward compatibility if true
-    const adminId = (req as any).user.userId;
+    const adminId = req.user!.userId;
 
     const [updated] = await db.update(coursesTable)
       .set({ 
@@ -392,7 +393,7 @@ router.put("/courses/:courseId/publish", async (req, res) => {
     await logAudit({ adminId, action: "course.approved", targetType: "course", targetId: courseId, details: { title: updated.title }, ip: req.ip });
     res.json({ success: true, isPublished: updated.isPublished, status: updated.status });
   } catch (err: any) {
-    res.status(500).json({ error: "Server error", message: err.message });
+    serverError(res, err);
   }
 });
 
@@ -400,7 +401,7 @@ router.put("/courses/:courseId/reject", async (req, res) => {
   try {
     const courseId = parseInt(req.params.courseId);
     const { rejectionReason } = req.body;
-    const adminId = (req as any).user.userId;
+    const adminId = req.user!.userId;
 
     if (!rejectionReason || rejectionReason.length < 20) {
       res.status(400).json({ error: "A rejection reason of at least 20 characters is required" });
@@ -435,14 +436,14 @@ router.put("/courses/:courseId/reject", async (req, res) => {
     await logAudit({ adminId, action: "course.rejected", targetType: "course", targetId: courseId, details: { title: updated.title, rejectionReason }, ip: req.ip });
     res.json({ success: true, status: updated.status, rejectionReason: updated.rejectionReason });
   } catch (err: any) {
-    res.status(500).json({ error: "Server error", message: err.message });
+    serverError(res, err);
   }
 });
 
 router.delete("/courses/:courseId", async (req, res) => {
   try {
     const courseId = parseInt(req.params.courseId);
-    const adminId = (req as any).user.userId;
+    const adminId = req.user!.userId;
     
     // Fetch course and lessons to delete from Cloudinary
     const [course] = await db.select().from(coursesTable).where(eq(coursesTable.id, courseId)).limit(1);
@@ -461,7 +462,7 @@ router.delete("/courses/:courseId", async (req, res) => {
     await logAudit({ adminId, action: "course.deleted", targetType: "course", targetId: courseId, details: { title: course?.title }, ip: req.ip });
     res.json({ success: true });
   } catch (err: any) {
-    res.status(500).json({ error: "Server error", message: err.message });
+    serverError(res, err);
   }
 });
 
@@ -503,7 +504,7 @@ router.get("/payments", async (req, res) => {
     }));
     res.json(result);
   } catch (err: any) {
-    res.status(500).json({ error: "Server error", message: err.message });
+    serverError(res, err);
   }
 });
 
@@ -538,14 +539,14 @@ router.get("/payments/pending", async (_req, res) => {
     }));
     res.json(result);
   } catch (err: any) {
-    res.status(500).json({ error: "Server error", message: err.message });
+    serverError(res, err);
   }
 });
 
 router.post("/payments/:paymentId/approve", async (req, res) => {
   try {
     const paymentId = parseInt(req.params.paymentId);
-    const adminId = (req as any).user.userId;
+    const adminId = req.user!.userId;
     const [payment] = await db.select().from(paymentsTable).where(eq(paymentsTable.id, paymentId)).limit(1);
     if (!payment) { res.status(404).json({ error: "Payment not found" }); return; }
     if (payment.status !== "pending") { res.status(400).json({ error: `Payment is already ${payment.status}` }); return; }
@@ -598,14 +599,14 @@ router.post("/payments/:paymentId/approve", async (req, res) => {
     await logAudit({ adminId, action: "payment.approved", targetType: "payment", targetId: paymentId, details: { amount: payment.amount, currency: payment.currency }, ip: req.ip });
     res.json({ success: true });
   } catch (err: any) {
-    res.status(500).json({ error: "Server error", message: err.message });
+    serverError(res, err);
   }
 });
 
 router.post("/payments/:paymentId/reject", async (req, res) => {
   try {
     const paymentId = parseInt(req.params.paymentId);
-    const adminId = (req as any).user.userId;
+    const adminId = req.user!.userId;
     const [payment] = await db.select().from(paymentsTable).where(eq(paymentsTable.id, paymentId)).limit(1);
     if (!payment) { res.status(404).json({ error: "Payment not found" }); return; }
     if (payment.status !== "pending") { res.status(400).json({ error: `Payment is already ${payment.status}` }); return; }
@@ -613,7 +614,7 @@ router.post("/payments/:paymentId/reject", async (req, res) => {
     await logAudit({ adminId, action: "payment.rejected", targetType: "payment", targetId: paymentId, details: { amount: payment.amount, currency: payment.currency }, ip: req.ip });
     res.json({ success: true });
   } catch (err: any) {
-    res.status(500).json({ error: "Server error", message: err.message });
+    serverError(res, err);
   }
 });
 
@@ -649,14 +650,14 @@ router.get("/earnings", async (_req, res) => {
     }));
     res.json(result);
   } catch (err: any) {
-    res.status(500).json({ error: "Server error", message: err.message });
+    serverError(res, err);
   }
 });
 
 router.post("/earnings/:earningId/pay", async (req, res) => {
   try {
     const earningId = parseInt(req.params.earningId);
-    const adminId = (req as any).user.userId;
+    const adminId = req.user!.userId;
     let paidEarning: any;
     await db.transaction(async (tx) => {
       const [earning] = await tx.select().from(teacherEarningsTable).where(eq(teacherEarningsTable.id, earningId)).limit(1);
@@ -679,14 +680,14 @@ router.post("/earnings/:earningId/pay", async (req, res) => {
   } catch (err: any) {
     if (err.message === "Earning not found") { res.status(404).json({ error: err.message }); return; }
     if (err.message === "Earning not available for payout") { res.status(400).json({ error: err.message }); return; }
-    res.status(500).json({ error: "Server error", message: err.message });
+    serverError(res, err);
   }
 });
 
 router.post("/earnings/pay-all/:teacherId", async (req, res) => {
   try {
     const teacherId = parseInt(req.params.teacherId);
-    const adminId = (req as any).user.userId;
+    const adminId = req.user!.userId;
     let totalPaid = 0;
     await db.transaction(async (tx) => {
       const earnings = await tx.select().from(teacherEarningsTable)
@@ -709,7 +710,7 @@ router.post("/earnings/pay-all/:teacherId", async (req, res) => {
     await logAudit({ adminId, action: "earning.paid_all", targetType: "teacher", targetId: teacherId, details: { totalPaid: totalPaid.toFixed(2) }, ip: req.ip });
     res.json({ success: true });
   } catch (err: any) {
-    res.status(500).json({ error: "Server error", message: err.message });
+    serverError(res, err);
   }
 });
 
@@ -738,12 +739,12 @@ router.post("/redeem-cards/generate", async (req, res) => {
       });
     }
 
-    const adminId = (req as any).user.userId;
+    const adminId = req.user!.userId;
     const inserted = await db.insert(redeemCardsTable).values(cardsToInsert).returning();
     await logAudit({ adminId, action: "card.generated", targetType: "redeem_card", details: { count: inserted.length, value, prefix }, ip: req.ip });
     res.json({ success: true, count: inserted.length, cards: inserted });
   } catch (err: any) {
-    res.status(500).json({ error: "Server error", message: err.message });
+    serverError(res, err);
   }
 });
 
@@ -764,14 +765,14 @@ router.get("/redeem-cards", async (_req, res) => {
     }));
     res.json(result);
   } catch (err: any) {
-    res.status(500).json({ error: "Server error", message: err.message });
+    serverError(res, err);
   }
 });
 
 router.put("/redeem-cards/:id/deactivate", async (req, res) => {
   try {
     const id = parseInt(req.params.id);
-    const adminId = (req as any).user.userId;
+    const adminId = req.user!.userId;
     const [updated] = await db.update(redeemCardsTable)
       .set({ status: "deactivated", deactivatedAt: new Date() })
       .where(and(eq(redeemCardsTable.id, id), eq(redeemCardsTable.status, "active")))
@@ -784,7 +785,7 @@ router.put("/redeem-cards/:id/deactivate", async (req, res) => {
     await logAudit({ adminId, action: "card.deactivated", targetType: "redeem_card", targetId: id, details: { code: updated.code }, ip: req.ip });
     res.json({ success: true, card: updated });
   } catch (err: any) {
-    res.status(500).json({ error: "Server error", message: err.message });
+    serverError(res, err);
   }
 });
 
@@ -804,14 +805,14 @@ router.get("/withdrawals", async (req, res) => {
     }));
     res.json(result);
   } catch (err: any) {
-    res.status(500).json({ error: "Server error", message: err.message });
+    serverError(res, err);
   }
 });
 
 router.put("/withdrawals/:id/status", async (req, res) => {
   try {
     const id = parseInt(req.params.id);
-    const adminId = (req as any).user.userId;
+    const adminId = req.user!.userId;
     const { status, adminNotes } = req.body;
 
     if (!["approved", "rejected", "paid"].includes(status)) {
@@ -898,7 +899,7 @@ router.put("/withdrawals/:id/status", async (req, res) => {
     await logAudit({ adminId, action: "withdrawal.status_changed", targetType: "withdrawal", targetId: id, details: { status, adminNotes: adminNotes || null }, ip: req.ip });
     res.json({ success: true, withdrawal: updated });
   } catch (err: any) {
-    res.status(500).json({ error: "Server error", message: err.message });
+    serverError(res, err);
   }
 });
 // ─── TUTORING REVIEWS ───────────────────────────────────────────────────────────
@@ -938,7 +939,7 @@ router.get("/tutoring-reviews", async (req, res) => {
 
     res.json(result);
   } catch (err: any) {
-    res.status(500).json({ error: "Server error", message: err.message });
+    serverError(res, err);
   }
 });
 
@@ -997,11 +998,11 @@ router.post("/tutoring-reviews/:id/approve", async (req, res) => {
       await deleteFromCloudinaryByUrl(request.recordingUrl).catch(console.error);
     }
 
-    const adminId = (req as any).user.userId;
+    const adminId = req.user!.userId;
     await logAudit({ adminId, action: "tutoring.approved", targetType: "tutoring_request", targetId: requestId, details: { totalAmount: request.totalAmount, teacherId: request.teacherId }, ip: req.ip });
     res.json({ success: true, status: "approved" });
   } catch (err: any) {
-    res.status(500).json({ error: "Server error", message: err.message });
+    serverError(res, err);
   }
 });
 
@@ -1037,11 +1038,11 @@ router.post("/tutoring-reviews/:id/reject", async (req, res) => {
       await deleteFromCloudinaryByUrl(request.recordingUrl).catch(console.error);
     }
 
-    const adminId = (req as any).user.userId;
+    const adminId = req.user!.userId;
     await logAudit({ adminId, action: "tutoring.rejected", targetType: "tutoring_request", targetId: requestId, details: { totalAmount: request.totalAmount, studentId: request.studentId }, ip: req.ip });
     res.json({ success: true, status: "rejected" });
   } catch (err: any) {
-    res.status(500).json({ error: "Server error", message: err.message });
+    serverError(res, err);
   }
 });
 
@@ -1120,11 +1121,11 @@ router.post("/tutoring-reviews/:id/partial-approve", async (req, res) => {
       await deleteFromCloudinaryByUrl(request.recordingUrl).catch(console.error);
     }
 
-    const adminId = (req as any).user.userId;
+    const adminId = req.user!.userId;
     await logAudit({ adminId, action: "tutoring.partial_approved", targetType: "tutoring_request", targetId: requestId, details: { teacherAmount: approvedTeacherAmount, refundAmount, totalAmount: total }, ip: req.ip });
     res.json({ success: true, status: "partially_approved" });
   } catch (err: any) {
-    res.status(500).json({ error: "Server error", message: err.message });
+    serverError(res, err);
   }
 });
 
@@ -1140,7 +1141,7 @@ router.post("/hls/encrypt-all", async (req, res) => {
     for (const l of pending) enqueueHlsEncryption(l.id);
     res.json({ queued: pending.length, status: hlsQueueStatus() });
   } catch (err: any) {
-    res.status(500).json({ error: "Server error", message: err.message });
+    serverError(res, err);
   }
 });
 
@@ -1153,7 +1154,7 @@ router.get("/hls/status", async (_req, res) => {
     }).from(lessonsTable);
     res.json({ ...hlsQueueStatus(), encrypted: Number(counts.encrypted), unencrypted: Number(counts.unencrypted) });
   } catch (err: any) {
-    res.status(500).json({ error: "Server error", message: err.message });
+    serverError(res, err);
   }
 });
 
@@ -1161,7 +1162,7 @@ router.get("/hls/status", async (_req, res) => {
 
 router.post("/users/:userId/certificates-approval", async (req, res) => {
   try {
-    const adminId = (req as any).user.userId;
+    const adminId = req.user!.userId;
     const userId = parseInt(req.params.userId);
     const approved = req.body.approved === true || req.body.approved === "true";
 
@@ -1189,7 +1190,7 @@ router.post("/users/:userId/certificates-approval", async (req, res) => {
     await logAudit({ adminId, action: approved ? "teacher.certificates_approved" : "teacher.certificates_revoked", targetType: "user", targetId: userId, ip: req.ip });
     res.json({ success: true, certificatesApproved: approved });
   } catch (err: any) {
-    res.status(500).json({ error: "Server error", message: err.message });
+    serverError(res, err);
   }
 });
 
@@ -1246,14 +1247,14 @@ router.get("/refund-requests", async (req, res) => {
 
     res.json(withStats);
   } catch (err: any) {
-    res.status(500).json({ error: "Server error", message: err.message });
+    serverError(res, err);
   }
 });
 
 // Approve: refund to wallet, revoke access, reverse teacher earnings
 router.post("/refund-requests/:id/approve", async (req, res) => {
   try {
-    const adminId = (req as any).user.userId;
+    const adminId = req.user!.userId;
     const id = parseInt(req.params.id);
     const { adminNotes } = req.body || {};
     const { refundRequestsTable, walletTransactionsTable } = await import("@workspace/db");
@@ -1340,13 +1341,13 @@ router.post("/refund-requests/:id/approve", async (req, res) => {
     await logAudit({ adminId, action: "refund.approved", targetType: "refund_request", targetId: id, details: { amount }, ip: req.ip });
     res.json({ success: true });
   } catch (err: any) {
-    res.status(500).json({ error: "Server error", message: err.message });
+    serverError(res, err);
   }
 });
 
 router.post("/refund-requests/:id/reject", async (req, res) => {
   try {
-    const adminId = (req as any).user.userId;
+    const adminId = req.user!.userId;
     const id = parseInt(req.params.id);
     const { adminNotes } = req.body || {};
     const { refundRequestsTable } = await import("@workspace/db");
@@ -1372,7 +1373,7 @@ router.post("/refund-requests/:id/reject", async (req, res) => {
     await logAudit({ adminId, action: "refund.rejected", targetType: "refund_request", targetId: id, ip: req.ip });
     res.json({ success: true });
   } catch (err: any) {
-    res.status(500).json({ error: "Server error", message: err.message });
+    serverError(res, err);
   }
 });
 
@@ -1401,14 +1402,14 @@ router.get("/device-switch-requests", async (req, res) => {
       .orderBy(desc(deviceSwitchRequestsTable.createdAt));
     res.json(requests);
   } catch (err: any) {
-    res.status(500).json({ error: "Server error", message: err.message });
+    serverError(res, err);
   }
 });
 
 // Approve: perform the device switch (old device blocked, new trusted) + unblock account
 router.post("/device-switch-requests/:id/approve", async (req, res) => {
   try {
-    const adminId = (req as any).user.userId;
+    const adminId = req.user!.userId;
     const id = parseInt(req.params.id);
     const [request] = await db.select().from(deviceSwitchRequestsTable).where(eq(deviceSwitchRequestsTable.id, id)).limit(1);
     if (!request) { res.status(404).json({ error: "Request not found" }); return; }
@@ -1441,14 +1442,14 @@ router.post("/device-switch-requests/:id/approve", async (req, res) => {
     await logAudit({ adminId, action: "device_switch.approved", targetType: "device_switch_request", targetId: id, ip: req.ip });
     res.json({ success: true });
   } catch (err: any) {
-    res.status(500).json({ error: "Server error", message: err.message });
+    serverError(res, err);
   }
 });
 
 // Reject: account stays blocked
 router.post("/device-switch-requests/:id/reject", async (req, res) => {
   try {
-    const adminId = (req as any).user.userId;
+    const adminId = req.user!.userId;
     const id = parseInt(req.params.id);
     const [request] = await db.select().from(deviceSwitchRequestsTable).where(eq(deviceSwitchRequestsTable.id, id)).limit(1);
     if (!request) { res.status(404).json({ error: "Request not found" }); return; }
@@ -1461,14 +1462,14 @@ router.post("/device-switch-requests/:id/reject", async (req, res) => {
     await logAudit({ adminId, action: "device_switch.rejected", targetType: "device_switch_request", targetId: id, ip: req.ip });
     res.json({ success: true });
   } catch (err: any) {
-    res.status(500).json({ error: "Server error", message: err.message });
+    serverError(res, err);
   }
 });
 
 // Manually unblock a student account (keeps current trusted device)
 router.post("/users/:userId/unblock", async (req, res) => {
   try {
-    const adminId = (req as any).user.userId;
+    const adminId = req.user!.userId;
     const userId = parseInt(req.params.userId);
     await db.update(usersTable)
       .set({ accountBlocked: false, accountBlockedReason: null, updatedAt: new Date() })
@@ -1477,14 +1478,14 @@ router.post("/users/:userId/unblock", async (req, res) => {
     await logAudit({ adminId, action: "user.unblocked", targetType: "user", targetId: userId, ip: req.ip });
     res.json({ success: true });
   } catch (err: any) {
-    res.status(500).json({ error: "Server error", message: err.message });
+    serverError(res, err);
   }
 });
 
 // Reset a student's devices entirely (next login registers a fresh trusted device)
 router.post("/users/:userId/reset-devices", async (req, res) => {
   try {
-    const adminId = (req as any).user.userId;
+    const adminId = req.user!.userId;
     const userId = parseInt(req.params.userId);
     await db.update(studentDevicesTable)
       .set({ status: "blocked", blockedAt: new Date() })
@@ -1496,7 +1497,7 @@ router.post("/users/:userId/reset-devices", async (req, res) => {
     await logAudit({ adminId, action: "user.devices_reset", targetType: "user", targetId: userId, ip: req.ip });
     res.json({ success: true });
   } catch (err: any) {
-    res.status(500).json({ error: "Server error", message: err.message });
+    serverError(res, err);
   }
 });
 
@@ -1517,7 +1518,7 @@ router.post("/migrate-teacher-approval-status", async (_req, res) => {
       );
     res.json({ success: true, message: "Existing onboarded teachers marked as approved" });
   } catch (err: any) {
-    res.status(500).json({ error: "Migration failed", message: err.message });
+    serverError(res, err, "Migration failed");
   }
 });
 

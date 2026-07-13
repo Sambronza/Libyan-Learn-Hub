@@ -1,4 +1,5 @@
 import { Router } from "express";
+import { serverError } from "../lib/http.js";
 import { db } from "@workspace/db";
 import { tutoringListingsTable, tutoringApplicationsTable, usersTable } from "@workspace/db";
 import { eq, and, desc, sql } from "drizzle-orm";
@@ -39,14 +40,14 @@ router.get("/", async (req, res) => {
     const result = await Promise.all(listings.map(formatListing));
     res.json(result);
   } catch (err: any) {
-    res.status(500).json({ error: "Server error", message: err.message });
+    serverError(res, err);
   }
 });
 
 // Teacher: get my listings
 router.get("/my", requireAuth, requireRole("teacher", "admin"), async (req, res) => {
   try {
-    const { userId } = (req as any).user;
+    const { userId } = req.user!;
     const listings = await db
       .select()
       .from(tutoringListingsTable)
@@ -55,7 +56,7 @@ router.get("/my", requireAuth, requireRole("teacher", "admin"), async (req, res)
     const result = await Promise.all(listings.map(formatListing));
     res.json(result);
   } catch (err: any) {
-    res.status(500).json({ error: "Server error", message: err.message });
+    serverError(res, err);
   }
 });
 
@@ -67,14 +68,14 @@ router.get("/:id", async (req, res) => {
     if (!listing) { res.status(404).json({ error: "Listing not found" }); return; }
     res.json(await formatListing(listing));
   } catch (err: any) {
-    res.status(500).json({ error: "Server error", message: err.message });
+    serverError(res, err);
   }
 });
 
 // Teacher: create listing
 router.post("/", requireAuth, requireRole("teacher", "admin"), async (req, res) => {
   try {
-    const { userId } = (req as any).user;
+    const { userId } = req.user!;
     const {
       title, titleAr, subject, subjectAr, gradeLevel, gradeLevelAr,
       description, descriptionAr, hourlyRate, currency,
@@ -106,7 +107,7 @@ router.post("/", requireAuth, requireRole("teacher", "admin"), async (req, res) 
 // Teacher: update listing
 router.put("/:id", requireAuth, requireRole("teacher", "admin"), async (req, res) => {
   try {
-    const { userId } = (req as any).user;
+    const { userId } = req.user!;
     const id = parseParam(req.params.id);
     const { title, titleAr, subject, subjectAr, gradeLevel, gradeLevelAr, description, descriptionAr, hourlyRate, maxStudents, availableDays, availableTimeFrom, availableTimeTo, sessionDurationMinutes, status } = req.body;
     const [updated] = await db.update(tutoringListingsTable)
@@ -123,7 +124,7 @@ router.put("/:id", requireAuth, requireRole("teacher", "admin"), async (req, res
 // Teacher: delete listing
 router.delete("/:id", requireAuth, requireRole("teacher", "admin"), async (req, res) => {
   try {
-    const { userId } = (req as any).user;
+    const { userId } = req.user!;
     const id = parseParam(req.params.id);
     await db.delete(tutoringListingsTable).where(and(eq(tutoringListingsTable.id, id), eq(tutoringListingsTable.teacherId, userId)));
     res.json({ success: true });
@@ -135,7 +136,7 @@ router.delete("/:id", requireAuth, requireRole("teacher", "admin"), async (req, 
 // Student: apply to a listing
 router.post("/:id/apply", requireAuth, async (req, res) => {
   try {
-    const { userId } = (req as any).user;
+    const { userId } = req.user!;
     const listingId = parseParam(req.params.id);
     const { message, preferredAt } = req.body;
 
@@ -169,7 +170,7 @@ router.post("/:id/apply", requireAuth, async (req, res) => {
 // Teacher: get applications for my listing
 router.get("/:id/applications", requireAuth, requireRole("teacher", "admin"), async (req, res) => {
   try {
-    const { userId } = (req as any).user;
+    const { userId } = req.user!;
     const listingId = parseParam(req.params.id);
 
     const [listing] = await db.select().from(tutoringListingsTable)
@@ -193,14 +194,14 @@ router.get("/:id/applications", requireAuth, requireRole("teacher", "admin"), as
 
     res.json(result);
   } catch (err: any) {
-    res.status(500).json({ error: "Server error", message: err.message });
+    serverError(res, err);
   }
 });
 
 // Teacher: accept application
 router.post("/applications/:appId/accept", requireAuth, requireRole("teacher", "admin"), async (req, res) => {
   try {
-    const { userId } = (req as any).user;
+    const { userId } = req.user!;
     const appId = parseParam(req.params.appId);
     const { teacherNote } = req.body;
     const roomId = `edulibya-tutoring-${appId}-${crypto.randomBytes(4).toString("hex")}`;
@@ -226,7 +227,7 @@ router.post("/applications/:appId/accept", requireAuth, requireRole("teacher", "
 // Teacher: decline application
 router.post("/applications/:appId/decline", requireAuth, requireRole("teacher", "admin"), async (req, res) => {
   try {
-    const { userId } = (req as any).user;
+    const { userId } = req.user!;
     const appId = parseParam(req.params.appId);
     const { teacherNote } = req.body;
 
@@ -245,7 +246,7 @@ router.post("/applications/:appId/decline", requireAuth, requireRole("teacher", 
 // Student: get my applications
 router.get("/my-applications/list", requireAuth, async (req, res) => {
   try {
-    const { userId } = (req as any).user;
+    const { userId } = req.user!;
     const apps = await db.select().from(tutoringApplicationsTable)
       .where(eq(tutoringApplicationsTable.studentId, userId))
       .orderBy(desc(tutoringApplicationsTable.createdAt));
@@ -263,14 +264,14 @@ router.get("/my-applications/list", requireAuth, async (req, res) => {
 
     res.json(result);
   } catch (err: any) {
-    res.status(500).json({ error: "Server error", message: err.message });
+    serverError(res, err);
   }
 });
 
 // Get a single application by ID (used by TutoringRoom to load session details)
 router.get("/applications/:appId", requireAuth, async (req, res) => {
   try {
-    const { userId } = (req as any).user;
+    const { userId } = req.user!;
     const appId = parseParam(req.params.appId);
     const [app] = await db.select().from(tutoringApplicationsTable)
       .where(eq(tutoringApplicationsTable.id, appId)).limit(1);
@@ -289,14 +290,14 @@ router.get("/applications/:appId", requireAuth, async (req, res) => {
       studentName: student?.fullName || "",
     });
   } catch (err: any) {
-    res.status(500).json({ error: "Server error", message: err.message });
+    serverError(res, err);
   }
 });
 
 // Student: cancel application
 router.post("/applications/:appId/cancel", requireAuth, async (req, res) => {
   try {
-    const { userId } = (req as any).user;
+    const { userId } = req.user!;
     const appId = parseParam(req.params.appId);
     await db.update(tutoringApplicationsTable).set({ status: "cancelled", updatedAt: new Date() })
       .where(and(eq(tutoringApplicationsTable.id, appId), eq(tutoringApplicationsTable.studentId, userId)));
@@ -309,7 +310,7 @@ router.post("/applications/:appId/cancel", requireAuth, async (req, res) => {
 // Join LiveKit session for a listing application (teacher or accepted student)
 router.post("/applications/:appId/join", requireAuth, async (req, res) => {
   try {
-    const { userId } = (req as any).user;
+    const { userId } = req.user!;
     const appId = parseParam(req.params.appId);
 
     const [app] = await db.select().from(tutoringApplicationsTable)
@@ -363,7 +364,7 @@ router.post("/applications/:appId/join", requireAuth, async (req, res) => {
 
     res.json({ roomId, appId, isTeacher, token, livekitUrl });
   } catch (err: any) {
-    res.status(500).json({ error: "Server error", message: err.message });
+    serverError(res, err);
   }
 });
 

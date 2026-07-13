@@ -1,4 +1,5 @@
 import { Router } from "express";
+import { serverError } from "../lib/http.js";
 import { db } from "@workspace/db";
 import { contentVerificationJobsTable, usersTable, lessonsTable } from "@workspace/db";
 import { eq, desc, and, sql } from "drizzle-orm";
@@ -25,7 +26,7 @@ router.post("/face-check/:teacherId", requireAuth, requireRole("admin"), async (
 
     res.json(job);
   } catch (err: any) {
-    res.status(500).json({ error: "Server error", message: err.message });
+    serverError(res, err);
   }
 });
 
@@ -47,7 +48,7 @@ router.post("/voice-check/:teacherId", requireAuth, requireRole("admin"), async 
 
     res.json(job);
   } catch (err: any) {
-    res.status(500).json({ error: "Server error", message: err.message });
+    serverError(res, err);
   }
 });
 
@@ -83,7 +84,7 @@ router.get("/jobs", requireAuth, requireRole("admin"), async (req, res) => {
 
     res.json(filtered);
   } catch (err: any) {
-    res.status(500).json({ error: "Server error", message: err.message });
+    serverError(res, err);
   }
 });
 
@@ -91,7 +92,7 @@ router.get("/jobs", requireAuth, requireRole("admin"), async (req, res) => {
 router.patch("/jobs/:id", requireAuth, requireRole("admin"), async (req, res) => {
   try {
     const id = parseParam(req.params.id);
-    const { userId } = (req as any).user;
+    const { userId } = req.user!;
     const { status, adminNotes, matchScore } = req.body;
 
     const updates: any = { updatedAt: new Date(), reviewedByAdminId: userId };
@@ -104,7 +105,7 @@ router.patch("/jobs/:id", requireAuth, requireRole("admin"), async (req, res) =>
 
     res.json({ success: true });
   } catch (err: any) {
-    res.status(500).json({ error: "Server error", message: err.message });
+    serverError(res, err);
   }
 });
 
@@ -127,7 +128,7 @@ router.get("/duplicates", requireAuth, requireRole("admin"), async (_req, res) =
 
     res.json(duplicates);
   } catch (err: any) {
-    res.status(500).json({ error: "Server error", message: err.message });
+    serverError(res, err);
   }
 });
 

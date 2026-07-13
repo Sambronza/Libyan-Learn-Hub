@@ -9,11 +9,32 @@ if (!JWT_SECRET && process.env.NODE_ENV === "production") {
 
 const SECRET = JWT_SECRET || "lms-libya-secret-2024-dev";
 
+/**
+ * The single source of truth for the JWT signing/verification secret.
+ * Every module that signs or verifies a token (auth, video playback, document
+ * proxy, community) MUST use this — otherwise tokens signed in one place fail
+ * verification in another whenever JWT_SECRET is unset (e.g. local dev).
+ */
+export function getJwtSecret(): string {
+  return SECRET;
+}
+
 export interface AuthPayload {
   userId: number;
   role: string;
   /** Student tokens are bound to their trusted device (device-based login restriction). */
   deviceId?: number;
+}
+
+// Make `req.user` typed everywhere requireAuth has run, removing the need for
+// `(req as any).user` casts throughout the routes.
+declare global {
+  // eslint-disable-next-line @typescript-eslint/no-namespace
+  namespace Express {
+    interface Request {
+      user?: AuthPayload;
+    }
+  }
 }
 
 export function signToken(payload: AuthPayload): string {
@@ -22,6 +43,21 @@ export function signToken(payload: AuthPayload): string {
 
 export function verifyToken(token: string): AuthPayload {
   return jwt.verify(token, SECRET) as AuthPayload;
+}
+
+/**
+ * Parse the Bearer token if present, returning the userId — or null for
+ * anonymous/invalid requests. For public endpoints that personalize results
+ * (e.g. "did I like this?") without requiring authentication.
+ */
+export function getOptionalUserId(req: Request): number | null {
+  const h = req.headers.authorization;
+  if (!h?.startsWith("Bearer ")) return null;
+  try {
+    return (jwt.verify(h.slice(7), SECRET) as AuthPayload).userId ?? null;
+  } catch {
+    return null;
+  }
 }
 
 // ── Device/block enforcement cache ──────────────────────────────────────────
@@ -96,13 +132,13 @@ export async function requireAuth(req: Request, res: Response, next: NextFunctio
     }
   }
 
-  (req as any).user = payload;
+  req.user = payload;
   next();
 }
 
 export function requireRole(...roles: string[]) {
   return (req: Request, res: Response, next: NextFunction) => {
-    const user = (req as any).user as AuthPayload | undefined;
+    const user = req.user;
     if (!user) {
       res.status(401).json({ error: "Unauthorized" });
       return;

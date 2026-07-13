@@ -1,4 +1,5 @@
 import { Router } from "express";
+import { serverError } from "../lib/http.js";
 import { db } from "@workspace/db";
 import { coursesTable, usersTable, enrollmentsTable, reviewsTable, lessonsTable, liveSessionsTable, teacherEarningsTable } from "@workspace/db";
 import { eq, count, avg, sum, sql, and, desc } from "drizzle-orm";
@@ -8,7 +9,7 @@ const router = Router();
 
 router.get("/courses", requireAuth, requireRole("teacher", "admin"), async (req, res) => {
   try {
-    const { userId } = (req as any).user;
+    const { userId } = req.user!;
     const [teacher] = await db.select().from(usersTable).where(eq(usersTable.id, userId)).limit(1);
     const courses = await db.select().from(coursesTable).where(eq(coursesTable.teacherId, userId));
     const result = await Promise.all(courses.map(async (course) => {
@@ -43,14 +44,14 @@ router.get("/courses", requireAuth, requireRole("teacher", "admin"), async (req,
     }));
     res.json(result);
   } catch (err: any) {
-    res.status(500).json({ error: "Server error", message: err.message });
+    serverError(res, err);
   }
 });
 
 // Subscription statistics per course: active, expired, renewed counts
 router.get("/subscription-stats", requireAuth, requireRole("teacher", "admin"), async (req, res) => {
   try {
-    const { userId } = (req as any).user;
+    const { userId } = req.user!;
     const courses = await db.select().from(coursesTable).where(eq(coursesTable.teacherId, userId));
 
     const stats = await Promise.all(courses.map(async (course) => {
@@ -87,13 +88,13 @@ router.get("/subscription-stats", requireAuth, requireRole("teacher", "admin"), 
 
     res.json({ courses: stats, totals });
   } catch (err: any) {
-    res.status(500).json({ error: "Server error", message: err.message });
+    serverError(res, err);
   }
 });
 
 router.get("/students", requireAuth, requireRole("teacher", "admin"), async (req, res) => {
   try {
-    const { userId } = (req as any).user;
+    const { userId } = req.user!;
     
     const rawStudents = await db
       .select({
@@ -122,7 +123,7 @@ router.get("/students", requireAuth, requireRole("teacher", "admin"), async (req
     
     res.json(result);
   } catch (err: any) {
-    res.status(500).json({ error: "Server error", message: err.message });
+    serverError(res, err);
   }
 });
 
@@ -174,7 +175,7 @@ router.get("/", async (_req, res) => {
       });
     res.json(sorted);
   } catch (err: any) {
-    res.status(500).json({ error: "Server error", message: err.message });
+    serverError(res, err);
   }
 });
 

@@ -1,4 +1,5 @@
 import { Router } from "express";
+import { serverError } from "../lib/http.js";
 import { db } from "@workspace/db";
 import { couponsTable, coursesTable } from "@workspace/db";
 import { eq, and, desc } from "drizzle-orm";
@@ -10,7 +11,7 @@ const router = Router();
 /** Validate a coupon for a course at checkout (returns the discounted price). */
 router.post("/validate", requireAuth, async (req, res) => {
   try {
-    const { userId } = (req as any).user;
+    const { userId } = req.user!;
     const { code, courseId, amount } = req.body;
     if (!code || !courseId || amount === undefined) {
       res.status(400).json({ error: "code, courseId and amount are required" });
@@ -32,14 +33,14 @@ router.post("/validate", requireAuth, async (req, res) => {
       value: parseFloat(result.coupon!.value),
     });
   } catch (err: any) {
-    res.status(500).json({ error: "Server error", message: err.message });
+    serverError(res, err);
   }
 });
 
 /** Teacher/admin: create a coupon. Teachers can only scope to their own courses. */
 router.post("/", requireAuth, requireRole("teacher", "admin"), async (req, res) => {
   try {
-    const { userId, role } = (req as any).user;
+    const { userId, role } = req.user!;
     const { code, type, value, courseId, maxUses, expiresAt } = req.body;
 
     if (!["percent", "fixed"].includes(type)) { res.status(400).json({ error: "type must be percent or fixed" }); return; }
@@ -79,27 +80,27 @@ router.post("/", requireAuth, requireRole("teacher", "admin"), async (req, res) 
 
     res.status(201).json(coupon);
   } catch (err: any) {
-    res.status(500).json({ error: "Server error", message: err.message });
+    serverError(res, err);
   }
 });
 
 /** Teacher: own coupons; admin: all coupons. */
 router.get("/my", requireAuth, requireRole("teacher", "admin"), async (req, res) => {
   try {
-    const { userId, role } = (req as any).user;
+    const { userId, role } = req.user!;
     const coupons = role === "admin"
       ? await db.select().from(couponsTable).orderBy(desc(couponsTable.createdAt))
       : await db.select().from(couponsTable).where(eq(couponsTable.createdBy, userId)).orderBy(desc(couponsTable.createdAt));
     res.json(coupons);
   } catch (err: any) {
-    res.status(500).json({ error: "Server error", message: err.message });
+    serverError(res, err);
   }
 });
 
 /** Deactivate a coupon (creator or admin). */
 router.post("/:id/deactivate", requireAuth, requireRole("teacher", "admin"), async (req, res) => {
   try {
-    const { userId, role } = (req as any).user;
+    const { userId, role } = req.user!;
     const id = parseInt(req.params.id as string);
     const [coupon] = await db.select().from(couponsTable).where(eq(couponsTable.id, id)).limit(1);
     if (!coupon) { res.status(404).json({ error: "Coupon not found" }); return; }
@@ -107,14 +108,14 @@ router.post("/:id/deactivate", requireAuth, requireRole("teacher", "admin"), asy
     await db.update(couponsTable).set({ isActive: false }).where(eq(couponsTable.id, id));
     res.json({ success: true });
   } catch (err: any) {
-    res.status(500).json({ error: "Server error", message: err.message });
+    serverError(res, err);
   }
 });
 
 /** My referral code + share link (lazily generated). */
 router.get("/referral/my-code", requireAuth, async (req, res) => {
   try {
-    const { userId } = (req as any).user;
+    const { userId } = req.user!;
     const code = await ensureReferralCode(userId);
     res.json({
       code,
@@ -122,7 +123,7 @@ router.get("/referral/my-code", requireAuth, async (req, res) => {
       messageAr: "شارك هذا الرمز — عندما يسجّل صديقك به ويقوم بأول عملية شراء، تحصلان معًا على رصيد في المحفظة.",
     });
   } catch (err: any) {
-    res.status(500).json({ error: "Server error", message: err.message });
+    serverError(res, err);
   }
 });
 

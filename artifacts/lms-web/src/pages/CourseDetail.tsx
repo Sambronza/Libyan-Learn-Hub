@@ -127,6 +127,15 @@ export default function CourseDetail() {
   if (isError) return <div className="min-h-screen pt-24 text-center text-destructive">Error loading course</div>;
   if (!course) return null;
 
+  // The course API returns subscription plan prices that aren't in the generated
+  // CourseDetail type yet; surface them through a typed view.
+  const plans = course as typeof course & {
+    priceMonth1?: number | null;
+    priceMonth3?: number | null;
+    priceMonth6?: number | null;
+    priceMonth12?: number | null;
+  };
+
   const formatDuration = (secs: number): string => {
     if (!secs) return '';
     const h = Math.floor(secs / 3600);
@@ -252,10 +261,10 @@ export default function CourseDetail() {
                     </p>
                     <div className="grid grid-cols-2 gap-2">
                       {([
-                        [1, course.priceMonth1 ?? course.price, language === 'ar' ? 'شهر' : '1 Mo'],
-                        [3, course.priceMonth3, language === 'ar' ? '3 أشهر' : '3 Mo'],
-                        [6, course.priceMonth6, language === 'ar' ? '6 أشهر' : '6 Mo'],
-                        [12, course.priceMonth12, language === 'ar' ? 'سنة' : '1 Yr'],
+                        [1, plans.priceMonth1 ?? course.price, language === 'ar' ? 'شهر' : '1 Mo'],
+                        [3, plans.priceMonth3, language === 'ar' ? '3 أشهر' : '3 Mo'],
+                        [6, plans.priceMonth6, language === 'ar' ? '6 أشهر' : '6 Mo'],
+                        [12, plans.priceMonth12, language === 'ar' ? 'سنة' : '1 Yr'],
                       ] as [number, number | null, string][]).map(([months, p, label]) => (
                         <button
                           key={months}

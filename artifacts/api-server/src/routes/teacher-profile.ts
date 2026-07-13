@@ -1,4 +1,5 @@
 import { Router } from "express";
+import { serverError } from "../lib/http.js";
 import { db } from "@workspace/db";
 import {
   usersTable, coursesTable, enrollmentsTable, reviewsTable, lessonsTable,
@@ -9,8 +10,7 @@ import { eq, count, avg, and, sql, desc, gte, or, lte } from "drizzle-orm";
 import { requireAuth, requireRole } from "../lib/auth.js";
 import { parseParam } from "../lib/utils.js";
 import multer from "multer";
-import { v2 as cloudinary } from "cloudinary";
-import { Readable } from "stream";
+import { uploadToCloudinary } from "../lib/cloudinary.js";
 import { sendEmail, buildTeacherApprovedEmail, buildTeacherRejectedEmail } from "../lib/email.js";
 
 const router = Router();
@@ -43,16 +43,6 @@ const docUpload = multer({
     else cb(new Error("Only PDF, Word documents, and images (JPEG/PNG/WebP) are allowed"));
   },
 });
-
-function uploadToCloudinary(buffer: Buffer, options: Record<string, any>): Promise<any> {
-  return new Promise((resolve, reject) => {
-    const stream = cloudinary.uploader.upload_stream(options, (err, result) => {
-      if (err) return reject(err);
-      resolve(result);
-    });
-    Readable.from(buffer).pipe(stream);
-  });
-}
 
 // Helper: generate slug from name
 function generateSlug(name: string): string {
@@ -163,7 +153,7 @@ router.get("/:slug", async (req, res) => {
       })),
     });
   } catch (err: any) {
-    res.status(500).json({ error: "Server error", message: err.message });
+    serverError(res, err);
   }
 });
 
@@ -312,14 +302,14 @@ router.get("/activities/:slug", async (req, res) => {
       stats: { totalSessions, avgRating, reviewCount, studentCount },
     });
   } catch (err: any) {
-    res.status(500).json({ error: "Server error", message: err.message });
+    serverError(res, err);
   }
 });
 
 // ── Teacher: Update own profile ──────────────────────────────────
 router.put("/", requireAuth, requireRole("teacher", "admin"), async (req, res) => {
   try {
-    const { userId } = (req as any).user;
+    const { userId } = req.user!;
     const { bio, bioAr, expertise, fullNameAr } = req.body;
 
     // Auto-generate slug if not existing
@@ -337,7 +327,7 @@ router.put("/", requireAuth, requireRole("teacher", "admin"), async (req, res) =
 
     res.json({ success: true, profileSlug: slug });
   } catch (err: any) {
-    res.status(500).json({ error: "Server error", message: err.message });
+    serverError(res, err);
   }
 });
 
@@ -345,7 +335,7 @@ router.put("/", requireAuth, requireRole("teacher", "admin"), async (req, res) =
 router.post("/cv", requireAuth, requireRole("teacher", "admin"), docUpload.single("cv"), async (req, res) => {
   try {
     if (!req.file) { res.status(400).json({ error: "No file provided" }); return; }
-    const { userId } = (req as any).user;
+    const { userId } = req.user!;
     const result = await uploadToCloudinary(req.file.buffer, {
       resource_type: "raw",
       folder: "libyan-learn-hub/cvs",
@@ -353,7 +343,7 @@ router.post("/cv", requireAuth, requireRole("teacher", "admin"), docUpload.singl
     await db.update(usersTable).set({ cvUrl: result.secure_url, updatedAt: new Date() }).where(eq(usersTable.id, userId));
     res.json({ success: true, cvUrl: result.secure_url });
   } catch (err: any) {
-    res.status(500).json({ error: "Server error", message: err.message });
+    serverError(res, err);
   }
 });
 
@@ -361,7 +351,7 @@ router.post("/cv", requireAuth, requireRole("teacher", "admin"), docUpload.singl
 router.post("/face-capture", requireAuth, requireRole("teacher", "admin"), imageUpload.single("photo"), async (req, res) => {
   try {
     if (!req.file) { res.status(400).json({ error: "No photo provided" }); return; }
-    const { userId } = (req as any).user;
+    const { userId } = req.user!;
     const result = await uploadToCloudinary(req.file.buffer, {
       resource_type: "image",
       folder: "libyan-learn-hub/face-verification",
@@ -370,7 +360,7 @@ router.post("/face-capture", requireAuth, requireRole("teacher", "admin"), image
     await db.update(usersTable).set({ facePhotoUrl: result.secure_url, updatedAt: new Date() }).where(eq(usersTable.id, userId));
     res.json({ success: true });
   } catch (err: any) {
-    res.status(500).json({ error: "Server error", message: err.message });
+    serverError(res, err);
   }
 });
 
@@ -388,7 +378,7 @@ const audioUpload = multer({
 router.post("/voice-sample", requireAuth, requireRole("teacher", "admin"), audioUpload.single("audio"), async (req, res) => {
   try {
     if (!req.file) { res.status(400).json({ error: "No audio provided" }); return; }
-    const { userId } = (req as any).user;
+    const { userId } = req.user!;
     const result = await uploadToCloudinary(req.file.buffer, {
       resource_type: "video",
       folder: "libyan-learn-hub/voice-samples",
@@ -397,18 +387,18 @@ router.post("/voice-sample", requireAuth, requireRole("teacher", "admin"), audio
     await db.update(usersTable).set({ voiceSampleUrl: result.secure_url, updatedAt: new Date() }).where(eq(usersTable.id, userId));
     res.json({ success: true });
   } catch (err: any) {
-    res.status(500).json({ error: "Server error", message: err.message });
+    serverError(res, err);
   }
 });
 
 // ── Teacher: Agree to copyright declaration ──────────────────────
 router.post("/copyright-agree", requireAuth, requireRole("teacher", "admin"), async (req, res) => {
   try {
-    const { userId } = (req as any).user;
+    const { userId } = req.user!;
     await db.update(usersTable).set({ copyrightAgreedAt: new Date(), updatedAt: new Date() }).where(eq(usersTable.id, userId));
     res.json({ success: true });
   } catch (err: any) {
-    res.status(500).json({ error: "Server error", message: err.message });
+    serverError(res, err);
   }
 });
 
@@ -417,7 +407,7 @@ router.post("/qualification", requireAuth, requireRole("teacher", "admin"),
   docUpload.single("qualification"),
   async (req, res): Promise<any> => {
     try {
-      const { userId } = (req as any).user;
+      const { userId } = req.user!;
       if (!req.file) return res.status(400).json({ error: "Qualification file is required" });
 
       const result = await uploadToCloudinary(req.file.buffer, {
@@ -433,7 +423,7 @@ router.post("/qualification", requireAuth, requireRole("teacher", "admin"),
 
       res.json({ success: true, url: result.secure_url });
     } catch (err: any) {
-      res.status(500).json({ error: "Upload failed", message: err.message });
+      serverError(res, err, "Upload failed");
     }
   }
 );
@@ -443,7 +433,7 @@ router.post("/experience-letter", requireAuth, requireRole("teacher", "admin"),
   docUpload.single("experienceLetter"),
   async (req, res): Promise<any> => {
     try {
-      const { userId } = (req as any).user;
+      const { userId } = req.user!;
       if (!req.file) return res.status(400).json({ error: "File is required" });
 
       const result = await uploadToCloudinary(req.file.buffer, {
@@ -459,7 +449,7 @@ router.post("/experience-letter", requireAuth, requireRole("teacher", "admin"),
 
       res.json({ success: true, url: result.secure_url });
     } catch (err: any) {
-      res.status(500).json({ error: "Upload failed", message: err.message });
+      serverError(res, err, "Upload failed");
     }
   }
 );
@@ -467,7 +457,7 @@ router.post("/experience-letter", requireAuth, requireRole("teacher", "admin"),
 // ── Teacher: Complete onboarding → set pending_review ────────────────────────
 router.post("/complete-onboarding", requireAuth, requireRole("teacher", "admin"), async (req, res) => {
   try {
-    const { userId } = (req as any).user;
+    const { userId } = req.user!;
     const [teacher] = await db.select().from(usersTable).where(eq(usersTable.id, userId)).limit(1);
     if (!teacher) { res.status(404).json({ error: "User not found" }); return; }
     if (!teacher.copyrightAgreedAt) { res.status(400).json({ error: "Copyright agreement required" }); return; }
@@ -505,7 +495,7 @@ router.post("/complete-onboarding", requireAuth, requireRole("teacher", "admin")
 
     res.json({ success: true, status: "pending_review", profileSlug: slug });
   } catch (err: any) {
-    res.status(500).json({ error: "Server error", message: err.message });
+    serverError(res, err);
   }
 });
 
@@ -532,7 +522,7 @@ router.get("/approvals", requireAuth, requireRole("admin"), async (_req, res) =>
       ));
     res.json(teachers);
   } catch (err: any) {
-    res.status(500).json({ error: "Server error", message: err.message });
+    serverError(res, err);
   }
 });
 
@@ -557,7 +547,7 @@ router.post("/approvals/:teacherId/approve", requireAuth, requireRole("admin"), 
 
     res.json({ success: true });
   } catch (err: any) {
-    res.status(500).json({ error: "Server error", message: err.message });
+    serverError(res, err);
   }
 });
 
@@ -587,14 +577,14 @@ router.post("/approvals/:teacherId/reject", requireAuth, requireRole("admin"), a
 
     res.json({ success: true });
   } catch (err: any) {
-    res.status(500).json({ error: "Server error", message: err.message });
+    serverError(res, err);
   }
 });
 
 // ── Student: Endorse a teacher ───────────────────────────────────
 router.post("/endorse/:teacherId", requireAuth, async (req, res) => {
   try {
-    const { userId } = (req as any).user;
+    const { userId } = req.user!;
     const teacherId = parseParam(req.params.teacherId);
     const { trait } = req.body;
     if (!trait) { res.status(400).json({ error: "Trait is required" }); return; }
@@ -622,7 +612,7 @@ router.post("/endorse/:teacherId", requireAuth, async (req, res) => {
     await db.insert(studentEndorsementsTable).values({ studentId: userId, teacherId, trait });
     res.json({ success: true });
   } catch (err: any) {
-    res.status(500).json({ error: "Server error", message: err.message });
+    serverError(res, err);
   }
 });
 
@@ -634,14 +624,14 @@ router.post("/analytics/event", async (req, res) => {
     await db.insert(profileAnalyticsTable).values({ teacherId, eventType, referer });
     res.json({ success: true });
   } catch (err: any) {
-    res.status(500).json({ error: "Server error", message: err.message });
+    serverError(res, err);
   }
 });
 
 // ── Teacher: Get own analytics summary ───────────────────────────
 router.get("/analytics/summary", requireAuth, requireRole("teacher", "admin"), async (req, res) => {
   try {
-    const { userId } = (req as any).user;
+    const { userId } = req.user!;
     const stats = await db.select({
       eventType: profileAnalyticsTable.eventType,
       count: count(),
@@ -651,14 +641,14 @@ router.get("/analytics/summary", requireAuth, requireRole("teacher", "admin"), a
 
     res.json(stats);
   } catch (err: any) {
-    res.status(500).json({ error: "Server error", message: err.message });
+    serverError(res, err);
   }
 });
 
 // ── Teacher: Upgrade to Pro (Placeholder for future payment flow) ───
 router.post("/upgrade-pro", requireAuth, requireRole("teacher", "admin"), async (req, res) => {
   try {
-    const { userId } = (req as any).user;
+    const { userId } = req.user!;
     
     // For now, immediately upgrade to Pro for 30 days
     const proExpiry = new Date();
@@ -672,7 +662,7 @@ router.post("/upgrade-pro", requireAuth, requireRole("teacher", "admin"), async 
     
     res.json({ success: true, message: "Upgraded to Pro successfully" });
   } catch (err: any) {
-    res.status(500).json({ error: "Server error", message: err.message });
+    serverError(res, err);
   }
 });
 

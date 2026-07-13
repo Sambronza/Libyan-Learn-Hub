@@ -1,4 +1,5 @@
 import { Router } from "express";
+import { serverError } from "../lib/http.js";
 import { db } from "@workspace/db";
 import { lessonProgressTable, lessonsTable, enrollmentsTable } from "@workspace/db";
 import { eq, and, count } from "drizzle-orm";
@@ -11,7 +12,7 @@ const router = Router();
 // Get progress for a course (all lessons)
 router.get("/courses/:courseId", requireAuth, async (req, res) => {
   try {
-    const { userId } = (req as any).user;
+    const { userId } = req.user!;
     const courseId = parseParam(req.params.courseId);
     const progress = await db.select().from(lessonProgressTable)
       .where(and(eq(lessonProgressTable.userId, userId), eq(lessonProgressTable.courseId, courseId)));
@@ -24,20 +25,20 @@ router.get("/courses/:courseId", requireAuth, async (req, res) => {
       percentage: totalLessons.total > 0 ? Math.round((completedIds.length / Number(totalLessons.total)) * 100) : 0,
     });
   } catch (err: any) {
-    res.status(500).json({ error: "Server error", message: err.message });
+    serverError(res, err);
   }
 });
 
 // Mark a lesson complete
 router.post("/lessons/:lessonId/complete", requireAuth, async (req, res) => {
   try {
-    const { userId } = (req as any).user;
+    const { userId } = req.user!;
     const lessonId = parseParam(req.params.lessonId);
     const [lesson] = await db.select().from(lessonsTable).where(eq(lessonsTable.id, lessonId)).limit(1);
     if (!lesson) { res.status(404).json({ error: "Lesson not found" }); return; }
 
     // Require an active (non-expired) enrollment to record progress
-    const { role } = (req as any).user;
+    const { role } = req.user!;
     const access = await requireActiveEnrollment(userId, lesson.courseId, role);
     if (!access.ok) {
       res.status(403).json(access.reason === "expired" ? SUBSCRIPTION_EXPIRED_ERROR : NOT_ENROLLED_ERROR);
@@ -68,7 +69,7 @@ router.post("/lessons/:lessonId/complete", requireAuth, async (req, res) => {
 
     res.json({ success: true, percentage: pct, isComplete: pct === 100 });
   } catch (err: any) {
-    res.status(500).json({ error: "Server error", message: err.message });
+    serverError(res, err);
   }
 });
 

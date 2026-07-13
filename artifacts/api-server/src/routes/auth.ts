@@ -1,4 +1,5 @@
 import { Router } from "express";
+import { serverError } from "../lib/http.js";
 import bcrypt from "bcryptjs";
 import { db } from "@workspace/db";
 import { usersTable } from "@workspace/db";
@@ -40,7 +41,7 @@ router.get("/settings", async (_req, res) => {
     
     res.json(settings);
   } catch (err: any) {
-    res.status(500).json({ error: "Server error", message: err.message });
+    serverError(res, err);
   }
 });
 const authLimiter = rateLimit({
@@ -215,7 +216,7 @@ router.post("/register", authLimiter, async (req, res) => {
 
 router.post("/send-otp", requireAuth, async (req, res) => {
   try {
-    const { userId } = (req as any).user;
+    const { userId } = req.user!;
     const otpCode = generateOtp();
     const otpExpiry = new Date(Date.now() + 10 * 60 * 1000);
     const [user] = await db.update(usersTable)
@@ -238,13 +239,13 @@ router.post("/send-otp", requireAuth, async (req, res) => {
 
     res.json({ message: "OTP sent" });
   } catch (err: any) {
-    res.status(500).json({ error: "Server error", message: err.message });
+    serverError(res, err);
   }
 });
 
 router.post("/verify-otp", requireAuth, async (req, res) => {
   try {
-    const { userId } = (req as any).user;
+    const { userId } = req.user!;
     const { code, type } = req.body;
     const [user] = await db.select().from(usersTable).where(eq(usersTable.id, userId)).limit(1);
     if (!user) { res.status(404).json({ error: "User not found" }); return; }
@@ -274,7 +275,7 @@ router.post("/verify-otp", requireAuth, async (req, res) => {
       },
     });
   } catch (err: any) {
-    res.status(500).json({ error: "Server error", message: err.message });
+    serverError(res, err);
   }
 });
 
@@ -413,7 +414,7 @@ router.post("/logout", (_req, res) => {
 
 router.post("/update-password", requireAuth, async (req, res) => {
   try {
-    const { userId } = (req as any).user;
+    const { userId } = req.user!;
     const { currentPassword, newPassword } = req.body;
 
     if (!currentPassword || !newPassword) {
@@ -438,12 +439,12 @@ router.post("/update-password", requireAuth, async (req, res) => {
 
     res.json({ success: true, message: "Password updated successfully" });
   } catch (err: any) {
-    res.status(500).json({ error: "Server error", message: err.message });
+    serverError(res, err);
   }
 });
 
 router.get("/me", requireAuth, async (req, res) => {
-  const { userId } = (req as any).user;
+  const { userId } = req.user!;
   const [user] = await db.select().from(usersTable).where(eq(usersTable.id, userId)).limit(1);
   if (!user) {
     res.status(401).json({ error: "User not found" });
@@ -489,7 +490,7 @@ router.get("/me", requireAuth, async (req, res) => {
 // ── Set / Change Passkey ──────────────────────────────────────────────────
 router.post("/set-passkey", requireAuth, async (req, res) => {
   try {
-    const { userId } = (req as any).user;
+    const { userId } = req.user!;
     const { passkey, currentPasskey } = req.body;
 
     if (!passkey || !/^\d{4}$/.test(passkey)) {
@@ -524,14 +525,14 @@ router.post("/set-passkey", requireAuth, async (req, res) => {
 
     res.json({ success: true, message: "Passkey set successfully" });
   } catch (err: any) {
-    res.status(500).json({ error: "Server error", message: err.message });
+    serverError(res, err);
   }
 });
 
 // ── Remove Passkey ────────────────────────────────────────────────────────
 router.post("/remove-passkey", requireAuth, async (req, res) => {
   try {
-    const { userId } = (req as any).user;
+    const { userId } = req.user!;
     const { currentPasskey } = req.body;
 
     const [user] = await db.select().from(usersTable).where(eq(usersTable.id, userId)).limit(1);
@@ -562,14 +563,14 @@ router.post("/remove-passkey", requireAuth, async (req, res) => {
 
     res.json({ success: true, message: "Passkey removed successfully" });
   } catch (err: any) {
-    res.status(500).json({ error: "Server error", message: err.message });
+    serverError(res, err);
   }
 });
 
 // ── Verify Passkey (unlock session) ──────────────────────────────────────
 router.post("/verify-passkey", requireAuth, async (req, res) => {
   try {
-    const { userId } = (req as any).user;
+    const { userId } = req.user!;
     const { passkey } = req.body;
 
     if (!passkey) {
@@ -598,7 +599,7 @@ router.post("/verify-passkey", requireAuth, async (req, res) => {
     const token = signToken({ userId: user.id, role: user.role });
     res.json({ success: true, token });
   } catch (err: any) {
-    res.status(500).json({ error: "Server error", message: err.message });
+    serverError(res, err);
   }
 });
 
@@ -659,7 +660,7 @@ router.post("/forgot-password", authLimiter, async (req, res) => {
       });
     }
   } catch (err: any) {
-    res.status(500).json({ error: "Server error", message: err.message });
+    serverError(res, err);
   }
 });
 
@@ -706,7 +707,7 @@ router.post("/reset-password", authLimiter, async (req, res) => {
 
     res.json({ success: true, message: "Password has been reset successfully" });
   } catch (err: any) {
-    res.status(500).json({ error: "Server error", message: err.message });
+    serverError(res, err);
   }
 });
 

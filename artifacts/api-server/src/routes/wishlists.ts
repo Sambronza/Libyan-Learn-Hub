@@ -1,4 +1,5 @@
 import { Router } from "express";
+import { serverError } from "../lib/http.js";
 import { db } from "@workspace/db";
 import { wishlistsTable, coursesTable, usersTable } from "@workspace/db";
 import { eq, and } from "drizzle-orm";
@@ -9,7 +10,7 @@ router.use(requireAuth);
 
 router.get("/", async (req, res) => {
   try {
-    const { userId } = (req as any).user;
+    const { userId } = req.user!;
     const items = await db.select().from(wishlistsTable).where(eq(wishlistsTable.userId, userId));
     const result = await Promise.all(items.map(async (w) => {
       const [course] = await db.select().from(coursesTable).where(eq(coursesTable.id, w.courseId)).limit(1);
@@ -18,13 +19,13 @@ router.get("/", async (req, res) => {
     }));
     res.json(result.filter(w => w.course));
   } catch (err: any) {
-    res.status(500).json({ error: "Server error", message: err.message });
+    serverError(res, err);
   }
 });
 
 router.post("/:courseId", async (req, res) => {
   try {
-    const { userId } = (req as any).user;
+    const { userId } = req.user!;
     const courseId = parseInt(req.params.courseId);
     const existing = await db.select().from(wishlistsTable)
       .where(and(eq(wishlistsTable.userId, userId), eq(wishlistsTable.courseId, courseId))).limit(1);
@@ -32,30 +33,30 @@ router.post("/:courseId", async (req, res) => {
     await db.insert(wishlistsTable).values({ userId, courseId });
     res.json({ wishlisted: true });
   } catch (err: any) {
-    res.status(500).json({ error: "Server error", message: err.message });
+    serverError(res, err);
   }
 });
 
 router.delete("/:courseId", async (req, res) => {
   try {
-    const { userId } = (req as any).user;
+    const { userId } = req.user!;
     const courseId = parseInt(req.params.courseId);
     await db.delete(wishlistsTable).where(and(eq(wishlistsTable.userId, userId), eq(wishlistsTable.courseId, courseId)));
     res.json({ wishlisted: false });
   } catch (err: any) {
-    res.status(500).json({ error: "Server error", message: err.message });
+    serverError(res, err);
   }
 });
 
 router.get("/check/:courseId", async (req, res) => {
   try {
-    const { userId } = (req as any).user;
+    const { userId } = req.user!;
     const courseId = parseInt(req.params.courseId);
     const existing = await db.select().from(wishlistsTable)
       .where(and(eq(wishlistsTable.userId, userId), eq(wishlistsTable.courseId, courseId))).limit(1);
     res.json({ wishlisted: existing.length > 0 });
   } catch (err: any) {
-    res.status(500).json({ error: "Server error", message: err.message });
+    serverError(res, err);
   }
 });
 

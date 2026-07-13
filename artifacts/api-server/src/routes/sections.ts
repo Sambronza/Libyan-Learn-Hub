@@ -1,4 +1,5 @@
 import { Router } from "express";
+import { serverError } from "../lib/http.js";
 import { db } from "@workspace/db";
 import {
   sectionsTable,
@@ -83,7 +84,7 @@ router.get("/", async (req, res) => {
 
     res.json(sectionsWithLessons);
   } catch (err: any) {
-    res.status(500).json({ error: "Server error", message: err.message });
+    serverError(res, err);
   }
 });
 
@@ -187,13 +188,13 @@ router.get("/:sectionId/lessons", async (req, res) => {
 
     res.json(lessonsWithSlides);
   } catch (err: any) {
-    res.status(500).json({ error: "Server error", message: err.message });
+    serverError(res, err);
   }
 });
 
 router.post("/:sectionId/lessons", requireAuth, requireRole("teacher", "admin"), async (req, res): Promise<any> => {
   try {
-    const reqUser = (req as any).user;
+    const reqUser = req.user!;
     const courseId = parseParam(req.params.courseId);
     const sectionId = parseParam(req.params.sectionId);
     

@@ -1,11 +1,12 @@
 import { Router } from "express";
+import { serverError } from "../lib/http.js";
 import bcrypt from "bcryptjs";
 import { db } from "@workspace/db";
 import { usersTable, deviceSwitchRequestsTable, notificationsTable } from "@workspace/db";
 import { eq, ilike } from "drizzle-orm";
 import { signToken, requireAuth, invalidateDeviceCheckCache } from "../lib/auth.js";
 import { rateLimit } from "express-rate-limit";
-import { v2 as cloudinary } from "cloudinary";
+import { cloudinary } from "../lib/cloudinary.js";
 import {
   bestMatchDistance,
   getFaceMatchThreshold,
@@ -41,11 +42,6 @@ function safeParseProfile(raw: string | null): { face?: StoredFaceProfile } {
 
 async function uploadSnapshot(base64: string, folder: string): Promise<string | null> {
   try {
-    cloudinary.config({
-      cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
-      api_key: process.env.CLOUDINARY_API_KEY,
-      api_secret: process.env.CLOUDINARY_API_SECRET,
-    });
     const dataUri = base64.startsWith("data:") ? base64 : `data:image/jpeg;base64,${base64}`;
     const result = await cloudinary.uploader.upload(dataUri, { folder });
     return result.secure_url;
@@ -208,7 +204,7 @@ router.post("/device-switch/verify", verifyLimiter, async (req, res) => {
 
     res.status(403).json(FACE_MISMATCH_ERROR);
   } catch (err: any) {
-    res.status(500).json({ error: "Server error", message: err.message });
+    serverError(res, err);
   }
 });
 
@@ -304,7 +300,7 @@ router.post("/reverify-face", verifyLimiter, async (req, res) => {
 
     res.status(403).json(FACE_MISMATCH_ERROR);
   } catch (err: any) {
-    res.status(500).json({ error: "Server error", message: err.message });
+    serverError(res, err);
   }
 });
 
@@ -315,7 +311,7 @@ router.post("/reverify-face", verifyLimiter, async (req, res) => {
  */
 router.post("/enroll-face", requireAuth, async (req, res) => {
   try {
-    const { userId, role } = (req as any).user;
+    const { userId, role } = req.user!;
     if (role !== "student") {
       res.status(403).json({ error: "Only students enroll a face profile here" });
       return;
@@ -365,14 +361,14 @@ router.post("/enroll-face", requireAuth, async (req, res) => {
 
     res.json({ success: true, message: "Face profile saved." });
   } catch (err: any) {
-    res.status(500).json({ error: "Server error", message: err.message });
+    serverError(res, err);
   }
 });
 
 /** GET /auth/device-status — current device/verification state for the logged-in student. */
 router.get("/device-status", requireAuth, async (req, res) => {
   try {
-    const { userId, role } = (req as any).user;
+    const { userId, role } = req.user!;
     if (role !== "student") {
       res.json({ deviceBindingApplies: false });
       return;
@@ -391,7 +387,7 @@ router.get("/device-status", requireAuth, async (req, res) => {
       nextReverifyAt: user.nextReverifyAt,
     });
   } catch (err: any) {
-    res.status(500).json({ error: "Server error", message: err.message });
+    serverError(res, err);
   }
 });
 

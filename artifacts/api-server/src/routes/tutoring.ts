@@ -1,4 +1,5 @@
 import { Router } from "express";
+import { serverError } from "../lib/http.js";
 import { db } from "@workspace/db";
 import { tutoringRequestsTable, usersTable, paymentsTable, teacherEarningsTable, reportsTable, notificationsTable } from "@workspace/db";
 import { eq, and, desc, isNull, or, sql, lt, inArray, like } from "drizzle-orm";
@@ -65,7 +66,7 @@ router.get("/tutors", async (req, res) => {
       isVerified: t.isVerified,
     })));
   } catch (err: any) {
-    res.status(500).json({ error: "Server error", message: err.message });
+    serverError(res, err);
   }
 });
 
@@ -89,7 +90,7 @@ router.get("/debug-tutors-raw", async (req, res) => {
 // ─── Register teacher for tutoring ───────────────────────────────────────────
 router.post("/register", requireAuth, async (req, res) => {
   try {
-    const { userId, role } = (req as any).user;
+    const { userId, role } = req.user!;
     if (role !== "teacher" && role !== "admin") {
       res.status(403).json({ error: "Only teachers can register for tutoring" });
       return;
@@ -120,14 +121,14 @@ router.post("/register", requireAuth, async (req, res) => {
       .returning();
     res.json({ success: true, isTutoringEnabled: updated.isTutoringEnabled });
   } catch (err: any) {
-    res.status(500).json({ error: "Server error", message: err.message });
+    serverError(res, err);
   }
 });
 
 // ─── Update teacher tutoring settings ────────────────────────────────────────
 router.put("/settings", requireAuth, async (req, res) => {
   try {
-    const { userId, role } = (req as any).user;
+    const { userId, role } = req.user!;
     if (role !== "teacher" && role !== "admin") {
       res.status(403).json({ error: "Only teachers can update tutoring settings" });
       return;
@@ -155,14 +156,14 @@ router.put("/settings", requireAuth, async (req, res) => {
       .returning();
     res.json({ success: true, isTutoringEnabled: updated.isTutoringEnabled });
   } catch (err: any) {
-    res.status(500).json({ error: "Server error", message: err.message });
+    serverError(res, err);
   }
 });
 
 // ─── Get my tutoring requests (student or teacher) ───────────────────────────
 router.get("/requests", requireAuth, async (req, res) => {
   try {
-    const { userId, role } = (req as any).user;
+    const { userId, role } = req.user!;
     let requests;
 
     if (role === "student") {
@@ -243,7 +244,7 @@ router.get("/requests", requireAuth, async (req, res) => {
 
     res.json(result);
   } catch (err: any) {
-    res.status(500).json({ error: "Server error", message: err.message });
+    serverError(res, err);
   }
 });
 
@@ -252,7 +253,7 @@ router.get("/requests", requireAuth, async (req, res) => {
 // Both the student AND the assigned teacher are authorised to fetch it.
 router.get("/requests/:id", requireAuth, async (req, res) => {
   try {
-    const { userId, role } = (req as any).user;
+    const { userId, role } = req.user!;
     const requestId = parseParam(req.params.id);
 
     const [request] = await db.select().from(tutoringRequestsTable)
@@ -281,14 +282,14 @@ router.get("/requests/:id", requireAuth, async (req, res) => {
       teacherEmail: teacher?.email,
     });
   } catch (err: any) {
-    res.status(500).json({ error: "Server error", message: err.message });
+    serverError(res, err);
   }
 });
 
 // ─── Student creates a tutoring request ──────────────────────────────────────
 router.post("/requests", requireAuth, async (req, res) => {
   try {
-    const { userId, role } = (req as any).user;
+    const { userId, role } = req.user!;
 
     if (role !== "student") {
       res.status(403).json({ error: "Only students can create tutoring requests" });
@@ -393,7 +394,7 @@ router.post("/requests", requireAuth, async (req, res) => {
     if (err.message.includes("Insufficient balance") || err.message.includes("suspended") || err.message.includes("not found")) {
       res.status(400).json({ error: err.message });
     } else {
-      res.status(500).json({ error: "Server error", message: err.message });
+      serverError(res, err);
     }
   }
 });
@@ -442,7 +443,7 @@ async function notifyAcceptance(requestId: number, studentId: number, teacherId:
 //   3. Non-urgent "any teacher" requests (teacherId=null, isUrgent=false)
 router.post("/requests/:id/accept", requireAuth, async (req, res) => {
   try {
-    const { userId, role } = (req as any).user;
+    const { userId, role } = req.user!;
     if (role !== "teacher" && role !== "admin") {
       res.status(403).json({ error: "Only teachers can accept tutoring requests" });
       return;
@@ -493,14 +494,14 @@ router.post("/requests/:id/accept", requireAuth, async (req, res) => {
 
     res.status(403).json({ error: "This request is assigned to a different teacher" });
   } catch (err: any) {
-    res.status(500).json({ error: "Server error", message: err.message });
+    serverError(res, err);
   }
 });
 
 // ─── Teacher declines a request ───────────────────────────────────────────────
 router.post("/requests/:id/decline", requireAuth, async (req, res) => {
   try {
-    const { userId, role } = (req as any).user;
+    const { userId, role } = req.user!;
     if (role !== "teacher" && role !== "admin") {
       res.status(403).json({ error: "Only teachers can decline tutoring requests" });
       return;
@@ -538,14 +539,14 @@ router.post("/requests/:id/decline", requireAuth, async (req, res) => {
 
     res.json({ success: true, status: "declined" });
   } catch (err: any) {
-    res.status(500).json({ error: "Server error", message: err.message });
+    serverError(res, err);
   }
 });
 
 // ─── Teacher proposes a new time ─────────────────────────────────────────────
 router.post("/requests/:id/propose-time", requireAuth, async (req, res) => {
   try {
-    const { userId, role } = (req as any).user;
+    const { userId, role } = req.user!;
     if (role !== "teacher" && role !== "admin") {
       res.status(403).json({ error: "Only teachers can propose a new time" });
       return;
@@ -592,14 +593,14 @@ router.post("/requests/:id/propose-time", requireAuth, async (req, res) => {
 
     res.json({ success: true, updated });
   } catch (err: any) {
-    res.status(500).json({ error: "Server error", message: err.message });
+    serverError(res, err);
   }
 });
 
 // ─── Student accepts teacher's proposed time ──────────────────────────────────
 router.post("/requests/:id/accept-proposed-time", requireAuth, async (req, res) => {
   try {
-    const { userId } = (req as any).user;
+    const { userId } = req.user!;
     const requestId = parseParam(req.params.id);
 
     const [request] = await db.select().from(tutoringRequestsTable)
@@ -629,14 +630,14 @@ router.post("/requests/:id/accept-proposed-time", requireAuth, async (req, res) 
 
     res.json({ success: true, meetingUrl, updated });
   } catch (err: any) {
-    res.status(500).json({ error: "Server error", message: err.message });
+    serverError(res, err);
   }
 });
 
 // ─── Student cancels a request ────────────────────────────────────────────────
 router.post("/requests/:id/cancel", requireAuth, async (req, res) => {
   try {
-    const { userId } = (req as any).user;
+    const { userId } = req.user!;
     const requestId = parseParam(req.params.id);
 
     const [request] = await db.select().from(tutoringRequestsTable)
@@ -669,14 +670,14 @@ router.post("/requests/:id/cancel", requireAuth, async (req, res) => {
 
     res.json({ success: true, status: "cancelled" });
   } catch (err: any) {
-    res.status(500).json({ error: "Server error", message: err.message });
+    serverError(res, err);
   }
 });
 
 // ─── Student rates a completed session ───────────────────────────────────────
 router.post("/requests/:id/rate", requireAuth, async (req, res) => {
   try {
-    const { userId } = (req as any).user;
+    const { userId } = req.user!;
     const requestId = parseParam(req.params.id);
     const { rating, review } = req.body;
 
@@ -701,14 +702,14 @@ router.post("/requests/:id/rate", requireAuth, async (req, res) => {
 
     res.json({ success: true });
   } catch (err: any) {
-    res.status(500).json({ error: "Server error", message: err.message });
+    serverError(res, err);
   }
 });
 
 // ─── Mark session as complete ─────────────────────────────────────────────────
 router.post("/requests/:id/complete", requireAuth, async (req, res) => {
   try {
-    const { userId } = (req as any).user;
+    const { userId } = req.user!;
     const requestId = parseParam(req.params.id);
 
     const [request] = await db.select().from(tutoringRequestsTable)
@@ -743,14 +744,14 @@ router.post("/requests/:id/complete", requireAuth, async (req, res) => {
 
     res.json({ success: true, status: "completed_pending_review" });
   } catch (err: any) {
-    res.status(500).json({ error: "Server error", message: err.message });
+    serverError(res, err);
   }
 });
 
 // ─── Mark session as no-show (Teacher didn't attend) ──────────────────────────
 router.post("/requests/:id/no-show", requireAuth, async (req, res) => {
   try {
-    const { userId } = (req as any).user;
+    const { userId } = req.user!;
     const requestId = parseParam(req.params.id);
 
     const [request] = await db.select().from(tutoringRequestsTable)
@@ -759,7 +760,7 @@ router.post("/requests/:id/no-show", requireAuth, async (req, res) => {
     if (!request) { res.status(404).json({ error: "Request not found" }); return; }
     
     // ONLY Admins can manually trigger a no-show now (automated system handles the rest)
-    if ((req as any).user.role !== "admin") {
+    if (req.user!.role !== "admin") {
       res.status(403).json({ error: "Only admins can manually report a no-show" }); return;
     }
 
@@ -795,14 +796,14 @@ router.post("/requests/:id/no-show", requireAuth, async (req, res) => {
 
     res.json({ success: true, status: "cancelled_no_show" });
   } catch (err: any) {
-    res.status(500).json({ error: "Server error", message: err.message });
+    serverError(res, err);
   }
 });
 
 // ─── Join LiveKit Tutoring Session ────────────────────────────────────────────
 router.post("/requests/:id/join", requireAuth, async (req, res) => {
   try {
-    const { userId } = (req as any).user;
+    const { userId } = req.user!;
     const requestId = parseParam(req.params.id);
 
     const [request] = await db.select().from(tutoringRequestsTable)
@@ -886,14 +887,14 @@ router.post("/requests/:id/join", requireAuth, async (req, res) => {
 
     res.json({ roomId, requestId, isTeacher, token, livekitUrl });
   } catch (err: any) {
-    res.status(500).json({ error: "Server error", message: err.message });
+    serverError(res, err);
   }
 });
 
 // ─── Save Recording URL ───────────────────────────────────────────────────────
 router.post("/requests/:id/recording", requireAuth, async (req, res) => {
   try {
-    const { userId } = (req as any).user;
+    const { userId } = req.user!;
     const requestId = parseParam(req.params.id);
     const { recordingUrl } = req.body;
 
@@ -912,13 +913,13 @@ router.post("/requests/:id/recording", requireAuth, async (req, res) => {
 
     res.json({ success: true, recordingUrl });
   } catch (err: any) {
-    res.status(500).json({ error: "Server error", message: err.message });
+    serverError(res, err);
   }
 });
 // ─── Upload Audio Recording (Temporary) ─────────────────────────────────────────
 router.post("/requests/:id/upload-audio", requireAuth, upload.single("audio"), async (req, res) => {
   try {
-    const { userId } = (req as any).user;
+    const { userId } = req.user!;
     const requestId = parseParam(req.params.id);
 
     if (!req.file) {
@@ -959,7 +960,7 @@ router.post("/requests/:id/upload-audio", requireAuth, upload.single("audio"), a
     res.json({ success: true, recordingUrl: result.secure_url });
   } catch (err: any) {
     console.error("Audio upload error:", err);
-    res.status(500).json({ error: "Server error", message: err.message });
+    serverError(res, err);
   }
 });
 
@@ -968,7 +969,7 @@ router.post("/requests/:id/upload-audio", requireAuth, upload.single("audio"), a
 // On the teacher's FIRST call it starts the session timer if both are present.
 router.post("/requests/:id/timer/sync", requireAuth, async (req, res) => {
   try {
-    const { userId } = (req as any).user;
+    const { userId } = req.user!;
     const requestId = parseParam(req.params.id);
     const { participantCount } = req.body; // client sends LiveKit participant count
 
@@ -1036,7 +1037,7 @@ router.post("/requests/:id/timer/sync", requireAuth, async (req, res) => {
       });
     }
   } catch (err: any) {
-    res.status(500).json({ error: "Server error", message: err.message });
+    serverError(res, err);
   }
 });
 
@@ -1045,7 +1046,7 @@ router.post("/requests/:id/timer/sync", requireAuth, async (req, res) => {
 // If teacher leaves → pause timer. If both leave before end → flag early termination.
 router.post("/requests/:id/leave", requireAuth, async (req, res) => {
   try {
-    const { userId } = (req as any).user;
+    const { userId } = req.user!;
     const requestId = parseParam(req.params.id);
 
     const [request] = await db.select().from(tutoringRequestsTable)
@@ -1137,7 +1138,7 @@ router.post("/requests/:id/leave", requireAuth, async (req, res) => {
 
     res.json({ success: true, elapsedSeconds: elapsed });
   } catch (err: any) {
-    res.status(500).json({ error: "Server error", message: err.message });
+    serverError(res, err);
   }
 });
 
@@ -1145,7 +1146,7 @@ router.post("/requests/:id/leave", requireAuth, async (req, res) => {
 // Called by the teacher when they reconnect. Resumes the paused timer.
 router.post("/requests/:id/timer/resume", requireAuth, async (req, res) => {
   try {
-    const { userId } = (req as any).user;
+    const { userId } = req.user!;
     const requestId = parseParam(req.params.id);
 
     const [request] = await db.select().from(tutoringRequestsTable)
@@ -1176,7 +1177,7 @@ router.post("/requests/:id/timer/resume", requireAuth, async (req, res) => {
       totalDurationSeconds: (request.durationMinutes || 60) * 60,
     });
   } catch (err: any) {
-    res.status(500).json({ error: "Server error", message: err.message });
+    serverError(res, err);
   }
 });
 
@@ -1189,7 +1190,7 @@ router.post("/requests/:id/timer/resume", requireAuth, async (req, res) => {
 //  4. Upload the rolling-buffer recording to Cloudinary (background, non-blocking)
 router.post("/requests/:id/misbehave", requireAuth, upload.single("recording"), async (req, res) => {
   try {
-    const { userId } = (req as any).user;
+    const { userId } = req.user!;
     const requestId = parseParam(req.params.id);
     const { reason, description } = req.body;
 
@@ -1299,7 +1300,7 @@ router.post("/requests/:id/misbehave", requireAuth, upload.single("recording"), 
     })();
   } catch (err: any) {
     console.error("[Misbehave] Error:", err);
-    res.status(500).json({ error: "Server error", message: err.message });
+    serverError(res, err);
   }
 });
 

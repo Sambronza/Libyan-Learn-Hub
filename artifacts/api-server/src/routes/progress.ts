@@ -1,4 +1,5 @@
 import { Router } from "express";
+import { serverError } from "../lib/http.js";
 import { db } from "@workspace/db";
 import { progressTable, enrollmentsTable, lessonsTable, coursesTable, usersTable, sectionsTable } from "@workspace/db";
 import { eq, and, count, desc } from "drizzle-orm";
@@ -9,7 +10,7 @@ const router = Router();
 // GET /progress/continue-watching
 router.get("/continue-watching", requireAuth, async (req, res) => {
   try {
-    const { userId } = (req as any).user;
+    const { userId } = req.user!;
     
     const recentProgress = await db.select({
       progress: progressTable,
@@ -43,14 +44,14 @@ router.get("/continue-watching", requireAuth, async (req, res) => {
       isCompleted: p.progress.isCompleted
     })));
   } catch (err: any) {
-    res.status(500).json({ error: "Server error", message: err.message });
+    serverError(res, err);
   }
 });
 
 // GET /progress/summary
 router.get("/summary", requireAuth, async (req, res) => {
   try {
-    const { userId } = (req as any).user;
+    const { userId } = req.user!;
     
     const enrollments = await db.select().from(enrollmentsTable).where(eq(enrollmentsTable.userId, userId));
     
@@ -79,7 +80,7 @@ router.get("/summary", requireAuth, async (req, res) => {
     
     res.json(summary);
   } catch (err: any) {
-    res.status(500).json({ error: "Server error", message: err.message });
+    serverError(res, err);
   }
 });
 
@@ -87,7 +88,7 @@ router.post("/:courseId/:lessonId", requireAuth, async (req, res) => {
   try {
     const courseId = parseInt(req.params.courseId as string);
     const lessonId = parseInt(req.params.lessonId as string);
-    const { userId } = (req as any).user;
+    const { userId } = req.user!;
     const { isCompleted, watchedSeconds } = req.body;
 
     const existing = await db.select().from(progressTable)
@@ -136,7 +137,7 @@ router.post("/:courseId/:lessonId", requireAuth, async (req, res) => {
       updatedAt: prog.updatedAt,
     });
   } catch (err: any) {
-    res.status(500).json({ error: "Server error", message: err.message });
+    serverError(res, err);
   }
 });
 

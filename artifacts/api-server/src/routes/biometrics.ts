@@ -4,12 +4,9 @@ import { usersTable } from "@workspace/db";
 import { eq } from "drizzle-orm";
 import { requireAuth, requireRole } from "../lib/auth.js";
 import multer from "multer";
-import { v2 as cloudinary } from "cloudinary";
-import { Readable } from "stream";
+import { uploadToCloudinary } from "../lib/cloudinary.js";
 
 const router = Router();
-
-
 
 // Safe JSON parse helper — returns default if value is null/invalid
 function safeParseJson(value: string | null | undefined, defaultValue: any = {}) {
@@ -30,23 +27,6 @@ const audioUpload = multer({
   },
 });
 
-function uploadToCloudinary(buffer: Buffer, options: Record<string, any>): Promise<any> {
-  // Configure right before upload to ensure process.env is fully loaded
-  cloudinary.config({
-    cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
-    api_key: process.env.CLOUDINARY_API_KEY,
-    api_secret: process.env.CLOUDINARY_API_SECRET,
-  });
-
-  return new Promise((resolve, reject) => {
-    const stream = cloudinary.uploader.upload_stream(options, (err, result) => {
-      if (err) return reject(err);
-      resolve(result);
-    });
-    Readable.from(buffer).pipe(stream);
-  });
-}
-
 // 1. Setup Face Descriptors
 router.post("/setup-face", requireAuth, requireRole("teacher"), async (req, res): Promise<any> => {
   try {
@@ -56,7 +36,7 @@ router.post("/setup-face", requireAuth, requireRole("teacher"), async (req, res)
     }
 
     // Get existing biometric profile or create new
-    const reqUser = (req as any).user;
+    const reqUser = req.user!;
     const user = await db.query.usersTable.findFirst({
       where: eq(usersTable.id, reqUser.userId),
     });
@@ -97,7 +77,7 @@ router.post("/setup-voice", requireAuth, requireRole("teacher"), audioUpload.sin
       return res.status(400).json({ error: "Audio file and script text are required." });
     }
 
-    const reqUser = (req as any).user;
+    const reqUser = req.user!;
     const user = await db.query.usersTable.findFirst({
       where: eq(usersTable.id, reqUser.userId),
     });

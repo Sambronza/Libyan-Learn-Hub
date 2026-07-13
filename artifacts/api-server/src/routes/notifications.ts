@@ -1,4 +1,5 @@
 import { Router } from "express";
+import { serverError } from "../lib/http.js";
 import { db } from "@workspace/db";
 import { notificationsTable, userPushTokensTable } from "@workspace/db";
 import { eq, desc, and } from "drizzle-orm";
@@ -9,7 +10,7 @@ const router = Router();
 // Get unread and recent notifications
 router.get("/", requireAuth, async (req, res) => {
   try {
-    const { userId } = (req as any).user;
+    const { userId } = req.user!;
     const notifications = await db.select()
       .from(notificationsTable)
       .where(eq(notificationsTable.userId, userId))
@@ -18,14 +19,14 @@ router.get("/", requireAuth, async (req, res) => {
       
     res.json(notifications);
   } catch (err: any) {
-    res.status(500).json({ error: "Server error", message: err.message });
+    serverError(res, err);
   }
 });
 
 // Mark notification as read — scoped to the authenticated user
 router.put("/:id/read", requireAuth, async (req, res) => {
   try {
-    const { userId } = (req as any).user;
+    const { userId } = req.user!;
     const notificationId = parseInt(req.params.id as string);
 
     if (isNaN(notificationId)) {
@@ -49,14 +50,14 @@ router.put("/:id/read", requireAuth, async (req, res) => {
 
     res.json(updated);
   } catch (err: any) {
-    res.status(500).json({ error: "Server error", message: err.message });
+    serverError(res, err);
   }
 });
 
 // Register push token
 router.post("/register-token", requireAuth, async (req, res) => {
   try {
-    const { userId } = (req as any).user;
+    const { userId } = req.user!;
     const { token, deviceType } = req.body;
     
     if (!token) {
@@ -85,7 +86,7 @@ router.post("/register-token", requireAuth, async (req, res) => {
     
     res.json({ success: true });
   } catch (err: any) {
-    res.status(500).json({ error: "Server error", message: err.message });
+    serverError(res, err);
   }
 });
 

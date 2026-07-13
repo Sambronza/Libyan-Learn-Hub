@@ -26,7 +26,7 @@ function parseDateParam(value: unknown, isStart: boolean): Date | undefined {
 // Query params: ?from=YYYY-MM-DD&to=YYYY-MM-DD  (both optional)
 router.get("/balance", requireAuth, async (req, res) => {
   try {
-    const userId = (req as any).user!.userId;
+    const userId = req.user!!.userId;
     const from = parseDateParam(req.query.from, true);
     const to   = parseDateParam(req.query.to,   false);
 
@@ -66,7 +66,7 @@ router.get("/balance", requireAuth, async (req, res) => {
 // Query params: ?from=YYYY-MM-DD&to=YYYY-MM-DD  (both optional)
 router.get("/recharge-history", requireAuth, async (req, res) => {
   try {
-    const userId = (req as any).user!.userId;
+    const userId = req.user!!.userId;
     const from = parseDateParam(req.query.from, true);
     const to   = parseDateParam(req.query.to,   false);
 

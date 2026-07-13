@@ -20,7 +20,7 @@ router.post("/redeem", requireAuth, async (req, res) => {
       // 1. Find and lock the card (FOR UPDATE equivalent if using raw SQL, but here we check status)
       // We assume Drizzle handles basic concurency if we update carefully.
       const user = await tx.query.usersTable.findFirst({
-        where: eq(usersTable.id, (req as any).user!.userId),
+        where: eq(usersTable.id, req.user!!.userId),
       });
 
       const card = await tx.query.prepaidCardsTable.findFirst({
@@ -39,7 +39,7 @@ router.post("/redeem", requireAuth, async (req, res) => {
       await tx.update(prepaidCardsTable)
         .set({
           status: "used",
-          usedBy: (req as any).user!.userId,
+          usedBy: req.user!!.userId,
           usedAt: new Date(),
         })
         .where(eq(prepaidCardsTable.id, card.id));
@@ -49,11 +49,11 @@ router.post("/redeem", requireAuth, async (req, res) => {
         .set({
           balance: sql`${usersTable.balance} + ${card.value}`,
         })
-        .where(eq(usersTable.id, (req as any).user!.userId));
+        .where(eq(usersTable.id, req.user!!.userId));
 
       // 4. Log transaction
       await tx.insert(walletTransactionsTable).values({
-        userId: (req as any).user!.userId,
+        userId: req.user!!.userId,
         amount: card.value,
         type: "credit",
         referenceType: "prepaid_card",
