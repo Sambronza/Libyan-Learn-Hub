@@ -102,25 +102,35 @@ export default function Learn() {
   // Load quiz + prior attempt whenever the active lesson changes
   useEffect(() => {
     if (!activeLessonId) return;
+    // Reset state immediately on lesson switch
     setLessonQuiz(null);
     setQuizResult(null);
     setQuizPriorAttempt(null);
     setQuizAnswers({});
+
+    let cancelled = false;
     api.get(`/quizzes/lesson/${activeLessonId}`)
       .then((q: any) => {
-        setLessonQuiz(q || null);
-        if (q?.id) {
-          api.get(`/quizzes/${q.id}/my-attempt`)
-            .then((attempt: any) => {
-              setQuizPriorAttempt(attempt || null);
-              if (attempt) {
-                setQuizPassedMap(prev => ({ ...prev, [activeLessonId]: attempt.passed }));
-              }
-            })
-            .catch(() => {});
+        if (cancelled || !q?.id) {
+          if (!cancelled) setLessonQuiz(null);
+          return;
         }
+        // Fetch quiz + prior attempt in parallel
+        Promise.all([
+          Promise.resolve(q),
+          api.get(`/quizzes/${q.id}/my-attempt`).catch(() => null),
+        ]).then(([quiz, attempt]) => {
+          if (cancelled) return;
+          setLessonQuiz(quiz);
+          setQuizPriorAttempt(attempt || null);
+          if (attempt?.passed) {
+            setQuizPassedMap(prev => ({ ...prev, [activeLessonId]: true }));
+          }
+        });
       })
-      .catch(() => {});
+      .catch(() => { if (!cancelled) setLessonQuiz(null); });
+
+    return () => { cancelled = true; };
   }, [activeLessonId]);
 
   const { mutate: updateProgress } = useUpdateProgress();

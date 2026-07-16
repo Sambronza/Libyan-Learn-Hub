@@ -13,6 +13,46 @@ import { parseParam } from "../lib/utils.js";
 
 const router = Router();
 
+// ── Helpers ───────────────────────────────────────────────────────────────────
+
+/** Fetch all questions + options for a quiz in 2 queries (no N+1). */
+async function getQuestionsWithOptions(quizId: number, includeCorrect = false) {
+  const questions = await db
+    .select()
+    .from(quizQuestionsTable)
+    .where(eq(quizQuestionsTable.quizId, quizId))
+    .orderBy(asc(quizQuestionsTable.order));
+
+  if (questions.length === 0) return [];
+
+  // Batch-fetch all options via a join — single query
+  const optionsRaw = await db
+    .select()
+    .from(quizOptionsTable)
+    .innerJoin(quizQuestionsTable, eq(quizOptionsTable.questionId, quizQuestionsTable.id))
+    .where(eq(quizQuestionsTable.quizId, quizId))
+    .orderBy(asc(quizOptionsTable.order));
+
+  // Group by questionId
+  const grouped: Record<number, typeof optionsRaw[0]["quiz_options"][]> = {};
+  for (const row of optionsRaw) {
+    const qid = row.quiz_options.questionId;
+    if (!grouped[qid]) grouped[qid] = [];
+    grouped[qid].push(row.quiz_options);
+  }
+
+  return questions.map((q) => ({
+    ...q,
+    options: (grouped[q.id] || []).map((o) => ({
+      id: o.id,
+      text: o.text,
+      textAr: o.textAr,
+      order: o.order,
+      ...(includeCorrect ? { isCorrect: o.isCorrect } : {}),
+    })),
+  }));
+}
+
 // ── GET all quizzes for a course ──────────────────────────────────────────────
 router.get("/course/:courseId", async (req, res) => {
   try {
@@ -28,7 +68,7 @@ router.get("/course/:courseId", async (req, res) => {
   }
 });
 
-// ── GET quiz attached to a specific lesson ────────────────────────────────────
+// ── GET quiz attached to a specific lesson (student view — no correct answers) ─
 router.get("/lesson/:lessonId", async (req, res) => {
   try {
     const lessonId = parseParam(req.params.lessonId);
@@ -40,32 +80,8 @@ router.get("/lesson/:lessonId", async (req, res) => {
 
     if (!quiz) { res.json(null); return; }
 
-    const questions = await db
-      .select()
-      .from(quizQuestionsTable)
-      .where(eq(quizQuestionsTable.quizId, quiz.id))
-      .orderBy(asc(quizQuestionsTable.order));
-
-    const questionsWithOptions = await Promise.all(
-      questions.map(async (q) => {
-        const options = await db
-          .select()
-          .from(quizOptionsTable)
-          .where(eq(quizOptionsTable.questionId, q.id))
-          .orderBy(asc(quizOptionsTable.order));
-        return {
-          ...q,
-          options: options.map((o) => ({
-            id: o.id,
-            text: o.text,
-            textAr: o.textAr,
-            order: o.order,
-          })),
-        };
-      })
-    );
-
-    res.json({ ...quiz, questions: questionsWithOptions });
+    const questions = await getQuestionsWithOptions(quiz.id, false);
+    res.json({ ...quiz, questions });
   } catch (err: any) {
     serverError(res, err);
   }
@@ -100,7 +116,7 @@ router.get("/:quizId/my-attempt", requireAuth, async (req, res) => {
   }
 });
 
-// ── GET a single quiz with questions ─────────────────────────────────────────
+// ── GET a single quiz with questions (teacher view — includes correct answers) ─
 router.get("/:quizId", async (req, res) => {
   try {
     const quizId = parseParam(req.params.quizId);
@@ -111,45 +127,24 @@ router.get("/:quizId", async (req, res) => {
       .limit(1);
     if (!quiz) { res.status(404).json({ error: "Quiz not found" }); return; }
 
-    const questions = await db
-      .select()
-      .from(quizQuestionsTable)
-      .where(eq(quizQuestionsTable.quizId, quizId))
-      .orderBy(asc(quizQuestionsTable.order));
-
-    const questionsWithOptions = await Promise.all(
-      questions.map(async (q) => {
-        const options = await db
-          .select()
-          .from(quizOptionsTable)
-          .where(eq(quizOptionsTable.questionId, q.id))
-          .orderBy(asc(quizOptionsTable.order));
-        return {
-          ...q,
-          options: options.map((o) => ({
-            id: o.id,
-            text: o.text,
-            textAr: o.textAr,
-            isCorrect: o.isCorrect,
-            order: o.order,
-          })),
-        };
-      })
-    );
-
-    res.json({ ...quiz, questions: questionsWithOptions });
+    const questions = await getQuestionsWithOptions(quizId, true); // include isCorrect
+    res.json({ ...quiz, questions });
   } catch (err: any) {
     serverError(res, err);
   }
 });
 
-// ── POST create a quiz ────────────────────────────────────────────────────────
+// ── POST create a quiz with questions in one request ──────────────────────────
 router.post("/", requireAuth, requireRole("teacher", "admin"), async (req, res) => {
   try {
     const {
       courseId, lessonId, title, titleAr, description, descriptionAr,
-      type, passingScore, timeLimitMinutes, isCompulsory, questions
+      type, passingScore, timeLimitMinutes, isCompulsory, questions,
     } = req.body;
+
+    if (!courseId || !title || !titleAr) {
+      res.status(400).json({ error: "courseId, title and titleAr are required" }); return;
+    }
 
     const [quiz] = await db
       .insert(quizzesTable)
@@ -158,10 +153,10 @@ router.post("/", requireAuth, requireRole("teacher", "admin"), async (req, res) 
         lessonId: lessonId || null,
         title,
         titleAr,
-        description,
-        descriptionAr,
+        description: description || null,
+        descriptionAr: descriptionAr || null,
         type: type || "lesson",
-        passingScore: passingScore || 70,
+        passingScore: Math.min(100, Math.max(1, Number(passingScore) || 70)),
         timeLimitMinutes: timeLimitMinutes || null,
         isCompulsory: isCompulsory === true || isCompulsory === "true",
       })
@@ -177,20 +172,20 @@ router.post("/", requireAuth, requireRole("teacher", "admin"), async (req, res) 
             question: q.question,
             questionAr: q.questionAr || q.question,
             type: q.type || "multiple_choice",
-            points: q.points || 1,
-            explanation: q.explanation,
-            explanationAr: q.explanationAr,
+            points: Math.max(1, Number(q.points) || 1),
+            explanation: q.explanation || null,
+            explanationAr: q.explanationAr || null,
             order: qi,
           })
           .returning();
 
-        if (q.options && Array.isArray(q.options)) {
+        if (q.options && Array.isArray(q.options) && q.options.length > 0) {
           await db.insert(quizOptionsTable).values(
             q.options.map((opt: any, oi: number) => ({
               questionId: question.id,
-              text: opt.text,
-              textAr: opt.textAr || opt.text,
-              isCorrect: opt.isCorrect || false,
+              text: opt.text || "",
+              textAr: opt.textAr || opt.text || "",
+              isCorrect: opt.isCorrect === true,
               order: oi,
             }))
           );
@@ -198,14 +193,14 @@ router.post("/", requireAuth, requireRole("teacher", "admin"), async (req, res) 
       }
     }
 
-    const [fullQuiz] = await db.select().from(quizzesTable).where(eq(quizzesTable.id, quiz.id)).limit(1);
-    res.status(201).json(fullQuiz);
+    const questions_out = await getQuestionsWithOptions(quiz.id, true);
+    res.status(201).json({ ...quiz, questions: questions_out });
   } catch (err: any) {
     res.status(400).json({ error: "Failed to create quiz", message: err.message });
   }
 });
 
-// ── PUT update quiz metadata ──────────────────────────────────────────────────
+// ── PUT update quiz metadata (settings only — not questions) ──────────────────
 router.put("/:quizId", requireAuth, requireRole("teacher", "admin"), async (req, res) => {
   try {
     const quizId = parseParam(req.params.quizId);
@@ -213,12 +208,12 @@ router.put("/:quizId", requireAuth, requireRole("teacher", "admin"), async (req,
     const [updated] = await db
       .update(quizzesTable)
       .set({
-        title,
-        titleAr,
-        description,
-        descriptionAr,
-        passingScore,
-        timeLimitMinutes,
+        ...(title !== undefined && { title }),
+        ...(titleAr !== undefined && { titleAr }),
+        ...(description !== undefined && { description }),
+        ...(descriptionAr !== undefined && { descriptionAr }),
+        ...(passingScore !== undefined && { passingScore: Math.min(100, Math.max(1, Number(passingScore))) }),
+        ...(timeLimitMinutes !== undefined && { timeLimitMinutes }),
         ...(isCompulsory !== undefined && { isCompulsory: isCompulsory === true || isCompulsory === "true" }),
         updatedAt: new Date(),
       })
@@ -231,7 +226,7 @@ router.put("/:quizId", requireAuth, requireRole("teacher", "admin"), async (req,
   }
 });
 
-// ── DELETE a quiz ─────────────────────────────────────────────────────────────
+// ── DELETE a quiz (cascades to questions + options via FK) ────────────────────
 router.delete("/:quizId", requireAuth, requireRole("teacher", "admin"), async (req, res) => {
   try {
     const quizId = parseParam(req.params.quizId);
@@ -249,46 +244,68 @@ router.post("/:quizId/attempt", requireAuth, async (req, res) => {
     const { userId } = req.user!;
     const { answers } = req.body;
 
+    if (!answers || typeof answers !== "object") {
+      res.status(400).json({ error: "answers must be a {[questionId]: optionId} object" }); return;
+    }
+
+    const [quiz] = await db.select().from(quizzesTable).where(eq(quizzesTable.id, quizId)).limit(1);
+    if (!quiz) { res.status(404).json({ error: "Quiz not found" }); return; }
+
+    // Fetch questions + all their options in 2 queries (no N+1)
     const questions = await db
       .select()
       .from(quizQuestionsTable)
       .where(eq(quizQuestionsTable.quizId, quizId))
       .orderBy(asc(quizQuestionsTable.order));
 
+    if (questions.length === 0) {
+      res.status(400).json({ error: "Quiz has no questions" }); return;
+    }
+
+    const optionsRaw = await db
+      .select()
+      .from(quizOptionsTable)
+      .innerJoin(quizQuestionsTable, eq(quizOptionsTable.questionId, quizQuestionsTable.id))
+      .where(eq(quizQuestionsTable.quizId, quizId));
+
+    // Group options by questionId
+    const grouped: Record<number, typeof optionsRaw[0]["quiz_options"][]> = {};
+    for (const row of optionsRaw) {
+      const qid = row.quiz_options.questionId;
+      if (!grouped[qid]) grouped[qid] = [];
+      grouped[qid].push(row.quiz_options);
+    }
+
     let earned = 0;
     let total = 0;
 
-    const detailedResults = await Promise.all(
-      questions.map(async (q) => {
-        total += q.points;
-        const options = await db
-          .select()
-          .from(quizOptionsTable)
-          .where(eq(quizOptionsTable.questionId, q.id));
+    const detailedResults = questions.map((q) => {
+      total += q.points;
+      const options = grouped[q.id] || [];
+      const correctOption = options.find((o) => o.isCorrect);
+      const userAnswer = answers[q.id];
+      // Coerce to number for safe comparison (JSON keys are strings, values may vary)
+      const isCorrect = correctOption
+        ? Number(correctOption.id) === Number(userAnswer)
+        : false;
+      if (isCorrect) earned += q.points;
 
-        const correctOption = options.find((o) => o.isCorrect);
-        const userAnswer = answers?.[q.id];
-        const isCorrect = correctOption ? correctOption.id === userAnswer : false;
-        if (isCorrect) earned += q.points;
+      return {
+        questionId: q.id,
+        question: q.question,
+        questionAr: q.questionAr,
+        userAnswer,
+        correctOptionId: correctOption?.id,
+        isCorrect,
+        points: q.points,
+        earnedPoints: isCorrect ? q.points : 0,
+        explanation: q.explanation,
+        explanationAr: q.explanationAr,
+      };
+    });
 
-        return {
-          questionId: q.id,
-          question: q.question,
-          questionAr: q.questionAr,
-          userAnswer,
-          correctOptionId: correctOption?.id,
-          isCorrect,
-          points: q.points,
-          earnedPoints: isCorrect ? q.points : 0,
-          explanation: q.explanation,
-          explanationAr: q.explanationAr,
-        };
-      })
-    );
-
-    const [quiz] = await db.select().from(quizzesTable).where(eq(quizzesTable.id, quizId)).limit(1);
     const score = total > 0 ? Math.round((earned / total) * 100) : 0;
-    const passed = score >= (quiz?.passingScore || 70);
+    const passed = score >= quiz.passingScore;
 
     const [attempt] = await db
       .insert(quizAttemptsTable)
@@ -309,8 +326,8 @@ router.post("/:quizId/attempt", requireAuth, async (req, res) => {
       passed,
       earnedPoints: earned,
       totalPoints: total,
-      passingScore: quiz?.passingScore || 70,
-      isCompulsory: quiz?.isCompulsory || false,
+      passingScore: quiz.passingScore,
+      isCompulsory: quiz.isCompulsory,
       results: detailedResults,
     });
   } catch (err: any) {
@@ -336,44 +353,6 @@ router.get("/:quizId/attempts", requireAuth, async (req, res) => {
     res.json(attempts);
   } catch (err: any) {
     serverError(res, err);
-  }
-});
-
-// ── POST add a question to an existing quiz ───────────────────────────────────
-router.post("/:quizId/questions", requireAuth, requireRole("teacher", "admin"), async (req, res) => {
-  try {
-    const quizId = parseParam(req.params.quizId);
-    const { question, questionAr, type, points, explanation, explanationAr, order, options } = req.body;
-    const [q] = await db
-      .insert(quizQuestionsTable)
-      .values({
-        quizId,
-        question,
-        questionAr: questionAr || question,
-        type: type || "multiple_choice",
-        points: points || 1,
-        explanation,
-        explanationAr,
-        order: order || 0,
-      })
-      .returning();
-
-    if (options && Array.isArray(options)) {
-      await db.insert(quizOptionsTable).values(
-        options.map((opt: any, i: number) => ({
-          questionId: q.id,
-          text: opt.text,
-          textAr: opt.textAr || opt.text,
-          isCorrect: opt.isCorrect || false,
-          order: i,
-        }))
-      );
-    }
-
-    const fullOptions = await db.select().from(quizOptionsTable).where(eq(quizOptionsTable.questionId, q.id));
-    res.status(201).json({ ...q, options: fullOptions });
-  } catch (err: any) {
-    res.status(400).json({ error: "Failed to add question", message: err.message });
   }
 });
 

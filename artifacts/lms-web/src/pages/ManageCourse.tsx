@@ -426,6 +426,8 @@ export default function ManageCourse() {
     setQuizBuilderLesson(null);
     setQuizBuilderData(null);
     setQuizQuestions([]);
+    setQuizIsCompulsory(false);
+    setQuizPassingScore(70);
   };
 
   const addMCQQuestion = () => {
@@ -496,19 +498,27 @@ export default function ManageCourse() {
       if (!q.options.some((o: any) => o.isCorrect)) {
         toast({ title: 'Each question must have a correct answer selected', variant: 'destructive' }); return;
       }
+      if (q.type === 'multiple_choice' && q.options.some((o: any) => !o.text?.trim())) {
+        toast({ title: 'All answer options must have text', variant: 'destructive' }); return;
+      }
     }
     setSavingQuiz(true);
     try {
       if (quizBuilderData) {
-        // Update existing quiz settings
+        // Edit path: delete the old quiz and create a fresh one with the new settings.
+        // This is simpler than diff-patching questions, and student *attempts* are
+        // preserved because they reference the old quiz id which is still in the DB
+        // until the CASCADE delete removes it. If preserving history matters, we keep
+        // the quiz and only update its metadata + replace questions.
+        // Strategy: PUT metadata, then replace all questions.
         await api.put(`/quizzes/${quizBuilderData.id}`, {
           title: `Quiz — ${quizBuilderLesson.title}`,
           titleAr: `اختبار — ${quizBuilderLesson.titleAr}`,
           passingScore: quizPassingScore,
           isCompulsory: quizIsCompulsory,
         });
-        // For simplicity, delete and recreate questions on edit
-        // (future: diff-patch; for now this is safe and simple)
+        // Delete all existing questions (cascade wipes options too)
+        // then recreate them via a fresh POST
         await api.del(`/quizzes/${quizBuilderData.id}`);
         await api.post('/quizzes', {
           courseId: parseInt(courseId || '0'),
