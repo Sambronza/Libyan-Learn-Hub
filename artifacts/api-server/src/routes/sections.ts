@@ -40,19 +40,25 @@ router.get("/", async (req, res) => {
 
         const lessonIds = lessons.map((l) => l.id);
 
-        // Fetch quizzes linked to each lesson in this section
+        // Fetch quizzes linked to each lesson in this section.
+        // Wrapped in try/catch so the endpoint still works if the is_compulsory
+        // column hasn't been migrated yet on this environment.
         const lessonQuizMap: Record<number, { id: number; isCompulsory: boolean }> = {};
         if (lessonIds.length) {
-          const quizzes = await db
-            .select({
-              id: quizzesTable.id,
-              lessonId: quizzesTable.lessonId,
-              isCompulsory: quizzesTable.isCompulsory,
-            })
-            .from(quizzesTable)
-            .where(eq(quizzesTable.courseId, courseId));
-          for (const q of quizzes) {
-            if (q.lessonId) lessonQuizMap[q.lessonId] = { id: q.id, isCompulsory: q.isCompulsory };
+          try {
+            const quizzes = await db
+              .select({
+                id: quizzesTable.id,
+                lessonId: quizzesTable.lessonId,
+                isCompulsory: quizzesTable.isCompulsory,
+              })
+              .from(quizzesTable)
+              .where(eq(quizzesTable.courseId, courseId));
+            for (const q of quizzes) {
+              if (q.lessonId) lessonQuizMap[q.lessonId] = { id: q.id, isCompulsory: q.isCompulsory };
+            }
+          } catch {
+            // Column may not exist yet — quiz data will be omitted until migration runs
           }
         }
 
