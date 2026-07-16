@@ -4,7 +4,7 @@ import { useGetCourse, useGetLesson, useUpdateProgress } from '@workspace/api-cl
 import { useLanguage } from '@/contexts/LanguageContext';
 import { useMediaActivity } from '@/contexts/MediaActivityContext';
 import { ProtectedPlayer } from '@/components/ProtectedPlayer';
-import { PlayCircle, FileText, CheckCircle2, ChevronLeft, Menu, X, Flag, Download } from 'lucide-react';
+import { PlayCircle, FileText, CheckCircle2, ChevronLeft, Menu, X, Flag, Download, ClipboardList, Lock } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { useForm } from 'react-hook-form';
@@ -49,6 +49,15 @@ export default function Learn() {
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [reportLesson, setReportLesson] = useState(false);
   const [showFeedback, setShowFeedback] = useState(false);
+
+  // Quiz state
+  const [lessonQuiz, setLessonQuiz] = useState<any>(null);
+  const [quizAnswers, setQuizAnswers] = useState<Record<number, number>>({}); // { questionId: optionId }
+  const [quizResult, setQuizResult] = useState<any>(null);  // attempt result after submit
+  const [quizPriorAttempt, setQuizPriorAttempt] = useState<any>(null); // best past attempt
+  const [submittingQuiz, setSubmittingQuiz] = useState(false);
+  // Map of lessonId -> whether student has passed its compulsory quiz
+  const [quizPassedMap, setQuizPassedMap] = useState<Record<number, boolean>>({});
   // Track whether we already triggered the early-pulse so it only fires once per session
   const earlyPulseFired = useRef(false);
   const completionFired = useRef(false);
@@ -90,7 +99,54 @@ export default function Learn() {
     { query: { queryKey: ['/api/courses', courseId, 'lessons', activeLessonId], enabled: !!(courseId && activeLessonId) } }
   );
 
+  // Load quiz + prior attempt whenever the active lesson changes
+  useEffect(() => {
+    if (!activeLessonId) return;
+    setLessonQuiz(null);
+    setQuizResult(null);
+    setQuizPriorAttempt(null);
+    setQuizAnswers({});
+    api.get(`/quizzes/lesson/${activeLessonId}`)
+      .then((q: any) => {
+        setLessonQuiz(q || null);
+        if (q?.id) {
+          api.get(`/quizzes/${q.id}/my-attempt`)
+            .then((attempt: any) => {
+              setQuizPriorAttempt(attempt || null);
+              if (attempt) {
+                setQuizPassedMap(prev => ({ ...prev, [activeLessonId]: attempt.passed }));
+              }
+            })
+            .catch(() => {});
+        }
+      })
+      .catch(() => {});
+  }, [activeLessonId]);
+
   const { mutate: updateProgress } = useUpdateProgress();
+
+  const handleSubmitQuiz = async () => {
+    if (!lessonQuiz) return;
+    const total = lessonQuiz.questions?.length || 0;
+    if (Object.keys(quizAnswers).length < total) {
+      toast({ title: language === 'ar' ? 'أجب على جميع الأسئلة' : 'Please answer all questions', variant: 'destructive' }); return;
+    }
+    setSubmittingQuiz(true);
+    try {
+      const result = await api.post(`/quizzes/${lessonQuiz.id}/attempt`, { answers: quizAnswers });
+      setQuizResult(result);
+      setQuizPriorAttempt(result);
+      if (result.passed) {
+        setQuizPassedMap(prev => ({ ...prev, [activeLessonId!]: true }));
+        // If quiz passed, auto-mark the lesson as completed
+        markCompleted(activeLessonId!, 0);
+      }
+    } catch (err: any) {
+      toast({ title: 'Failed to submit quiz', description: err.message, variant: 'destructive' });
+    } finally {
+      setSubmittingQuiz(false);
+    }
+  };
 
   // Optimistically mark a lesson as completed locally and call the API
   const markCompleted = useCallback((lessonId: number, watchedSeconds = 0) => {
@@ -257,6 +313,20 @@ export default function Learn() {
                       <div className="prose prose-sm dark:prose-invert max-w-none mt-4 text-muted-foreground" dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(language === 'ar' ? lesson.contentAr! : lesson.content) }} />
                     )}
                   </div>
+                  {/* Quiz panel for video lessons */}
+                  {lessonQuiz && (
+                    <QuizPanel
+                      quiz={lessonQuiz}
+                      answers={quizAnswers}
+                      setAnswers={setQuizAnswers}
+                      result={quizResult}
+                      priorAttempt={quizPriorAttempt}
+                      submitting={submittingQuiz}
+                      onSubmit={handleSubmitQuiz}
+                      onRetake={() => { setQuizResult(null); setQuizAnswers({}); }}
+                      language={language}
+                    />
+                  )}
                 </>
 
               ) : lesson.type === 'text' ? (
@@ -332,7 +402,7 @@ export default function Learn() {
                   )}
 
                   {/* Mark as Completed button for doc/text lessons */}
-                  {!activeIsCompleted && (
+                  {!activeIsCompleted && !lessonQuiz && (
                     <div className="mt-8 pt-8 border-t border-border flex justify-end">
                       <Button
                         size="lg"
@@ -345,7 +415,22 @@ export default function Learn() {
                     </div>
                   )}
 
-                  {activeIsCompleted && (
+                  {/* Quiz panel for text/document lessons */}
+                  {lessonQuiz && (
+                    <QuizPanel
+                      quiz={lessonQuiz}
+                      answers={quizAnswers}
+                      setAnswers={setQuizAnswers}
+                      result={quizResult}
+                      priorAttempt={quizPriorAttempt}
+                      submitting={submittingQuiz}
+                      onSubmit={handleSubmitQuiz}
+                      onRetake={() => { setQuizResult(null); setQuizAnswers({}); }}
+                      language={language}
+                    />
+                  )}
+
+                  {activeIsCompleted && !lessonQuiz && (
                     <div className="mt-8 pt-8 border-t border-border flex justify-end">
                       <div className="flex items-center gap-2 text-success font-semibold text-sm">
                         <CheckCircle2 className="w-5 h-5" />
@@ -395,17 +480,31 @@ export default function Learn() {
             {course.lessons.map((l, idx) => {
               const isActive = activeLessonId === l.id;
               const isDone = completedIds.has(l.id);
+              // A lesson is locked if the PREVIOUS lesson has a compulsory quiz that isn't yet passed
+              const prevLesson = idx > 0 ? course.lessons[idx - 1] : null;
+              const isLocked = prevLesson
+                && (prevLesson as any).quizIsCompulsory
+                && !quizPassedMap[prevLesson.id]
+                && !completedIds.has(prevLesson.id);
               return (
                 <button
                   key={l.id}
-                  onClick={() => setActiveLessonId(l.id)}
-                  className={`w-full text-start p-3 rounded-xl flex gap-3 transition-colors ${isActive ? 'bg-primary/10 text-primary' : 'hover:bg-muted text-foreground'}`}
+                  disabled={!!isLocked}
+                  onClick={() => !isLocked && setActiveLessonId(l.id)}
+                  title={isLocked ? (language === 'ar' ? 'أكمل اختبار الدرس السابق أولاً' : 'Pass the previous lesson quiz first') : undefined}
+                  className={`w-full text-start p-3 rounded-xl flex gap-3 transition-colors ${
+                    isLocked
+                      ? 'opacity-40 cursor-not-allowed'
+                      : isActive ? 'bg-primary/10 text-primary' : 'hover:bg-muted text-foreground'
+                  }`}
                 >
                   {/* Type icon */}
                   <div className="mt-0.5 shrink-0">
-                    {l.type === 'video'
-                      ? <PlayCircle className={`w-4 h-4 ${isDone ? 'text-success' : ''}`} />
-                      : <FileText className={`w-4 h-4 ${isDone ? 'text-success' : ''}`} />
+                    {isLocked
+                      ? <Lock className="w-4 h-4 text-muted-foreground" />
+                      : l.type === 'video'
+                        ? <PlayCircle className={`w-4 h-4 ${isDone ? 'text-success' : ''}`} />
+                        : <FileText className={`w-4 h-4 ${isDone ? 'text-success' : ''}`} />
                     }
                   </div>
                   {/* Title + duration */}
@@ -413,7 +512,15 @@ export default function Learn() {
                     <div className={`text-sm font-medium line-clamp-2 leading-tight ${isActive ? 'text-primary' : ''}`}>
                       {idx + 1}. {language === 'ar' ? l.titleAr : l.title}
                     </div>
-                    <div className="text-xs opacity-70 mt-1">{formatDuration(l.duration)}</div>
+                    <div className="text-xs opacity-70 mt-1 flex items-center gap-1">
+                      {formatDuration(l.duration)}
+                      {(l as any).quizIsCompulsory && (
+                        <span className="text-amber-500">· 🔒 Quiz</span>
+                      )}
+                      {(l as any).hasQuiz && !(l as any).quizIsCompulsory && (
+                        <span className="text-violet-500">· Quiz</span>
+                      )}
+                    </div>
                   </div>
                   {/* Completion checkmark */}
                   {isDone && (
@@ -545,3 +652,160 @@ function CertificateClaim({ courseId, language }: { courseId: number; language: 
     </div>
   );
 }
+
+// ─── QuizPanel: shown below lesson content ────────────────────────────────────
+function QuizPanel({
+  quiz, answers, setAnswers, result, priorAttempt,
+  submitting, onSubmit, onRetake, language,
+}: {
+  quiz: any;
+  answers: Record<number, number>;
+  setAnswers: (a: Record<number, number>) => void;
+  result: any;
+  priorAttempt: any;
+  submitting: boolean;
+  onSubmit: () => void;
+  onRetake: () => void;
+  language: string;
+}) {
+  const isAr = language === 'ar';
+  const showResult = !!result;
+  const showPrior = !result && !!priorAttempt;
+
+  return (
+    <div className={`mt-10 rounded-2xl border-2 shadow-sm overflow-hidden ${
+      quiz.isCompulsory ? 'border-amber-400/40' : 'border-violet-400/30'
+    }`}>
+      {/* Header */}
+      <div className={`px-6 py-4 flex items-center gap-3 ${
+        quiz.isCompulsory ? 'bg-amber-500/8' : 'bg-violet-500/8'
+      }`}>
+        <ClipboardList className={`w-5 h-5 shrink-0 ${ quiz.isCompulsory ? 'text-amber-500' : 'text-violet-500' }`} />
+        <div className="flex-1">
+          <h4 className="font-bold text-base">{isAr ? 'اختبار الدرس' : 'Lesson Quiz'}</h4>
+          <p className="text-xs text-muted-foreground mt-0.5">
+            {quiz.isCompulsory
+              ? (isAr ? `🔒 إلزامي — يجب الاجتياز بـ ${quiz.passingScore}% للمتابعة` : `🔒 Compulsory — must score ≥${quiz.passingScore}% to continue`)
+              : (isAr ? `اختياري — درجة النجاح ${quiz.passingScore}%` : `Optional — passing score ${quiz.passingScore}%`)}
+          </p>
+        </div>
+        {showPrior && (
+          <div className={`text-sm font-bold px-3 py-1 rounded-full ${
+            priorAttempt.passed ? 'bg-success/10 text-success' : 'bg-destructive/10 text-destructive'
+          }`}>
+            {isAr ? 'آخر نتيجة:' : 'Last:'} {Math.round(parseFloat(priorAttempt.score))}%
+          </div>
+        )}
+      </div>
+
+      <div className="px-6 py-5 bg-card">
+        {/* Results view */}
+        {showResult ? (
+          <div className="space-y-4">
+            {/* Score banner */}
+            <div className={`rounded-xl p-5 text-center ${
+              result.passed ? 'bg-success/10 border border-success/30' : 'bg-destructive/10 border border-destructive/30'
+            }`}>
+              <div className="text-4xl font-display font-bold">{result.score}%</div>
+              <div className={`text-lg font-bold mt-1 ${ result.passed ? 'text-success' : 'text-destructive' }`}>
+                {result.passed
+                  ? (isAr ? '✅ نجحت!' : '✅ Passed!')
+                  : (isAr ? '❌ لم تنجح' : '❌ Failed')}
+              </div>
+              <div className="text-sm text-muted-foreground mt-1">
+                {result.earnedPoints} / {result.totalPoints} {isAr ? 'نقطة' : 'pts'}
+                {' · '}{isAr ? 'درجة النجاح' : 'Pass mark'}: {result.passingScore}%
+              </div>
+            </div>
+            {/* Per-question breakdown */}
+            <div className="space-y-3">
+              {result.results?.map((r: any, i: number) => (
+                <div key={r.questionId} className={`rounded-xl p-4 border ${
+                  r.isCorrect ? 'border-success/20 bg-success/5' : 'border-destructive/20 bg-destructive/5'
+                }`}>
+                  <div className="flex items-start gap-2">
+                    <span className="shrink-0 mt-0.5">{r.isCorrect ? '✅' : '❌'}</span>
+                    <div className="flex-1">
+                      <p className="text-sm font-medium">{i + 1}. {isAr ? r.questionAr : r.question}</p>
+                      {!r.isCorrect && r.explanation && (
+                        <p className="text-xs text-muted-foreground mt-1">
+                          💡 {isAr ? r.explanationAr : r.explanation}
+                        </p>
+                      )}
+                    </div>
+                    <span className="text-xs font-mono shrink-0">{r.earnedPoints}/{r.points}pt</span>
+                  </div>
+                </div>
+              ))}
+            </div>
+            {/* Action buttons */}
+            <div className="flex gap-3 pt-2">
+              <Button variant="outline" className="flex-1" onClick={onRetake}>
+                {isAr ? 'إعادة الاختبار' : 'Retake Quiz'}
+              </Button>
+              {(!quiz.isCompulsory || result.passed) && (
+                <div className="flex-1 flex items-center justify-center gap-2 text-success text-sm font-semibold">
+                  <CheckCircle2 className="w-4 h-4" />
+                  {isAr ? 'يمكنك المتابعة' : 'You can continue'}
+                </div>
+              )}
+              {quiz.isCompulsory && !result.passed && (
+                <div className="flex-1 flex items-center justify-center gap-2 text-destructive text-sm font-semibold">
+                  <Lock className="w-4 h-4" />
+                  {isAr ? 'اجتز الاختبار للمتابعة' : 'Pass quiz to continue'}
+                </div>
+              )}
+            </div>
+          </div>
+        ) : (
+          /* Quiz form */
+          <div className="space-y-6">
+            {showPrior && (
+              <div className="text-sm bg-muted/50 rounded-xl px-4 py-3 text-muted-foreground">
+                {isAr
+                  ? `لقد أكملت هذا الاختبار سابقاً (أفضل نتيجة: ${Math.round(parseFloat(priorAttempt.score))}%). يمكنك إعادته إذا أردت.`
+                  : `You've taken this quiz before (best score: ${Math.round(parseFloat(priorAttempt.score))}%). You can retake it anytime.`}
+              </div>
+            )}
+            {quiz.questions?.map((q: any, qIdx: number) => (
+              <div key={q.id} className="space-y-3">
+                <p className="font-medium text-sm">
+                  {qIdx + 1}. {isAr ? q.questionAr : q.question}
+                </p>
+                <div className="space-y-2">
+                  {q.options?.map((opt: any) => (
+                    <button
+                      key={opt.id}
+                      type="button"
+                      onClick={() => setAnswers({ ...answers, [q.id]: opt.id })}
+                      className={`w-full text-start px-4 py-3 rounded-xl border text-sm transition-colors ${
+                        answers[q.id] === opt.id
+                          ? 'border-primary bg-primary/10 text-primary font-medium'
+                          : 'border-border bg-background hover:bg-muted'
+                      }`}
+                    >
+                      {isAr ? opt.textAr : opt.text}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            ))}
+            <div className="flex gap-3 pt-2">
+              <Button
+                className="flex-1 gap-2"
+                onClick={onSubmit}
+                disabled={submitting || Object.keys(answers).length < (quiz.questions?.length || 0)}
+              >
+                <ClipboardList className="w-4 h-4" />
+                {submitting
+                  ? (isAr ? 'جارٍ التصحيح...' : 'Submitting...')
+                  : (isAr ? 'تسليم الاختبار' : 'Submit Quiz')}
+              </Button>
+            </div>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+

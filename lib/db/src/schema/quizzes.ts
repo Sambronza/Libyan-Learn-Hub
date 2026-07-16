@@ -19,6 +19,7 @@ export const quizzesTable = pgTable("quizzes", {
   type: quizTypeEnum("type").notNull().default("lesson"),
   passingScore: integer("passing_score").notNull().default(70),
   timeLimitMinutes: integer("time_limit_minutes"),
+  isCompulsory: boolean("is_compulsory").notNull().default(false),
   createdAt: timestamp("created_at").notNull().defaultNow(),
   updatedAt: timestamp("updated_at").notNull().defaultNow(),
 });

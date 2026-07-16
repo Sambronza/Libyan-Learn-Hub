@@ -39,18 +39,22 @@ router.get("/", async (req, res) => {
           .orderBy(asc(lessonsTable.order));
 
         const lessonIds = lessons.map((l) => l.id);
-        const quiz = lessonIds.length
-          ? await db
-              .select()
-              .from(quizzesTable)
-              .where(
-                and(
-                  eq(quizzesTable.courseId, courseId),
-                  eq(quizzesTable.type, "lesson")
-                )
-              )
-              .limit(1)
-          : [];
+
+        // Fetch quizzes linked to each lesson in this section
+        const lessonQuizMap: Record<number, { id: number; isCompulsory: boolean }> = {};
+        if (lessonIds.length) {
+          const quizzes = await db
+            .select({
+              id: quizzesTable.id,
+              lessonId: quizzesTable.lessonId,
+              isCompulsory: quizzesTable.isCompulsory,
+            })
+            .from(quizzesTable)
+            .where(eq(quizzesTable.courseId, courseId));
+          for (const q of quizzes) {
+            if (q.lessonId) lessonQuizMap[q.lessonId] = { id: q.id, isCompulsory: q.isCompulsory };
+          }
+        }
 
         return {
           ...section,
@@ -76,6 +80,9 @@ router.get("/", async (req, res) => {
             chapter: l.chapter,
             pageNumber: l.pageNumber,
             subjectTags: l.subjectTags,
+            hasQuiz: !!lessonQuizMap[l.id],
+            quizId: lessonQuizMap[l.id]?.id ?? null,
+            quizIsCompulsory: lessonQuizMap[l.id]?.isCompulsory ?? false,
           })),
           lessonCount: lessons.length,
         };
@@ -87,6 +94,7 @@ router.get("/", async (req, res) => {
     serverError(res, err);
   }
 });
+
 
 router.post("/", requireAuth, requireRole("teacher", "admin"), async (req, res) => {
   try {

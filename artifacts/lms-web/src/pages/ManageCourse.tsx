@@ -5,7 +5,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useLocation, Link, useParams } from 'wouter';
 import {
   Plus, Edit, Trash2, ArrowLeft, Video, FileText, Upload,
-  Eye, EyeOff, Clock, ChevronUp, ChevronDown, ChevronRight, FolderOpen, Layers, Paperclip, BookOpen, SendHorizonal, PlayCircle
+  Eye, EyeOff, Clock, ChevronUp, ChevronDown, ChevronRight, FolderOpen, Layers, Paperclip, BookOpen, SendHorizonal, PlayCircle, ClipboardList, X, CheckCircle2, XCircle
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
@@ -39,6 +39,15 @@ export default function ManageCourse() {
   const [deletingSection, setDeletingSection] = useState<any>(null);
   const [deletingLesson, setDeletingLesson] = useState<any>(null);
   const [previewLesson, setPreviewLesson] = useState<any>(null);
+
+  // Quiz builder state
+  const [quizBuilderLesson, setQuizBuilderLesson] = useState<any>(null); // lesson being quizzed
+  const [quizBuilderData, setQuizBuilderData] = useState<any>(null);    // existing quiz or null
+  const [quizIsCompulsory, setQuizIsCompulsory] = useState(false);
+  const [quizPassingScore, setQuizPassingScore] = useState(70);
+  const [quizQuestions, setQuizQuestions] = useState<any[]>([]);
+  const [savingQuiz, setSavingQuiz] = useState(false);
+  const [deletingQuiz, setDeletingQuiz] = useState(false);
 
   // File upload state
   const [videoFile, setVideoFile] = useState<File | null>(null);
@@ -391,6 +400,172 @@ export default function ManageCourse() {
       if (next.has(id)) next.delete(id); else next.add(id);
       return next;
     });
+  };
+
+  // ── Quiz Builder Handlers ────────────────────────────────────────
+  const openQuizBuilder = async (lesson: any) => {
+    setQuizBuilderLesson(lesson);
+    setQuizQuestions([]);
+    setQuizIsCompulsory(false);
+    setQuizPassingScore(70);
+    setQuizBuilderData(null);
+    try {
+      const existing = await api.get(`/quizzes/lesson/${lesson.id}`);
+      if (existing) {
+        setQuizBuilderData(existing);
+        setQuizIsCompulsory(existing.isCompulsory ?? false);
+        setQuizPassingScore(existing.passingScore ?? 70);
+        // Include isCorrect for teacher editing
+        const qs = await api.get(`/quizzes/${existing.id}`);
+        setQuizQuestions(qs.questions || []);
+      }
+    } catch { /* no quiz yet */ }
+  };
+
+  const closeQuizBuilder = () => {
+    setQuizBuilderLesson(null);
+    setQuizBuilderData(null);
+    setQuizQuestions([]);
+  };
+
+  const addMCQQuestion = () => {
+    setQuizQuestions(prev => [
+      ...prev,
+      {
+        _tempId: Date.now(),
+        type: 'multiple_choice',
+        question: '',
+        options: [
+          { text: '', isCorrect: false },
+          { text: '', isCorrect: false },
+          { text: '', isCorrect: false },
+          { text: '', isCorrect: false },
+        ],
+      },
+    ]);
+  };
+
+  const addTFQuestion = () => {
+    setQuizQuestions(prev => [
+      ...prev,
+      {
+        _tempId: Date.now(),
+        type: 'true_false',
+        question: '',
+        options: [
+          { text: 'True', isCorrect: true },
+          { text: 'False', isCorrect: false },
+        ],
+      },
+    ]);
+  };
+
+  const removeQuestion = (idx: number) => {
+    setQuizQuestions(prev => prev.filter((_, i) => i !== idx));
+  };
+
+  const updateQuestion = (idx: number, field: string, value: any) => {
+    setQuizQuestions(prev => prev.map((q, i) => i === idx ? { ...q, [field]: value } : q));
+  };
+
+  const updateOption = (qIdx: number, oIdx: number, field: string, value: any) => {
+    setQuizQuestions(prev => prev.map((q, i) => {
+      if (i !== qIdx) return q;
+      const opts = q.options.map((o: any, j: number) => j === oIdx ? { ...o, [field]: value } : o);
+      return { ...q, options: opts };
+    }));
+  };
+
+  const setCorrectOption = (qIdx: number, oIdx: number) => {
+    setQuizQuestions(prev => prev.map((q, i) => {
+      if (i !== qIdx) return q;
+      const opts = q.options.map((o: any, j: number) => ({ ...o, isCorrect: j === oIdx }));
+      return { ...q, options: opts };
+    }));
+  };
+
+  const handleSaveQuiz = async () => {
+    if (!quizBuilderLesson) return;
+    if (quizQuestions.length === 0) {
+      toast({ title: 'Add at least one question', variant: 'destructive' }); return;
+    }
+    for (const q of quizQuestions) {
+      if (!q.question.trim()) {
+        toast({ title: 'All questions must have text', variant: 'destructive' }); return;
+      }
+      if (!q.options.some((o: any) => o.isCorrect)) {
+        toast({ title: 'Each question must have a correct answer selected', variant: 'destructive' }); return;
+      }
+    }
+    setSavingQuiz(true);
+    try {
+      if (quizBuilderData) {
+        // Update existing quiz settings
+        await api.put(`/quizzes/${quizBuilderData.id}`, {
+          title: `Quiz — ${quizBuilderLesson.title}`,
+          titleAr: `اختبار — ${quizBuilderLesson.titleAr}`,
+          passingScore: quizPassingScore,
+          isCompulsory: quizIsCompulsory,
+        });
+        // For simplicity, delete and recreate questions on edit
+        // (future: diff-patch; for now this is safe and simple)
+        await api.del(`/quizzes/${quizBuilderData.id}`);
+        await api.post('/quizzes', {
+          courseId: parseInt(courseId || '0'),
+          lessonId: quizBuilderLesson.id,
+          title: `Quiz — ${quizBuilderLesson.title}`,
+          titleAr: `اختبار — ${quizBuilderLesson.titleAr}`,
+          passingScore: quizPassingScore,
+          isCompulsory: quizIsCompulsory,
+          questions: quizQuestions.map(q => ({
+            question: q.question,
+            questionAr: q.question,
+            type: q.type,
+            points: 1,
+            options: q.options,
+          })),
+        });
+      } else {
+        await api.post('/quizzes', {
+          courseId: parseInt(courseId || '0'),
+          lessonId: quizBuilderLesson.id,
+          title: `Quiz — ${quizBuilderLesson.title}`,
+          titleAr: `اختبار — ${quizBuilderLesson.titleAr}`,
+          passingScore: quizPassingScore,
+          isCompulsory: quizIsCompulsory,
+          questions: quizQuestions.map(q => ({
+            question: q.question,
+            questionAr: q.question,
+            type: q.type,
+            points: 1,
+            options: q.options,
+          })),
+        });
+      }
+      toast({ title: '✓ Quiz saved!' });
+      closeQuizBuilder();
+      loadData();
+    } catch (err: any) {
+      toast({ title: 'Failed to save quiz', description: err.message, variant: 'destructive' });
+    } finally {
+      setSavingQuiz(false);
+    }
+  };
+
+  const handleDeleteQuiz = async () => {
+    if (!quizBuilderData) return;
+    if (!window.confirm('Delete this quiz? Students will no longer see it.')) return;
+    setDeletingQuiz(true);
+    try {
+      await api.del(`/quizzes/${quizBuilderData.id}`);
+      toast({ title: 'Quiz deleted' });
+      closeQuizBuilder();
+      loadData();
+    } catch (err: any) {
+      toast({ title: 'Failed to delete quiz', description: err.message, variant: 'destructive' });
+    } finally {
+      setDeletingQuiz(false);
+    }
   };
 
   const handleSubmitForReview = async () => {
@@ -877,6 +1052,16 @@ export default function ManageCourse() {
                                   {lesson.isFree && (
                                     <span className="text-xs px-2 py-0.5 rounded-full bg-info/10 text-info font-medium">Free</span>
                                   )}
+                                  {lesson.hasQuiz && (
+                                    <span className={`text-xs px-2 py-0.5 rounded-full font-medium flex items-center gap-1 ${
+                                      lesson.quizIsCompulsory
+                                        ? 'bg-amber-500/10 text-amber-600 border border-amber-500/30'
+                                        : 'bg-violet-500/10 text-violet-600 border border-violet-500/30'
+                                    }`}>
+                                      <ClipboardList className="w-3 h-3" />
+                                      {lesson.quizIsCompulsory ? 'Quiz (Required)' : 'Quiz (Optional)'}
+                                    </span>
+                                  )}
                                 </div>
                                 <p className="text-xs text-muted-foreground" dir="rtl">{lesson.titleAr}</p>
                               </div>
@@ -886,6 +1071,14 @@ export default function ManageCourse() {
                                 </span>
                               )}
                               <div className="flex gap-1 shrink-0">
+                                <Button
+                                  variant="ghost" size="icon"
+                                  className={`h-7 w-7 ${ lesson.hasQuiz ? 'text-violet-500 hover:text-violet-700' : 'text-muted-foreground hover:text-violet-500' }`}
+                                  title={lesson.hasQuiz ? 'Edit Quiz' : 'Add Quiz'}
+                                  onClick={() => openQuizBuilder(lesson)}
+                                >
+                                  <ClipboardList className="w-3.5 h-3.5" />
+                                </Button>
                                 <Button variant="ghost" size="icon" className="h-7 w-7 text-muted-foreground hover:text-success" title="Preview Lesson" onClick={() => setPreviewLesson(lesson)}>
                                   <PlayCircle className="w-3.5 h-3.5" />
                                 </Button>
@@ -1055,6 +1248,141 @@ export default function ManageCourse() {
           )}
         </DialogContent>
       </Dialog>
+
+      {/* ── Quiz Builder Dialog ──────────────────────────────────── */}
+      <Dialog open={!!quizBuilderLesson} onOpenChange={(o) => !o && closeQuizBuilder()}>
+        <DialogContent className="sm:max-w-[640px] max-h-[90vh] overflow-hidden flex flex-col" aria-describedby={undefined}>
+          <DialogHeader className="shrink-0">
+            <DialogTitle className="text-xl font-display flex items-center gap-2">
+              <ClipboardList className="w-5 h-5 text-violet-500" />
+              {quizBuilderData ? 'Edit Quiz' : 'Add Quiz'} — <span className="text-muted-foreground font-normal text-base truncate max-w-[200px]">{quizBuilderLesson?.title}</span>
+            </DialogTitle>
+          </DialogHeader>
+
+          <div className="overflow-y-auto flex-1 pr-1 space-y-5 py-2">
+            {/* Settings row */}
+            <div className="flex flex-col sm:flex-row gap-4 bg-muted/40 rounded-xl p-4">
+              <div className="flex-1">
+                <label className="text-sm font-semibold mb-2 block">Passing Score (%)</label>
+                <input
+                  type="number" min={1} max={100}
+                  value={quizPassingScore}
+                  onChange={e => setQuizPassingScore(parseInt(e.target.value) || 70)}
+                  className="w-full h-10 px-3 rounded-lg border border-input bg-background text-sm"
+                />
+              </div>
+              <div className="flex-1">
+                <label className="text-sm font-semibold mb-2 block">Compulsory?</label>
+                <button
+                  type="button"
+                  onClick={() => setQuizIsCompulsory(p => !p)}
+                  className={`w-full h-10 rounded-lg border text-sm font-medium transition-colors ${
+                    quizIsCompulsory
+                      ? 'bg-amber-500/10 border-amber-500/50 text-amber-700'
+                      : 'bg-muted border-border text-muted-foreground'
+                  }`}
+                >
+                  {quizIsCompulsory ? '🔒 Yes — must pass to continue' : '✓ Optional — can skip'}
+                </button>
+              </div>
+            </div>
+
+            {/* Questions */}
+            {quizQuestions.length === 0 ? (
+              <div className="text-center py-8 text-muted-foreground text-sm border-2 border-dashed border-border rounded-xl">
+                No questions yet — add one below
+              </div>
+            ) : (
+              <div className="space-y-4">
+                {quizQuestions.map((q, qIdx) => (
+                  <div key={q._tempId ?? q.id ?? qIdx} className="border border-border rounded-xl p-4 bg-card relative">
+                    <button
+                      type="button"
+                      className="absolute top-3 right-3 text-muted-foreground hover:text-destructive"
+                      onClick={() => removeQuestion(qIdx)}
+                    >
+                      <X className="w-4 h-4" />
+                    </button>
+                    <div className="flex items-center gap-2 mb-3">
+                      <span className="text-xs font-bold bg-primary/10 text-primary px-2 py-0.5 rounded-full">
+                        Q{qIdx + 1} · {q.type === 'true_false' ? 'True / False' : 'Multiple Choice'}
+                      </span>
+                    </div>
+                    <input
+                      className="w-full h-10 px-3 rounded-lg border border-input bg-background text-sm mb-3"
+                      placeholder="Question text..."
+                      value={q.question}
+                      onChange={e => updateQuestion(qIdx, 'question', e.target.value)}
+                    />
+                    <div className="space-y-2">
+                      {q.options.map((opt: any, oIdx: number) => (
+                        <div key={oIdx} className="flex items-center gap-2">
+                          <button
+                            type="button"
+                            onClick={() => setCorrectOption(qIdx, oIdx)}
+                            className={`w-5 h-5 rounded-full border-2 shrink-0 flex items-center justify-center transition-colors ${
+                              opt.isCorrect
+                                ? 'border-success bg-success/10'
+                                : 'border-border'
+                            }`}
+                          >
+                            {opt.isCorrect && <div className="w-2.5 h-2.5 rounded-full bg-success" />}
+                          </button>
+                          {q.type === 'true_false' ? (
+                            <span className="text-sm font-medium">{opt.text}</span>
+                          ) : (
+                            <input
+                              className="flex-1 h-9 px-3 rounded-lg border border-input bg-background text-sm"
+                              placeholder={`Option ${oIdx + 1}`}
+                              value={opt.text}
+                              onChange={e => updateOption(qIdx, oIdx, 'text', e.target.value)}
+                            />
+                          )}
+                          {opt.isCorrect && (
+                            <span className="text-xs text-success font-semibold shrink-0">✓ Correct</span>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {/* Add question buttons */}
+            <div className="flex gap-3">
+              <Button type="button" variant="outline" className="flex-1 gap-2" onClick={addMCQQuestion}>
+                <Plus className="w-4 h-4" /> Multiple Choice
+              </Button>
+              <Button type="button" variant="outline" className="flex-1 gap-2" onClick={addTFQuestion}>
+                <Plus className="w-4 h-4" /> True / False
+              </Button>
+            </div>
+          </div>
+
+          {/* Footer actions */}
+          <div className="shrink-0 pt-4 border-t border-border flex gap-3">
+            {quizBuilderData && (
+              <Button
+                type="button" variant="outline"
+                className="text-destructive border-destructive/30 hover:bg-destructive/5"
+                onClick={handleDeleteQuiz} disabled={deletingQuiz}
+              >
+                {deletingQuiz ? '...' : 'Delete Quiz'}
+              </Button>
+            )}
+            <Button type="button" variant="outline" className="flex-1" onClick={closeQuizBuilder}>Cancel</Button>
+            <Button
+              type="button"
+              className="flex-1 bg-violet-600 hover:bg-violet-700 text-white gap-2"
+              onClick={handleSaveQuiz} disabled={savingQuiz}
+            >
+              {savingQuiz ? 'Saving...' : quizBuilderData ? 'Update Quiz' : 'Save Quiz'}
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
     </PageContainer>
   );
 }
