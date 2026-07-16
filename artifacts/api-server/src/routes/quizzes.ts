@@ -378,5 +378,3 @@ router.post("/:quizId/questions", requireAuth, requireRole("teacher", "admin"), 
 });
 
 export default router;
-
-  try {

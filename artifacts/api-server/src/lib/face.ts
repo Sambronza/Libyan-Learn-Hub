@@ -1,6 +1,7 @@
 import { db } from "@workspace/db";
 import { platformSettingsTable } from "@workspace/db";
 import { eq } from "drizzle-orm";
+import { createRequire } from "module";
 
 /**
  * Face descriptor matching utilities.
@@ -79,9 +80,10 @@ async function loadFaceApi() {
       const tf = await import("@tensorflow/tfjs-node");
       const faceapi = await import("@vladmandic/face-api");
       // @vladmandic/face-api ships its model weights in the package's model/ dir
-      const { createRequire } = await import("module");
-      const require = createRequire(import.meta.url);
-      const pkgPath = require.resolve("@vladmandic/face-api/package.json");
+      // createRequire(__filename) works in both ESM (where esbuild injects __filename)
+      // and native CJS, and avoids the import.meta.url which esbuild warns about.
+      const _require = createRequire(__filename);
+      const pkgPath = _require.resolve("@vladmandic/face-api/package.json");
       const { dirname, join } = await import("path");
       const modelPath = process.env.FACE_MODELS_PATH || join(dirname(pkgPath), "model");
       await faceapi.nets.ssdMobilenetv1.loadFromDisk(modelPath);
