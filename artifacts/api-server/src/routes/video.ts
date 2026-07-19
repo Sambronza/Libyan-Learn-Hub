@@ -15,7 +15,7 @@ const JWT_SECRET = getJwtSecret();
 // 1. Endpoint to generate a short-lived playback token for a specific lesson
 router.post("/generate-token", async (req, res) => {
   try {
-    const { lessonId, courseId } = req.body;
+    const { lessonId } = req.body;
     
     // Optional Auth Parsing
     const authHeader = req.headers.authorization;
@@ -38,8 +38,11 @@ router.post("/generate-token", async (req, res) => {
         res.status(401).json({ error: "Unauthorized" });
         return;
       }
-      // Enrollment must exist AND the subscription must not be expired.
-      const access = await requireActiveEnrollment(userId, parseInt(courseId), role);
+      // SECURITY: enforce enrollment against the lesson's OWN course, never the
+      // client-supplied courseId. Otherwise a user enrolled in any course could
+      // pass that course's id alongside a paid lesson from a different course and
+      // bypass the paywall.
+      const access = await requireActiveEnrollment(userId, lesson.courseId, role);
       if (!access.ok) {
         res.status(403).json(access.reason === "expired" ? SUBSCRIPTION_EXPIRED_ERROR : NOT_ENROLLED_ERROR);
         return;

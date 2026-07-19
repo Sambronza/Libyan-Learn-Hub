@@ -52,6 +52,19 @@ const authLimiter = rateLimit({
   legacyHeaders: false,
 });
 
+// Tight limiter for the 4-digit passkey (only 10 000 combinations). Keyed by
+// authenticated user so an attacker with a stolen token cannot brute-force the
+// unlock passkey — 10 attempts / 15 min makes exhaustion infeasible. Must run
+// AFTER requireAuth so req.user is populated.
+const passkeyLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 10,
+  standardHeaders: true,
+  legacyHeaders: false,
+  keyGenerator: (req) => String(req.user?.userId ?? req.ip),
+  message: { error: "Too many passkey attempts. Please try again in 15 minutes." },
+});
+
 function generateOtp(): string {
   return Math.floor(100000 + Math.random() * 900000).toString();
 }
@@ -488,7 +501,7 @@ router.get("/me", requireAuth, async (req, res) => {
 });
 
 // ── Set / Change Passkey ──────────────────────────────────────────────────
-router.post("/set-passkey", requireAuth, async (req, res) => {
+router.post("/set-passkey", requireAuth, passkeyLimiter, async (req, res) => {
   try {
     const { userId } = req.user!;
     const { passkey, currentPasskey } = req.body;
@@ -530,7 +543,7 @@ router.post("/set-passkey", requireAuth, async (req, res) => {
 });
 
 // ── Remove Passkey ────────────────────────────────────────────────────────
-router.post("/remove-passkey", requireAuth, async (req, res) => {
+router.post("/remove-passkey", requireAuth, passkeyLimiter, async (req, res) => {
   try {
     const { userId } = req.user!;
     const { currentPasskey } = req.body;
@@ -568,7 +581,7 @@ router.post("/remove-passkey", requireAuth, async (req, res) => {
 });
 
 // ── Verify Passkey (unlock session) ──────────────────────────────────────
-router.post("/verify-passkey", requireAuth, async (req, res) => {
+router.post("/verify-passkey", requireAuth, passkeyLimiter, async (req, res) => {
   try {
     const { userId } = req.user!;
     const { passkey } = req.body;

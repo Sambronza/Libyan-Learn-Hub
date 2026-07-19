@@ -70,23 +70,6 @@ router.get("/tutors", async (req, res) => {
   }
 });
 
-router.get("/debug-tutors-raw", async (req, res) => {
-  try {
-    const allUsers = await db.select({
-      id: usersTable.id,
-      role: usersTable.role,
-      isTutoringEnabled: usersTable.isTutoringEnabled,
-      tutoringSuspendedUntil: usersTable.tutoringSuspendedUntil,
-      tutoringSubjects: usersTable.tutoringSubjects,
-      tutoringLevels: usersTable.tutoringLevels,
-      fullName: usersTable.fullName
-    }).from(usersTable);
-    res.json(allUsers);
-  } catch (error) {
-    res.status(500).json({ error: String(error) });
-  }
-});
-
 // ─── Register teacher for tutoring ───────────────────────────────────────────
 router.post("/register", requireAuth, async (req, res) => {
   try {

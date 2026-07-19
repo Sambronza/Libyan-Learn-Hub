@@ -2,8 +2,15 @@ import { Router } from "express";
 import { serverError } from "../lib/http.js";
 import multer from "multer";
 import { requireAuth, requireRole } from "../lib/auth.js";
-import { db, usersTable } from "@workspace/db";
-import { eq } from "drizzle-orm";
+import {
+  db,
+  usersTable,
+  lessonsTable,
+  coursesTable,
+  libraryResourcesTable,
+  teacherPostsTable,
+} from "@workspace/db";
+import { eq, and, or } from "drizzle-orm";
 import { getEffectiveStorageLimit } from "../lib/plans.js";
 import type { TeacherTier } from "../lib/plans.js";
 import { cloudinary, uploadToCloudinary } from "../lib/cloudinary.js";
@@ -240,6 +247,40 @@ router.post(
   }
 );
 
+/**
+ * Confirms the caller owns the asset behind `publicId` before it can be
+ * destroyed. Ownership is proven by an existing reference in the caller's own
+ * content — a lesson in one of their courses, a library resource they uploaded,
+ * or one of their community posts. Prevents a teacher from deleting another
+ * teacher's media by guessing its public_id (IDOR).
+ */
+async function callerOwnsUpload(userId: number, publicId: string): Promise<boolean> {
+  const [ownedLesson] = await db
+    .select({ id: lessonsTable.id })
+    .from(lessonsTable)
+    .innerJoin(coursesTable, eq(lessonsTable.courseId, coursesTable.id))
+    .where(and(
+      eq(coursesTable.teacherId, userId),
+      or(eq(lessonsTable.videoPublicId, publicId), eq(lessonsTable.documentPublicId, publicId)),
+    ))
+    .limit(1);
+  if (ownedLesson) return true;
+
+  const [ownedResource] = await db
+    .select({ id: libraryResourcesTable.id })
+    .from(libraryResourcesTable)
+    .where(and(eq(libraryResourcesTable.uploadedBy, userId), eq(libraryResourcesTable.filePublicId, publicId)))
+    .limit(1);
+  if (ownedResource) return true;
+
+  const [ownedPost] = await db
+    .select({ id: teacherPostsTable.id })
+    .from(teacherPostsTable)
+    .where(and(eq(teacherPostsTable.teacherId, userId), eq(teacherPostsTable.imagePublicId, publicId)))
+    .limit(1);
+  return !!ownedPost;
+}
+
 // ── Delete uploaded file ─────────────────────────────────────────
 router.delete(
   "/:publicId",
@@ -250,6 +291,12 @@ router.delete(
       const publicId = req.params.publicId as string;
       const resourceType = (req.query.type as string) || "video";
       const fileSizeBytes = parseInt((req.query.size as string) || "0", 10);
+
+      // Admins may delete any asset; teachers only their own referenced content.
+      if (req.user!.role !== "admin" && !(await callerOwnsUpload(req.user!.userId, publicId))) {
+        res.status(403).json({ error: "You do not have permission to delete this file" });
+        return;
+      }
 
       await cloudinary.uploader.destroy(publicId, {
         resource_type: resourceType,
