@@ -5,6 +5,7 @@ import {
   usersTable, coursesTable, enrollmentsTable, reviewsTable, lessonsTable,
   profileAnalyticsTable, studentEndorsementsTable,
   liveSessionsTable, liveSessionCoursesTable, tutoringRequestsTable,
+  notificationsTable,
 } from "@workspace/db";
 import { eq, count, avg, and, sql, desc, gte, or, lte } from "drizzle-orm";
 import { requireAuth, requireRole } from "../lib/auth.js";
@@ -545,6 +546,16 @@ router.post("/approvals/:teacherId/approve", requireAuth, requireRole("admin"), 
     const email = buildTeacherApprovedEmail({ teacherName: teacher.fullName, teacherEmail: teacher.email });
     sendEmail({ to: teacher.email, ...email }).catch((e) => console.error("Approval email failed:", e));
 
+    // In-app notification (parallels the email so approvals reach both channels)
+    await db.insert(notificationsTable).values({
+      userId: teacherId,
+      type: "system_alert" as any,
+      title: "Registration Approved",
+      titleAr: "تم اعتماد تسجيلك",
+      message: "Your teacher registration has been approved. You can now create courses and live sessions.",
+      messageAr: "تمت الموافقة على تسجيلك كمعلم. يمكنك الآن إنشاء الدورات والجلسات المباشرة.",
+    }).catch((e) => console.error("Approval in-app notification failed:", e));
+
     res.json({ success: true });
   } catch (err: any) {
     serverError(res, err);
@@ -574,6 +585,16 @@ router.post("/approvals/:teacherId/reject", requireAuth, requireRole("admin"), a
     // Send rejection email
     const email = buildTeacherRejectedEmail({ teacherName: teacher.fullName, reason: reason.trim() });
     sendEmail({ to: teacher.email, ...email }).catch((e) => console.error("Rejection email failed:", e));
+
+    // In-app notification (parallels the email so rejections reach both channels)
+    await db.insert(notificationsTable).values({
+      userId: teacherId,
+      type: "system_alert" as any,
+      title: "Registration Needs Revision",
+      titleAr: "تسجيلك يحتاج إلى مراجعة",
+      message: `Your teacher registration was not approved: ${reason.trim()}. Please resubmit your documents.`,
+      messageAr: `لم تتم الموافقة على تسجيلك كمعلم: ${reason.trim()}. يرجى إعادة تقديم وثائقك.`,
+    }).catch((e) => console.error("Rejection in-app notification failed:", e));
 
     res.json({ success: true });
   } catch (err: any) {

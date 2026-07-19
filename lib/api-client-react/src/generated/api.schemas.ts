@@ -19,8 +19,7 @@ export interface SuccessResponse {
   message?: string;
 }
 
-export type RegisterRequestRole =
-  (typeof RegisterRequestRole)[keyof typeof RegisterRequestRole];
+export type RegisterRequestRole = (typeof RegisterRequestRole)[keyof typeof RegisterRequestRole];
 
 export const RegisterRequestRole = {
   student: "student",
@@ -138,8 +137,7 @@ export const CourseLevel = {
   advanced: "advanced",
 } as const;
 
-export type CourseLanguage =
-  (typeof CourseLanguage)[keyof typeof CourseLanguage];
+export type CourseLanguage = (typeof CourseLanguage)[keyof typeof CourseLanguage];
 
 export const CourseLanguage = {
   ar: "ar",
@@ -179,8 +177,7 @@ export interface Course {
   createdAt: string;
 }
 
-export type LessonSummaryType =
-  (typeof LessonSummaryType)[keyof typeof LessonSummaryType];
+export type LessonSummaryType = (typeof LessonSummaryType)[keyof typeof LessonSummaryType];
 
 export const LessonSummaryType = {
   video: "video",
@@ -197,6 +194,12 @@ export interface LessonSummary {
   order: number;
   isFree: boolean;
   type: LessonSummaryType;
+  /** Present in the enrolled-student course view; whether the student completed this lesson */
+  isCompleted?: boolean;
+  /** Present in the enrolled-student course view; seconds watched */
+  watchedSeconds?: number;
+  /** Present when the lesson has an attached quiz that must be passed to proceed */
+  quizIsCompulsory?: boolean;
 }
 
 export interface TeacherProfile {
@@ -303,6 +306,9 @@ export interface UpdateCourseRequest {
 export type Lesson = LessonSummary & {
   courseId: number;
   videoUrl?: string | null;
+  videoFilePath?: string | null;
+  documentFilePath?: string | null;
+  documentFileName?: string | null;
   content?: string | null;
   contentAr?: string | null;
   createdAt: string;
@@ -427,8 +433,7 @@ export interface UpdateProgressRequest {
   watchedSeconds: number;
 }
 
-export type LiveSessionStatus =
-  (typeof LiveSessionStatus)[keyof typeof LiveSessionStatus];
+export type LiveSessionStatus = (typeof LiveSessionStatus)[keyof typeof LiveSessionStatus];
 
 export const LiveSessionStatus = {
   scheduled: "scheduled",
@@ -482,8 +487,7 @@ export type GetCoursesParams = {
   limit?: number;
 };
 
-export type GetCoursesLevel =
-  (typeof GetCoursesLevel)[keyof typeof GetCoursesLevel];
+export type GetCoursesLevel = (typeof GetCoursesLevel)[keyof typeof GetCoursesLevel];
 
 export const GetCoursesLevel = {
   beginner: "beginner",
@@ -491,8 +495,7 @@ export const GetCoursesLevel = {
   advanced: "advanced",
 } as const;
 
-export type GetCoursesLanguage =
-  (typeof GetCoursesLanguage)[keyof typeof GetCoursesLanguage];
+export type GetCoursesLanguage = (typeof GetCoursesLanguage)[keyof typeof GetCoursesLanguage];
 
 export const GetCoursesLanguage = {
   ar: "ar",

@@ -6,8 +6,7 @@
  * OpenAPI spec version: 1.0.0
  */
 
-export type GetCoursesLevel =
-  (typeof GetCoursesLevel)[keyof typeof GetCoursesLevel];
+export type GetCoursesLevel = (typeof GetCoursesLevel)[keyof typeof GetCoursesLevel];
 
 export const GetCoursesLevel = {
   beginner: "beginner",

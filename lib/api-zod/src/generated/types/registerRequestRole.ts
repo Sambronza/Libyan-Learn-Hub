@@ -6,8 +6,7 @@
  * OpenAPI spec version: 1.0.0
  */
 
-export type RegisterRequestRole =
-  (typeof RegisterRequestRole)[keyof typeof RegisterRequestRole];
+export type RegisterRequestRole = (typeof RegisterRequestRole)[keyof typeof RegisterRequestRole];
 
 export const RegisterRequestRole = {
   student: "student",

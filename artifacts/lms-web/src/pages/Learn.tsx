@@ -490,12 +490,14 @@ export default function Learn() {
             {course.lessons.map((l, idx) => {
               const isActive = activeLessonId === l.id;
               const isDone = completedIds.has(l.id);
-              // A lesson is locked if the PREVIOUS lesson has a compulsory quiz that isn't yet passed
-              const prevLesson = idx > 0 ? course.lessons[idx - 1] : null;
-              const isLocked = prevLesson
-                && (prevLesson as any).quizIsCompulsory
-                && !quizPassedMap[prevLesson.id]
-                && !completedIds.has(prevLesson.id);
+              // A lesson is locked if ANY earlier lesson has a compulsory quiz the
+              // student hasn't yet passed (or otherwise completed). Scanning the whole
+              // prior chain — not just the immediate predecessor — prevents bypassing a
+              // compulsory quiz by jumping to a later lesson whose direct predecessor
+              // happens to have no quiz.
+              const isLocked = course.lessons.slice(0, idx).some(
+                (p: any) => p.quizIsCompulsory && !quizPassedMap[p.id] && !completedIds.has(p.id)
+              );
               return (
                 <button
                   key={l.id}

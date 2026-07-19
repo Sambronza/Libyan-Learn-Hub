@@ -6,8 +6,7 @@
  * OpenAPI spec version: 1.0.0
  */
 
-export type GetCoursesLanguage =
-  (typeof GetCoursesLanguage)[keyof typeof GetCoursesLanguage];
+export type GetCoursesLanguage = (typeof GetCoursesLanguage)[keyof typeof GetCoursesLanguage];
 
 export const GetCoursesLanguage = {
   ar: "ar",

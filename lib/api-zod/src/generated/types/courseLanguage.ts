@@ -6,8 +6,7 @@
  * OpenAPI spec version: 1.0.0
  */
 
-export type CourseLanguage =
-  (typeof CourseLanguage)[keyof typeof CourseLanguage];
+export type CourseLanguage = (typeof CourseLanguage)[keyof typeof CourseLanguage];
 
 export const CourseLanguage = {
   ar: "ar",

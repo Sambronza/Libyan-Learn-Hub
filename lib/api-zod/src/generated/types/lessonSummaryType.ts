@@ -6,8 +6,7 @@
  * OpenAPI spec version: 1.0.0
  */
 
-export type LessonSummaryType =
-  (typeof LessonSummaryType)[keyof typeof LessonSummaryType];
+export type LessonSummaryType = (typeof LessonSummaryType)[keyof typeof LessonSummaryType];
 
 export const LessonSummaryType = {
   video: "video",

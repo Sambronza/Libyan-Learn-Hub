@@ -6,8 +6,7 @@
  * OpenAPI spec version: 1.0.0
  */
 
-export type LiveSessionStatus =
-  (typeof LiveSessionStatus)[keyof typeof LiveSessionStatus];
+export type LiveSessionStatus = (typeof LiveSessionStatus)[keyof typeof LiveSessionStatus];
 
 export const LiveSessionStatus = {
   scheduled: "scheduled",

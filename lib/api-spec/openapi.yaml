@@ -1089,6 +1089,15 @@ components:
         type:
           type: string
           enum: [video, text, quiz]
+        isCompleted:
+          type: boolean
+          description: Present in the enrolled-student course view; whether the student completed this lesson
+        watchedSeconds:
+          type: integer
+          description: Present in the enrolled-student course view; seconds watched
+        quizIsCompulsory:
+          type: boolean
+          description: Present when the lesson has an attached quiz that must be passed to proceed
       required:
         - id
         - title
@@ -1106,6 +1115,15 @@ components:
             courseId:
               type: integer
             videoUrl:
+              type: string
+              nullable: true
+            videoFilePath:
+              type: string
+              nullable: true
+            documentFilePath:
+              type: string
+              nullable: true
+            documentFileName:
               type: string
               nullable: true
             content:

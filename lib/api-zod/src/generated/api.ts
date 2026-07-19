@@ -142,21 +142,10 @@ export const GetCoursesResponse = zod.object({
         .number()
         .nullish()
         .describe("1-month subscription price (null on free courses)"),
-      priceMonth3: zod
-        .number()
-        .nullish()
-        .describe("3-month subscription price"),
-      priceMonth6: zod
-        .number()
-        .nullish()
-        .describe("6-month subscription price"),
-      priceMonth12: zod
-        .number()
-        .nullish()
-        .describe("12-month subscription price"),
-      currency: zod
-        .string()
-        .default(getCoursesResponseCoursesItemCurrencyDefault),
+      priceMonth3: zod.number().nullish().describe("3-month subscription price"),
+      priceMonth6: zod.number().nullish().describe("6-month subscription price"),
+      priceMonth12: zod.number().nullish().describe("12-month subscription price"),
+      currency: zod.string().default(getCoursesResponseCoursesItemCurrencyDefault),
       level: zod.enum(["beginner", "intermediate", "advanced"]),
       language: zod.enum(["ar", "en"]),
       categoryId: zod.number(),
@@ -221,10 +210,7 @@ export const GetCourseResponse = zod
       .describe("1-month subscription price (null on free courses)"),
     priceMonth3: zod.number().nullish().describe("3-month subscription price"),
     priceMonth6: zod.number().nullish().describe("6-month subscription price"),
-    priceMonth12: zod
-      .number()
-      .nullish()
-      .describe("12-month subscription price"),
+    priceMonth12: zod.number().nullish().describe("12-month subscription price"),
     currency: zod.string().default(getCourseResponseOneCurrencyDefault),
     level: zod.enum(["beginner", "intermediate", "advanced"]),
     language: zod.enum(["ar", "en"]),
@@ -251,6 +237,22 @@ export const GetCourseResponse = zod
           order: zod.number(),
           isFree: zod.boolean(),
           type: zod.enum(["video", "text", "quiz"]),
+          isCompleted: zod
+            .boolean()
+            .optional()
+            .describe(
+              "Present in the enrolled-student course view; whether the student completed this lesson",
+            ),
+          watchedSeconds: zod
+            .number()
+            .optional()
+            .describe("Present in the enrolled-student course view; seconds watched"),
+          quizIsCompulsory: zod
+            .boolean()
+            .optional()
+            .describe(
+              "Present when the lesson has an attached quiz that must be passed to proceed",
+            ),
         }),
       ),
       category: zod
@@ -315,10 +317,7 @@ export const UpdateCourseResponse = zod.object({
   descriptionAr: zod.string(),
   thumbnailUrl: zod.string().nullish(),
   price: zod.number(),
-  priceMonth1: zod
-    .number()
-    .nullish()
-    .describe("1-month subscription price (null on free courses)"),
+  priceMonth1: zod.number().nullish().describe("1-month subscription price (null on free courses)"),
   priceMonth3: zod.number().nullish().describe("3-month subscription price"),
   priceMonth6: zod.number().nullish().describe("6-month subscription price"),
   priceMonth12: zod.number().nullish().describe("12-month subscription price"),
@@ -366,11 +365,28 @@ export const GetCourseLessonsResponseItem = zod
     order: zod.number(),
     isFree: zod.boolean(),
     type: zod.enum(["video", "text", "quiz"]),
+    isCompleted: zod
+      .boolean()
+      .optional()
+      .describe(
+        "Present in the enrolled-student course view; whether the student completed this lesson",
+      ),
+    watchedSeconds: zod
+      .number()
+      .optional()
+      .describe("Present in the enrolled-student course view; seconds watched"),
+    quizIsCompulsory: zod
+      .boolean()
+      .optional()
+      .describe("Present when the lesson has an attached quiz that must be passed to proceed"),
   })
   .and(
     zod.object({
       courseId: zod.number(),
       videoUrl: zod.string().nullish(),
+      videoFilePath: zod.string().nullish(),
+      documentFilePath: zod.string().nullish(),
+      documentFileName: zod.string().nullish(),
       content: zod.string().nullish(),
       contentAr: zod.string().nullish(),
       createdAt: zod.date(),
@@ -414,11 +430,28 @@ export const GetLessonResponse = zod
     order: zod.number(),
     isFree: zod.boolean(),
     type: zod.enum(["video", "text", "quiz"]),
+    isCompleted: zod
+      .boolean()
+      .optional()
+      .describe(
+        "Present in the enrolled-student course view; whether the student completed this lesson",
+      ),
+    watchedSeconds: zod
+      .number()
+      .optional()
+      .describe("Present in the enrolled-student course view; seconds watched"),
+    quizIsCompulsory: zod
+      .boolean()
+      .optional()
+      .describe("Present when the lesson has an attached quiz that must be passed to proceed"),
   })
   .and(
     zod.object({
       courseId: zod.number(),
       videoUrl: zod.string().nullish(),
+      videoFilePath: zod.string().nullish(),
+      documentFilePath: zod.string().nullish(),
+      documentFileName: zod.string().nullish(),
       content: zod.string().nullish(),
       contentAr: zod.string().nullish(),
       createdAt: zod.date(),
@@ -459,11 +492,28 @@ export const UpdateLessonResponse = zod
     order: zod.number(),
     isFree: zod.boolean(),
     type: zod.enum(["video", "text", "quiz"]),
+    isCompleted: zod
+      .boolean()
+      .optional()
+      .describe(
+        "Present in the enrolled-student course view; whether the student completed this lesson",
+      ),
+    watchedSeconds: zod
+      .number()
+      .optional()
+      .describe("Present in the enrolled-student course view; seconds watched"),
+    quizIsCompulsory: zod
+      .boolean()
+      .optional()
+      .describe("Present when the lesson has an attached quiz that must be passed to proceed"),
   })
   .and(
     zod.object({
       courseId: zod.number(),
       videoUrl: zod.string().nullish(),
+      videoFilePath: zod.string().nullish(),
+      documentFilePath: zod.string().nullish(),
+      documentFileName: zod.string().nullish(),
       content: zod.string().nullish(),
       contentAr: zod.string().nullish(),
       createdAt: zod.date(),
@@ -543,10 +593,7 @@ export const GetMyEnrollmentsResponseItem = zod
       .nullish()
       .describe("Subscription duration (null = permanent\/free access)"),
     startedAt: zod.date().nullish(),
-    expiresAt: zod
-      .date()
-      .nullish()
-      .describe("Subscription expiry (null = never expires)"),
+    expiresAt: zod.date().nullish().describe("Subscription expiry (null = never expires)"),
     renewalCount: zod.number().nullish(),
     isExpired: zod.boolean().nullish(),
   })
@@ -564,21 +611,10 @@ export const GetMyEnrollmentsResponseItem = zod
           .number()
           .nullish()
           .describe("1-month subscription price (null on free courses)"),
-        priceMonth3: zod
-          .number()
-          .nullish()
-          .describe("3-month subscription price"),
-        priceMonth6: zod
-          .number()
-          .nullish()
-          .describe("6-month subscription price"),
-        priceMonth12: zod
-          .number()
-          .nullish()
-          .describe("12-month subscription price"),
-        currency: zod
-          .string()
-          .default(getMyEnrollmentsResponseTwoCourseCurrencyDefault),
+        priceMonth3: zod.number().nullish().describe("3-month subscription price"),
+        priceMonth6: zod.number().nullish().describe("6-month subscription price"),
+        priceMonth12: zod.number().nullish().describe("12-month subscription price"),
+        currency: zod.string().default(getMyEnrollmentsResponseTwoCourseCurrencyDefault),
         level: zod.enum(["beginner", "intermediate", "advanced"]),
         language: zod.enum(["ar", "en"]),
         categoryId: zod.number(),
@@ -784,10 +820,7 @@ export const GetTeacherCoursesResponseItem = zod
       .describe("1-month subscription price (null on free courses)"),
     priceMonth3: zod.number().nullish().describe("3-month subscription price"),
     priceMonth6: zod.number().nullish().describe("6-month subscription price"),
-    priceMonth12: zod
-      .number()
-      .nullish()
-      .describe("12-month subscription price"),
+    priceMonth12: zod.number().nullish().describe("12-month subscription price"),
     currency: zod.string().default(getTeacherCoursesResponseOneCurrencyDefault),
     level: zod.enum(["beginner", "intermediate", "advanced"]),
     language: zod.enum(["ar", "en"]),
@@ -809,9 +842,7 @@ export const GetTeacherCoursesResponseItem = zod
       completionRate: zod.number().optional(),
     }),
   );
-export const GetTeacherCoursesResponse = zod.array(
-  GetTeacherCoursesResponseItem,
-);
+export const GetTeacherCoursesResponse = zod.array(GetTeacherCoursesResponseItem);
 
 /**
  * @summary Get students enrolled in teacher's courses
@@ -825,6 +856,4 @@ export const GetTeacherStudentsResponseItem = zod.object({
   enrolledAt: zod.date(),
   progress: zod.number(),
 });
-export const GetTeacherStudentsResponse = zod.array(
-  GetTeacherStudentsResponseItem,
-);
+export const GetTeacherStudentsResponse = zod.array(GetTeacherStudentsResponseItem);

@@ -16,4 +16,10 @@ export interface LessonSummary {
   order: number;
   isFree: boolean;
   type: LessonSummaryType;
+  /** Present in the enrolled-student course view; whether the student completed this lesson */
+  isCompleted?: boolean;
+  /** Present in the enrolled-student course view; seconds watched */
+  watchedSeconds?: number;
+  /** Present when the lesson has an attached quiz that must be passed to proceed */
+  quizIsCompulsory?: boolean;
 }
