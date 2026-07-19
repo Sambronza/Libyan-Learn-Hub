@@ -42,6 +42,8 @@ const Teachers = React.lazy(() => import("@/pages/Teachers"));
 const TeacherProfile = React.lazy(() => import("@/pages/TeacherProfile"));
 const SearchPage = React.lazy(() => import("@/pages/Search"));
 const DMCAComplaint = React.lazy(() => import("@/pages/DMCAComplaint"));
+const Terms = React.lazy(() => import("@/pages/Terms"));
+const Privacy = React.lazy(() => import("@/pages/Privacy"));
 const Academy = React.lazy(() => import("@/pages/Academy"));
 const AcademyDashboard = React.lazy(() => import("@/pages/AcademyDashboard"));
 const AcademyApply = React.lazy(() => import("@/pages/AcademyApply"));
@@ -144,6 +146,8 @@ function Router() {
         <Route path="/teacher/biometrics-setup" component={BiometricsSetup} />
         <Route path="/search" component={SearchPage} />
         <Route path="/dmca" component={DMCAComplaint} />
+        <Route path="/terms" component={Terms} />
+        <Route path="/privacy" component={Privacy} />
         <Route path="/login" component={Auth} />
         <Route path="/register" component={Auth} />
         <Route path="/dashboard" component={Dashboard} />
