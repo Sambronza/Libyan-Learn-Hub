@@ -47,6 +47,7 @@ const AcademyDashboard = React.lazy(() => import("@/pages/AcademyDashboard"));
 const AcademyApply = React.lazy(() => import("@/pages/AcademyApply"));
 const BiometricsSetup = React.lazy(() => import("@/pages/teacher/BiometricsSetup"));
 const TutoringRegistration = React.lazy(() => import("@/pages/teacher/TutoringRegistration"));
+const TeacherOnboardingPage = React.lazy(() => import("@/pages/teacher/Onboarding"));
 const Wallet = React.lazy(() => import("@/pages/Wallet"));
 const Certificate = React.lazy(() => import("@/pages/Certificate"));
 const Checkout = React.lazy(() => import("@/pages/Checkout"));
@@ -153,6 +154,7 @@ function Router() {
         <Route path="/teacher/courses/:id/lessons" component={ManageCourse} />
         <Route path="/teacher/sessions/new" component={CreateSession} />
         <Route path="/teacher/tutoring-registration" component={TutoringRegistration} />
+        <Route path="/teacher/onboarding" component={TeacherOnboardingPage} />
         <Route path="/admin/dashboard" component={AdminDashboard} />
         <Route path="/wallet" component={Wallet} />
         <Route path="/certificate/:code" component={Certificate} />

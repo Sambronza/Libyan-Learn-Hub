@@ -27,7 +27,7 @@ export default function Home() {
   const dashboardLink = (() => {
     if (!isAuthenticated) return '/register';
     if (user?.role === 'teacher') return '/teacher/dashboard';
-    if (user?.role === 'admin') return '/admin';
+    if (user?.role === 'admin') return '/admin/dashboard';
     return '/dashboard';
   })();
 

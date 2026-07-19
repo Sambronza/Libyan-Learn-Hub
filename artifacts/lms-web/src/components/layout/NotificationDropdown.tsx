@@ -47,10 +47,10 @@ export function NotificationDropdown() {
     if (notification.type === 'new_course' && notification.referenceId) {
       setLocation(`/courses/${notification.referenceId}`);
     } else if (notification.type === 'live_session_starting' && notification.referenceId) {
-      setLocation(`/live/${notification.referenceId}`);
+      setLocation(`/session/${notification.referenceId}`);
     } else if (notification.type === 'course_submitted') {
       // Send admin to the Approvals tab
-      setLocation('/admin?tab=approvals');
+      setLocation('/admin/dashboard?tab=approvals');
     } else if (notification.type === 'course_approved' || notification.type === 'course_rejected') {
       // Send teacher to their dashboard
       setLocation('/teacher/dashboard');
