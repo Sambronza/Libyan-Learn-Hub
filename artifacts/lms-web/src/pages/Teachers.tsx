@@ -6,7 +6,7 @@ import { useQuery } from '@tanstack/react-query';
 import { Link } from 'wouter';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
-import { BookOpen, Users, BadgeCheck, Search, User, Crown, Star } from 'lucide-react';
+import { BookOpen, Users, BadgeCheck, Search, User, Crown, Star, ArrowRight } from 'lucide-react';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { motion } from 'framer-motion';
 
@@ -77,107 +77,121 @@ export default function Teachers() {
             onAction={() => { setSearch(''); setTutorOnly(false); }}
           />
         ) : (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-            {filtered.map((teacher: any, idx: number) => (
-              <motion.div
-                key={teacher.id}
-                initial={{ opacity: 0, y: 16 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.3, delay: idx * 0.05 }}
-              >
-                <Link href={`/teachers/${teacher.profileSlug || teacher.id}`}>
-                  {/* ── Cinematic Hero Card ── */}
-                  <div className="group relative rounded-2xl overflow-hidden border border-border bg-card cursor-pointer shadow-sm hover:shadow-xl hover:shadow-primary/10 hover:-translate-y-1 transition-all duration-300">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 items-stretch">
+            {filtered.map((teacher: any, idx: number) => {
+              const displayName = language === 'ar' ? (teacher.fullNameAr || teacher.fullName) : teacher.fullName;
+              const isFeatured = !!teacher.isSponsored;
+              const isNew = !teacher.rating && !teacher.studentCount && !teacher.courseCount;
+              const specialty = teacher.expertise
+                || (teacher.isTutoringEnabled
+                  ? (language === 'ar' ? 'مدرّس خصوصي' : '1-on-1 Tutor')
+                  : (language === 'ar' ? 'معلم' : 'Educator'));
+              const bioText = language === 'ar' ? (teacher.bioAr || teacher.bio) : (teacher.bio || teacher.bioAr);
+              return (
+                <motion.div
+                  key={teacher.id}
+                  initial={{ opacity: 0, y: 16 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ duration: 0.3, delay: Math.min(idx * 0.05, 0.4) }}
+                  className="h-full"
+                >
+                  <Link href={`/teachers/${teacher.profileSlug || teacher.id}`} className="block h-full">
+                    {/* ── Premium glass card — gradient hairline border ── */}
+                    <div className={`group relative h-full rounded-2xl p-px cursor-pointer transition-all duration-300 hover:-translate-y-1.5 hover:shadow-xl hover:shadow-primary/20 bg-gradient-to-br ${isFeatured ? 'from-amber-400/50 via-fuchsia-500/25 to-transparent' : 'from-primary/40 via-border to-transparent'}`}>
+                      <div className="relative flex h-full flex-col overflow-hidden rounded-[15px] bg-card">
 
-                    {/* Top badges — absolutely positioned over the image */}
-                    <div className="absolute top-3 left-3 z-20 flex items-center gap-1.5 flex-wrap">
-                      {teacher.isSponsored && (
-                        <span className="inline-flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-full bg-warning/90 text-white backdrop-blur-sm shadow">
-                          <Crown className="w-2.5 h-2.5" /> {language === 'ar' ? 'مميز' : 'Sponsored'}
-                        </span>
-                      )}
-                      {teacher.tier === 'pro' && (
-                        <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-violet-600/90 text-white backdrop-blur-sm shadow">
-                          PRO
-                        </span>
-                      )}
-                    </div>
+                        {/* Hover glow */}
+                        <div className="pointer-events-none absolute inset-x-0 top-0 h-40 opacity-0 transition-opacity duration-300 group-hover:opacity-100 bg-[radial-gradient(220px_120px_at_50%_-10%,rgba(139,92,255,0.28),transparent)]" />
 
-                    {/* Tutoring badge — top right */}
-                    {teacher.isTutoringEnabled && (
-                      <div className="absolute top-3 right-3 z-20">
-                        <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-violet-600/90 text-white backdrop-blur-sm shadow">
-                          {language === 'ar' ? 'دروس خصوصية' : 'Tutoring'}
-                        </span>
-                      </div>
-                    )}
-
-                    {/* Cinematic image area */}
-                    <div className="relative h-48 bg-gradient-to-br from-primary/20 via-primary/10 to-secondary/20 overflow-hidden">
-                      {teacher.avatarUrl ? (
-                        <img
-                          src={teacher.avatarUrl}
-                          alt={teacher.fullName}
-                          className="w-full h-full object-cover object-top group-hover:scale-105 transition-transform duration-500"
-                        />
-                      ) : (
-                        /* Fallback: initials on gradient bg */
-                        <div className="w-full h-full flex items-center justify-center">
-                          <div className="w-24 h-24 rounded-full bg-primary/20 border-2 border-primary/30 flex items-center justify-center text-primary font-black text-4xl select-none">
-                            {(language === 'ar' ? (teacher.fullNameAr || teacher.fullName) : teacher.fullName)?.charAt(0)}
-                          </div>
+                        {/* Aurora band */}
+                        <div className={`relative h-16 overflow-hidden bg-gradient-to-br ${isFeatured ? 'from-amber-400/30 via-fuchsia-500/20 to-primary/10' : 'from-primary/30 via-fuchsia-500/15 to-primary/5'}`}>
+                          <div className="absolute inset-0 bg-[radial-gradient(120px_80px_at_18%_130%,rgba(255,255,255,0.28),transparent),radial-gradient(150px_90px_at_88%_-25%,rgba(255,255,255,0.16),transparent)]" />
                         </div>
-                      )}
 
-                      {/* Gradient overlay fading image into card background */}
-                      <div className="absolute inset-0 bg-gradient-to-t from-card via-card/30 to-transparent pointer-events-none" />
-
-                      {/* Name + expertise overlaid on the lower gradient */}
-                      <div className="absolute bottom-0 left-0 right-0 px-4 pb-3 z-10">
-                        <div className="flex items-center gap-1.5 mb-0.5">
-                          <h3 className="font-bold text-base text-foreground truncate group-hover:text-primary transition-colors">
-                            {language === 'ar' ? (teacher.fullNameAr || teacher.fullName) : teacher.fullName}
-                          </h3>
-                          {teacher.isVerified && (
-                            <BadgeCheck className="w-4 h-4 text-primary shrink-0" />
+                        {/* Top badges */}
+                        <div className="absolute left-3 top-3 z-20 flex flex-wrap items-center gap-1.5">
+                          {isFeatured && (
+                            <span className="inline-flex items-center gap-1 rounded-full bg-gradient-to-r from-amber-400 to-fuchsia-500 px-2 py-0.5 text-[10px] font-bold text-amber-950 shadow">
+                              <Crown className="h-2.5 w-2.5" /> {language === 'ar' ? 'مميز' : 'Featured'}
+                            </span>
+                          )}
+                          {teacher.tier === 'pro' && (
+                            <span className="rounded-full bg-violet-600 px-2 py-0.5 text-[10px] font-bold text-white shadow">PRO</span>
                           )}
                         </div>
-                        {teacher.expertise && (
-                          <p className="text-xs text-muted-foreground truncate">{teacher.expertise}</p>
+                        {teacher.isTutoringEnabled && (
+                          <span className="absolute right-3 top-3 z-20 rounded-full border border-white/15 bg-background/50 px-2 py-0.5 text-[10px] font-bold text-foreground backdrop-blur-sm">
+                            {language === 'ar' ? 'دروس خصوصية' : 'Tutoring'}
+                          </span>
                         )}
+
+                        {/* Body */}
+                        <div className="flex flex-1 flex-col px-4 pb-4">
+                          {/* Avatar — gradient ring */}
+                          <div className="relative z-10 -mt-9 h-[72px] w-[72px] rounded-full bg-gradient-to-br from-primary to-fuchsia-500 p-[3px] shadow-lg shadow-primary/30">
+                            <div className="flex h-full w-full items-center justify-center overflow-hidden rounded-full border-[3px] border-card bg-muted">
+                              {teacher.avatarUrl ? (
+                                <img
+                                  src={teacher.avatarUrl}
+                                  alt={displayName}
+                                  className="h-full w-full object-cover object-top transition-transform duration-500 group-hover:scale-105"
+                                />
+                              ) : (
+                                <span className="select-none text-2xl font-black text-primary">{displayName?.charAt(0)}</span>
+                              )}
+                            </div>
+                          </div>
+
+                          <div className="mt-3 flex items-center gap-1.5">
+                            <h3 className="truncate font-display text-base font-bold text-foreground transition-colors group-hover:text-primary">
+                              {displayName}
+                            </h3>
+                            {teacher.isVerified && <BadgeCheck className="h-4 w-4 shrink-0 text-primary" />}
+                          </div>
+                          <p className="mt-0.5 truncate text-xs text-muted-foreground">{specialty}</p>
+
+                          {/* Bio or new-teacher pill — reserved height keeps cards aligned */}
+                          <div className="mt-2.5 min-h-[2.5rem]">
+                            {isNew ? (
+                              <span className="inline-flex items-center gap-1 rounded-full bg-gradient-to-r from-emerald-400 to-teal-400 px-2.5 py-0.5 text-[11px] font-semibold text-emerald-950">
+                                {language === 'ar' ? 'معلم جديد' : 'New teacher'}
+                              </span>
+                            ) : bioText ? (
+                              <p className="line-clamp-2 text-xs leading-relaxed text-muted-foreground">{bioText}</p>
+                            ) : null}
+                          </div>
+
+                          <div className="flex-1" />
+
+                          {/* Footer — stats */}
+                          <div className="mt-3 flex items-center gap-3 border-t border-border/60 pt-3 text-xs text-muted-foreground">
+                            <span className="inline-flex items-center gap-1">
+                              <BookOpen className="h-3.5 w-3.5" />
+                              {teacher.courseCount || 0}
+                            </span>
+                            <span className="inline-flex items-center gap-1">
+                              <Users className="h-3.5 w-3.5" />
+                              {teacher.studentCount || 0}
+                            </span>
+                            {teacher.rating > 0 ? (
+                              <span className="ms-auto inline-flex items-center gap-1 rounded-full bg-gradient-to-r from-amber-300 to-amber-500 px-2 py-0.5 font-semibold text-amber-950">
+                                <Star className="h-3 w-3 fill-current" />
+                                {teacher.rating.toFixed(1)}
+                              </span>
+                            ) : (
+                              <span className="ms-auto inline-flex items-center gap-1 font-semibold text-primary transition-all group-hover:gap-2">
+                                {language === 'ar' ? 'الملف الشخصي' : 'View profile'}
+                                <ArrowRight className="h-3.5 w-3.5 rtl:rotate-180" />
+                              </span>
+                            )}
+                          </div>
+                        </div>
                       </div>
                     </div>
-
-                    {/* Card body — bio */}
-                    {(teacher.bio || teacher.bioAr) && (
-                      <div className="px-4 pt-3">
-                        <p className="text-xs text-muted-foreground line-clamp-2 leading-relaxed">
-                          {language === 'ar' ? (teacher.bioAr || teacher.bio) : teacher.bio}
-                        </p>
-                      </div>
-                    )}
-
-                    {/* Card footer — stats */}
-                    <div className="flex items-center gap-3 px-4 py-3 mt-auto border-t border-border/60 text-xs text-muted-foreground">
-                      <span className="flex items-center gap-1">
-                        <BookOpen className="w-3.5 h-3.5" />
-                        {teacher.courseCount || 0} {language === 'ar' ? 'دورات' : 'courses'}
-                      </span>
-                      <span className="flex items-center gap-1">
-                        <Users className="w-3.5 h-3.5" />
-                        {teacher.studentCount || 0} {language === 'ar' ? 'طلاب' : 'students'}
-                      </span>
-                      {(teacher.rating > 0) && (
-                        <span className="flex items-center gap-1 ms-auto text-amber-500 font-semibold">
-                          <Star className="w-3.5 h-3.5 fill-amber-500" />
-                          {teacher.rating.toFixed(1)}
-                        </span>
-                      )}
-                    </div>
-                  </div>
-                </Link>
-              </motion.div>
-            ))}
+                  </Link>
+                </motion.div>
+              );
+            })}
           </div>
         )}
       </div>
