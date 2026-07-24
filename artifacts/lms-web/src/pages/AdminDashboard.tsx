@@ -20,6 +20,8 @@ import { Badge } from '@/components/ui/badge';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useForm } from 'react-hook-form';
 import { formatDate, formatDateTime } from '@/lib/utils';
+import { StatTile, StatusPill } from '@/components/ui/stats';
+import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from '@/components/ui/tooltip';
 
 export default function AdminDashboard() {
   const { user, isAuthenticated, isLoading: authLoading } = useAuth();
@@ -86,9 +88,13 @@ export default function AdminDashboard() {
               { label: 'Enrollments', value: stats?.totalEnrollments || 0, icon: TrendingUp, color: 'text-warning' },
               { label: 'Revenue (LYD)', value: (stats?.totalRevenue || 0).toFixed(0), icon: DollarSign, color: 'text-success' },
             ].map(({ label, value, icon: Icon, color }) => (
-              <div key={label} className="bg-white/5 border border-white/10 rounded-2xl p-4">
+              <div
+                key={label}
+                className="group relative overflow-hidden bg-white/5 border border-white/10 rounded-2xl p-4 transition-all duration-300 hover:bg-white/[0.08] hover:border-white/20 hover:-translate-y-0.5"
+              >
+                <div className="pointer-events-none absolute -right-5 -top-5 h-16 w-16 rounded-full bg-primary/20 blur-2xl opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
                 <Icon className={`w-5 h-5 ${color} mb-2`} />
-                <div className="text-xl font-bold text-white">{value}</div>
+                <div className="text-xl font-bold text-white tabular-nums">{value}</div>
                 <div className="text-xs text-white/50 mt-0.5">{label}</div>
               </div>
             ))}
@@ -325,15 +331,22 @@ function UsersTab({ api, queryClient, toast, stats, user }: any) {
                       {formatDate(u.createdAt)}
                     </td>
                     <td className="px-4 py-3">
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        disabled={u.id === user?.id}
-                        className={`h-8 w-8 text-destructive ${u.id === user?.id ? 'opacity-50 cursor-not-allowed' : 'hover:text-destructive hover:bg-destructive/10'}`}
-                        onClick={() => deleteUser(u.id, u.fullName)}
-                      >
-                        <Trash2 className="w-3.5 h-3.5" />
-                      </Button>
+                      <TooltipProvider delayDuration={200}>
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              disabled={u.id === user?.id}
+                              className={`h-8 w-8 text-destructive ${u.id === user?.id ? 'opacity-50 cursor-not-allowed' : 'hover:text-destructive hover:bg-destructive/10'}`}
+                              onClick={() => deleteUser(u.id, u.fullName)}
+                            >
+                              <Trash2 className="w-3.5 h-3.5" />
+                            </Button>
+                          </TooltipTrigger>
+                          <TooltipContent>{u.id === user?.id ? "You can't delete your own account" : 'Delete user'}</TooltipContent>
+                        </Tooltip>
+                      </TooltipProvider>
                     </td>
                   </tr>
                 ))}
@@ -488,9 +501,7 @@ function CoursesTab({ api, queryClient, toast }: any) {
                     <td className="px-4 py-3 text-sm">{c.enrollmentCount}</td>
                     <td className="px-4 py-3 text-sm font-medium">{(c.revenue || 0).toFixed(2)} LYD</td>
                     <td className="px-4 py-3">
-                      <span className={`text-xs px-2.5 py-1 rounded-full font-medium ${c.isPublished ? 'bg-success/10 text-success' : 'bg-warning/10 text-warning'}`}>
-                        {c.isPublished ? '✓ Published' : '⏸ Draft'}
-                      </span>
+                      <StatusPill status={c.isPublished ? 'published' : 'draft'} />
                     </td>
                     <td className="px-4 py-3">
                       <div className="flex gap-1">
@@ -549,12 +560,6 @@ function PaymentsTab({ api, queryClient, toast }: any) {
     }
   };
 
-  const statusColors: Record<string, string> = {
-    pending: 'bg-warning/10 text-warning border-warning/30',
-    completed: 'bg-success/10 text-success border-success/30',
-    failed: 'bg-destructive/10 text-destructive border-destructive/30',
-  };
-
   const methodLabel: Record<string, string> = {
     gateway: 'Gateway',
     bank_transfer: 'Bank Transfer',
@@ -604,9 +609,7 @@ function PaymentsTab({ api, queryClient, toast }: any) {
           {(payments || []).map((p: any) => (
             <div key={p.id} className="bg-card rounded-2xl border border-border p-5 shadow-sm flex flex-col">
               <div className="flex justify-between items-start mb-3">
-                <span className={`text-xs px-2.5 py-1 rounded-full font-semibold border ${statusColors[p.status] || 'bg-gray-100 text-gray-700'}`}>
-                  {p.status === 'pending' ? '⏳ Pending' : p.status === 'completed' ? '✓ Completed' : '✗ Failed'}
-                </span>
+                <StatusPill status={p.status} pulse={p.status === 'pending'} />
                 <span className="text-xs text-muted-foreground font-mono">#{p.id}</span>
               </div>
               <div className="mb-4">

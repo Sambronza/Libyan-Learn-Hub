@@ -22,6 +22,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '
 import { Textarea } from '@/components/ui/textarea';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Skeleton, StatCardSkeleton, CourseCardSkeleton, PageSkeleton } from '@/components/ui/skeleton';
+import { StatTile } from '@/components/ui/stats';
 import ScheduleLiveCourseModal from '@/components/ScheduleLiveCourseModal';
 
 export default function TeacherDashboard() {
@@ -384,22 +385,21 @@ export default function TeacherDashboard() {
             </div>
           ) : (
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mt-8">
-              {[
-                { icon: BookOpen, label: t('teacher_dashboard.total_courses'), value: courses?.length || 0, color: 'text-primary', bg: 'bg-primary/10' },
-                { icon: Globe, label: t('teacher_dashboard.published'), value: publishedCount, color: 'text-success', bg: 'bg-success/10' },
-                { icon: pendingReviewCount > 0 ? Clock : Users, label: pendingReviewCount > 0 ? `${pendingReviewCount} Under Review` : t('teacher_dashboard.total_students'), value: pendingReviewCount > 0 ? '' : totalStudents, color: pendingReviewCount > 0 ? 'text-info' : 'text-info', bg: 'bg-info/10' },
-                { icon: DollarSign, label: t('teacher_dashboard.revenue'), value: totalRevenue.toFixed(0), color: 'text-warning', bg: 'bg-warning/10' },
-              ].map(({ icon: Icon, label, value, color, bg }) => (
-                <div key={label} className="bg-card rounded-2xl border border-border p-4 flex items-center gap-3 shadow-sm">
-                  <div className={`w-10 h-10 rounded-xl ${bg} flex items-center justify-center`}>
-                    <Icon className={`w-5 h-5 ${color}`} />
-                  </div>
-                  <div>
-                    <div className="text-xl font-bold">{value}</div>
-                    <div className="text-xs text-muted-foreground">{label}</div>
-                  </div>
-                </div>
-              ))}
+              <StatTile icon={BookOpen} label={t('teacher_dashboard.total_courses')} value={courses?.length || 0} accent="primary" />
+              <StatTile
+                label={t('teacher_dashboard.published')}
+                value={publishedCount}
+                accent="success"
+                ring={courses?.length ? Math.round((publishedCount / courses.length) * 100) : 0}
+                hint={courses?.length ? 'of total' : undefined}
+              />
+              <StatTile
+                icon={pendingReviewCount > 0 ? Clock : Users}
+                label={pendingReviewCount > 0 ? `${pendingReviewCount} Under Review` : t('teacher_dashboard.total_students')}
+                value={pendingReviewCount > 0 ? '—' : totalStudents}
+                accent="info"
+              />
+              <StatTile icon={DollarSign} label={t('teacher_dashboard.revenue')} value={`${totalRevenue.toFixed(0)} LYD`} accent="warning" />
             </div>
           )}
 

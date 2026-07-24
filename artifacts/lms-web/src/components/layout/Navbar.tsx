@@ -66,19 +66,33 @@ export function Navbar() {
               const isActive = location === link.href || location.startsWith(link.href + '/');
               const Icon = link.icon;
               return (
-                <Link 
-                  key={link.href} 
+                <Link
+                  key={link.href}
                   href={link.href}
-                  className={`relative flex items-center gap-2 text-sm font-medium transition-colors px-3 py-2 rounded-xl ${
-                    isActive 
-                      ? 'text-primary bg-primary/8' 
+                  className={`relative flex items-center gap-2 text-sm font-medium transition-colors px-3 py-2 rounded-xl outline-none focus-visible:ring-2 focus-visible:ring-primary/50 focus-visible:ring-offset-2 focus-visible:ring-offset-background ${
+                    isActive
+                      ? 'text-primary'
                       : 'text-muted-foreground hover:text-foreground hover:bg-muted'
                   }`}
                 >
-                  <Icon className="w-4 h-4" />
-                  {link.label}
+                  {isActive && (
+                    <motion.span
+                      layoutId="nav-active"
+                      className="absolute inset-0 rounded-xl bg-primary/10 -z-0"
+                      transition={{ type: 'spring', stiffness: 400, damping: 32 }}
+                    />
+                  )}
+                  <Icon className="w-4 h-4 relative z-10" />
+                  <span className="relative z-10">{link.label}</span>
+                  {isActive && (
+                    <motion.span
+                      layoutId="nav-underline"
+                      className="absolute left-3 right-3 -bottom-0.5 h-0.5 rounded-full bg-gradient-to-r from-primary to-secondary"
+                      transition={{ type: 'spring', stiffness: 400, damping: 32 }}
+                    />
+                  )}
                   {link.badge && (
-                    <span className="absolute -top-1 -end-1 px-1.5 py-0.5 text-[9px] font-bold rounded-full bg-gradient-to-r from-amber-500 to-orange-500 text-white leading-none shadow-sm">
+                    <span className="absolute -top-1 -end-1 px-1.5 py-0.5 text-[9px] font-bold rounded-full bg-gradient-to-r from-amber-500 to-orange-500 text-white leading-none shadow-sm z-20">
                       {language === 'ar' ? 'جديد' : 'NEW'}
                     </span>
                   )}

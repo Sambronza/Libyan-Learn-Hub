@@ -10,6 +10,7 @@ import { Button } from '@/components/ui/button';
 import { useApi } from '@/hooks/useApi';
 import { Skeleton, StatCardSkeleton, CourseCardSkeleton, PageSkeleton } from '@/components/ui/skeleton';
 import { FeedSection } from '@/components/community/FeedSection';
+import { StatTile } from '@/components/ui/stats';
 
 export default function Dashboard() {
   const { t, language } = useLanguage();
@@ -112,22 +113,16 @@ export default function Dashboard() {
             </div>
           ) : (
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mt-8">
-              {[
-                { icon: BookOpen, label: t('student_dashboard.enrolled'), value: enrollments?.length || 0, color: 'text-primary', bg: 'bg-primary/10' },
-                { icon: PlayCircle, label: t('student_dashboard.in_progress'), value: inProgress, color: 'text-info', bg: 'bg-info/10' },
-                { icon: Trophy, label: t('student_dashboard.completed'), value: completed, color: 'text-success', bg: 'bg-success/10' },
-                { icon: Radio, label: t('teacher_dashboard.live_sessions'), value: upcomingSessions.length, color: 'text-destructive', bg: 'bg-destructive/10' },
-              ].map(({ icon: Icon, label, value, color, bg }) => (
-                <div key={label} className="bg-card rounded-2xl border border-border p-4 flex items-center gap-3 shadow-sm">
-                  <div className={`w-10 h-10 rounded-xl ${bg} flex items-center justify-center`}>
-                    <Icon className={`w-5 h-5 ${color}`} />
-                  </div>
-                  <div>
-                    <div className="text-xl font-bold">{value}</div>
-                    <div className="text-xs text-muted-foreground">{label}</div>
-                  </div>
-                </div>
-              ))}
+              <StatTile icon={BookOpen} label={t('student_dashboard.enrolled')} value={enrollments?.length || 0} accent="primary" />
+              <StatTile icon={PlayCircle} label={t('student_dashboard.in_progress')} value={inProgress} accent="info" />
+              <StatTile
+                label={t('student_dashboard.completed')}
+                value={completed}
+                accent="success"
+                ring={enrollments?.length ? Math.round((completed / enrollments.length) * 100) : 0}
+                hint={enrollments?.length ? 'of enrolled' : undefined}
+              />
+              <StatTile icon={Radio} label={t('teacher_dashboard.live_sessions')} value={upcomingSessions.length} accent="destructive" />
             </div>
           )}
         </div>
