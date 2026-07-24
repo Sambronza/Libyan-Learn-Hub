@@ -1,8 +1,8 @@
 import { Router } from "express";
 import { serverError } from "../lib/http.js";
 import { db } from "@workspace/db";
-import { lessonProgressTable, lessonsTable, enrollmentsTable } from "@workspace/db";
-import { eq, and, count } from "drizzle-orm";
+import { lessonProgressTable, lessonsTable, enrollmentsTable, quizzesTable, quizAttemptsTable } from "@workspace/db";
+import { eq, and, count, lt, inArray } from "drizzle-orm";
 import { requireAuth } from "../lib/auth.js";
 import { parseParam } from "../lib/utils.js";
 import { requireActiveEnrollment, SUBSCRIPTION_EXPIRED_ERROR, NOT_ENROLLED_ERROR } from "../lib/subscriptions.js";
@@ -43,6 +43,44 @@ router.post("/lessons/:lessonId/complete", requireAuth, async (req, res) => {
     if (!access.ok) {
       res.status(403).json(access.reason === "expired" ? SUBSCRIPTION_EXPIRED_ERROR : NOT_ENROLLED_ERROR);
       return;
+    }
+
+    // Compulsory-quiz gate (F-1): a student cannot complete this lesson while any
+    // EARLIER lesson in the course still has a compulsory quiz they haven't passed.
+    // Mirrors the client-side lock in Learn.tsx, but enforced here so a crafted
+    // request can't skip ahead (which would also game certificate eligibility).
+    // Teachers/admins previewing their own courses are not gated.
+    if (role === "student") {
+      const compulsoryQuizzes = await db
+        .select({ quizId: quizzesTable.id })
+        .from(quizzesTable)
+        .innerJoin(lessonsTable, eq(quizzesTable.lessonId, lessonsTable.id))
+        .where(and(
+          eq(lessonsTable.courseId, lesson.courseId),
+          lt(lessonsTable.order, lesson.order),
+          eq(quizzesTable.isCompulsory, true),
+        ));
+
+      if (compulsoryQuizzes.length > 0) {
+        const quizIds = compulsoryQuizzes.map((q) => q.quizId);
+        const passedRows = await db
+          .select({ quizId: quizAttemptsTable.quizId })
+          .from(quizAttemptsTable)
+          .where(and(
+            eq(quizAttemptsTable.userId, userId),
+            inArray(quizAttemptsTable.quizId, quizIds),
+            eq(quizAttemptsTable.passed, true),
+          ));
+        const passed = new Set(passedRows.map((r) => r.quizId));
+        if (quizIds.some((id) => !passed.has(id))) {
+          res.status(403).json({
+            error: "Pass the required quiz in the previous lesson before continuing.",
+            errorAr: "اجتز الاختبار الإجباري في الدرس السابق قبل المتابعة.",
+            reason: "compulsory_quiz_incomplete",
+          });
+          return;
+        }
+      }
     }
 
     const existing = await db.select().from(lessonProgressTable)
