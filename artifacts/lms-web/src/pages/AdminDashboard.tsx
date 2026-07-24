@@ -19,6 +19,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Badge } from '@/components/ui/badge';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useForm } from 'react-hook-form';
+import { formatDate, formatDateTime } from '@/lib/utils';
 
 export default function AdminDashboard() {
   const { user, isAuthenticated, isLoading: authLoading } = useAuth();
@@ -321,7 +322,7 @@ function UsersTab({ api, queryClient, toast, stats, user }: any) {
                       {u.role === 'student' && <span>{u.enrollmentCount ?? 0} enrollments</span>}
                     </td>
                     <td className="px-4 py-3 text-xs text-muted-foreground">
-                      {new Date(u.createdAt).toLocaleDateString()}
+                      {formatDate(u.createdAt)}
                     </td>
                     <td className="px-4 py-3">
                       <Button
@@ -627,7 +628,7 @@ function PaymentsTab({ api, queryClient, toast }: any) {
                 )}
               </div>
               <div className="text-xs text-muted-foreground mb-3">
-                {new Date(p.createdAt).toLocaleString()}
+                {formatDateTime(p.createdAt)}
               </div>
               {p.status === 'pending' && (
                 <div className="flex gap-2 mt-auto">
@@ -833,7 +834,7 @@ function FinanceTab({ api, queryClient, toast }: any) {
                         </span>
                       </td>
                       <td className="px-4 py-3 text-xs text-muted-foreground">
-                        {new Date(e.createdAt).toLocaleDateString()}
+                        {formatDate(e.createdAt)}
                       </td>
                       <td className="px-4 py-3">
                         {e.status === 'available' && (
@@ -963,7 +964,7 @@ function ExpensesPL({ api, queryClient, toast, platformFees }: any) {
                       </span>
                     </td>
                     <td className="px-4 py-3 text-sm font-semibold text-destructive">{e.amount} {e.currency}</td>
-                    <td className="px-4 py-3 text-xs text-muted-foreground">{new Date(e.expenseDate).toLocaleDateString()}</td>
+                    <td className="px-4 py-3 text-xs text-muted-foreground">{formatDate(e.expenseDate)}</td>
                     <td className="px-4 py-3">
                       <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive hover:bg-destructive/10" onClick={() => deleteExpense(e.id)}>
                         <Trash2 className="w-3.5 h-3.5" />
@@ -1323,7 +1324,7 @@ function ReportsTab({ api, queryClient, toast }: any) {
                         {r.status.replace('_', ' ')}
                       </span>
                     </td>
-                    <td className="px-4 py-3 text-xs text-muted-foreground">{new Date(r.createdAt).toLocaleDateString()}</td>
+                    <td className="px-4 py-3 text-xs text-muted-foreground">{formatDate(r.createdAt)}</td>
                     <td className="px-4 py-3">
                       <Button variant="ghost" size="sm" className="h-7 text-xs" onClick={() => setActiveReport(r)}>
                         Review
@@ -1637,7 +1638,7 @@ function DMCAComplaintsTab({ api, queryClient, toast }: any) {
                         {c.status.toUpperCase()}
                       </span>
                     </td>
-                    <td className="px-4 py-3 text-xs text-muted-foreground">{new Date(c.createdAt).toLocaleDateString()}</td>
+                    <td className="px-4 py-3 text-xs text-muted-foreground">{formatDate(c.createdAt)}</td>
                     <td className="px-4 py-3">
                       <Button variant="ghost" size="sm" className="h-7 text-xs" onClick={() => { setActiveComplaint(c); setAdminNotes(c.adminNotes || ''); }}>
                         Review
@@ -2097,10 +2098,10 @@ function RedeemCardsTab({ api, queryClient, toast }: any) {
                     </td>
                     <td className="px-4 py-3 text-muted-foreground">
                       {c.status === 'redeemed'
-                        ? `${c.studentEmail || `User #${c.redeemedBy}`} on ${c.redeemedAt ? new Date(c.redeemedAt).toLocaleDateString() : '–'}`
+                        ? `${c.studentEmail || `User #${c.redeemedBy}`} on ${formatDate(c.redeemedAt)}`
                         : '-'}
                     </td>
-                    <td className="px-4 py-3 text-xs text-muted-foreground">{new Date(c.createdAt).toLocaleDateString()}</td>
+                    <td className="px-4 py-3 text-xs text-muted-foreground">{formatDate(c.createdAt)}</td>
                     <td className="px-4 py-3">
                       {c.status === 'active' && (
                         <Button variant="outline" size="sm" onClick={() => handleDeactivate(c.id)} className="h-8 text-xs text-destructive hover:bg-destructive/10">
@@ -2672,7 +2673,7 @@ function DeviceSecurityTab({ api, toast }: any) {
                     <div>New device: <span className="font-medium text-foreground">{request.newDeviceName || 'Unknown'}</span> ({request.newPlatform || '—'})</div>
                     <div>IP: {request.newIp || '—'}</div>
                     <div>Face distance: <span className="font-mono">{request.distance ?? '—'}</span></div>
-                    <div>Requested: {request.createdAt ? new Date(request.createdAt).toLocaleString() : '—'}</div>
+                    <div>Requested: {formatDateTime(request.createdAt)}</div>
                     {student.accountBlocked && (
                       <span className="inline-block mt-1 px-2 py-0.5 rounded-full bg-destructive/10 text-destructive font-bold">Account blocked</span>
                     )}
@@ -2810,7 +2811,7 @@ function RefundsTab({ api, toast }: any) {
                       </div>
                     )}
                     <div className="text-[11px] text-muted-foreground mt-2">
-                      Requested: {request.createdAt ? new Date(request.createdAt).toLocaleString() : '—'}
+                      Requested: {formatDateTime(request.createdAt)}
                     </div>
                   </div>
 
@@ -3016,7 +3017,7 @@ function TeacherRegistrationApprovalsTab({ api, toast, onCountChange }: any) {
                     <h3 className="font-bold text-lg">{t.fullName}</h3>
                     <p className="text-sm text-muted-foreground">{t.email}</p>
                     <p className="text-xs text-muted-foreground mt-1">
-                      Applied: {new Date(t.createdAt).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })}
+                      Applied: {formatDate(t.createdAt)}
                     </p>
                   </div>
                 </div>

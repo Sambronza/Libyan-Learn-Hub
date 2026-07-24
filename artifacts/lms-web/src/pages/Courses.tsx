@@ -1,33 +1,88 @@
 import React, { useState } from 'react';
 import { PageContainer } from '@/components/layout/PageContainer';
 import { useLanguage } from '@/contexts/LanguageContext';
-import { useGetCourses, useGetCategories, type GetCoursesLevel, type GetCoursesLanguage } from '@workspace/api-client-react';
+import { useGetCourses, useGetCategories } from '@workspace/api-client-react';
 import { Link } from 'wouter';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
-import { Search, Filter, BookOpen, Star, PlayCircle, ChevronDown, ChevronUp, Plus } from 'lucide-react';
+import { Search, Filter, BookOpen, Star, PlayCircle, ChevronDown, ChevronUp, Plus, X } from 'lucide-react';
 import { CourseCardSkeleton } from '@/components/ui/skeleton';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { useAuth } from '@/contexts/AuthContext';
+
+// Emoji + color tag per category (matched by English name, case-insensitive)
+const CATEGORY_META: Record<string, { icon: string; color: string }> = {
+  mathematics: { icon: '🧮', color: 'text-blue-400' },
+  sciences: { icon: '🔬', color: 'text-emerald-400' },
+  science: { icon: '🔬', color: 'text-emerald-400' },
+  'arabic language': { icon: '📖', color: 'text-amber-400' },
+  'english language': { icon: '🔤', color: 'text-indigo-400' },
+  history: { icon: '📜', color: 'text-orange-400' },
+  physics: { icon: '⚛️', color: 'text-cyan-400' },
+  chemistry: { icon: '🧪', color: 'text-pink-400' },
+  biology: { icon: '🧬', color: 'text-green-400' },
+  'computer science': { icon: '💻', color: 'text-violet-400' },
+  'islamic studies': { icon: '🕌', color: 'text-teal-400' },
+};
+const categoryMeta = (name: string) => CATEGORY_META[name?.toLowerCase()] || { icon: '🎓', color: 'text-primary' };
+
+const LEVEL_META: Record<string, { icon: string }> = {
+  beginner: { icon: '🌱' },
+  intermediate: { icon: '🌿' },
+  advanced: { icon: '🌳' },
+};
+
+// Collapsible filter section
+function FilterPanel({ title, icon, count, children }: { title: string; icon?: string; count?: number; children: React.ReactNode }) {
+  const [open, setOpen] = useState(true);
+  return (
+    <div className="border border-border/60 rounded-xl bg-card/50 overflow-hidden">
+      <button
+        onClick={() => setOpen(o => !o)}
+        className="w-full flex items-center justify-between px-4 py-3 hover:bg-muted/40 transition-colors"
+      >
+        <span className="flex items-center gap-2 font-semibold text-sm text-foreground">
+          {icon && <span>{icon}</span>}{title}
+          {count ? <span className="text-[10px] font-bold bg-primary/15 text-primary rounded-full px-1.5 py-0.5">{count}</span> : null}
+        </span>
+        <ChevronDown className={`w-4 h-4 text-muted-foreground transition-transform duration-200 ${open ? '' : '-rotate-90'}`} />
+      </button>
+      <div className={`grid transition-all duration-200 ${open ? 'grid-rows-[1fr]' : 'grid-rows-[0fr]'}`}>
+        <div className="overflow-hidden">
+          <div className="px-3 pb-3 pt-1 space-y-1">{children}</div>
+        </div>
+      </div>
+    </div>
+  );
+}
 
 export default function Courses() {
   const { t, language } = useLanguage();
   const { user } = useAuth();
   const [search, setSearch] = useState('');
-  const [categoryId, setCategoryId] = useState<number | undefined>();
-  const [level, setLevel] = useState<GetCoursesLevel | undefined>();
-  const [courseLanguage, setCourseLanguage] = useState<GetCoursesLanguage | undefined>();
+  const [categoryIds, setCategoryIds] = useState<number[]>([]);
+  const [levels, setLevels] = useState<string[]>([]);
+  const [languages, setLanguages] = useState<string[]>([]);
+  const [price, setPrice] = useState<'free' | 'paid' | undefined>();
   const [filtersOpen, setFiltersOpen] = useState(false);
 
   const { data: categories } = useGetCategories();
-  
+
+  const toggle = <T,>(list: T[], value: T, setter: (v: T[]) => void) =>
+    setter(list.includes(value) ? list.filter(v => v !== value) : [...list, value]);
+
+  const clearAll = () => { setCategoryIds([]); setLevels([]); setLanguages([]); setPrice(undefined); setSearch(''); };
+  const activeCount = categoryIds.length + levels.length + languages.length + (price ? 1 : 0);
+
+  // Dynamic filtering — react-query refetches whenever any filter changes.
   const { data: coursesData, isLoading } = useGetCourses({
     search: search || undefined,
-    categoryId,
-    level,
-    language: courseLanguage,
-    limit: 12
-  });
+    categoryId: categoryIds.length ? categoryIds.join(',') : undefined,
+    level: levels.length ? levels.join(',') : undefined,
+    language: languages.length ? languages.join(',') : undefined,
+    price,
+    limit: 12,
+  } as any);
 
   return (
     <PageContainer>
@@ -66,64 +121,131 @@ export default function Courses() {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 sm:py-12 flex flex-col md:flex-row gap-6 sm:gap-8">
         
         {/* Filters Sidebar */}
-        <div className="w-full md:w-64 shrink-0">
+        <div className="w-full md:w-72 shrink-0">
           <button
             className="flex md:hidden items-center gap-2 font-display font-bold text-base mb-3 w-full justify-between px-3 py-2 rounded-xl bg-muted/50 border border-border/50"
             onClick={() => setFiltersOpen(f => !f)}
           >
-            <span className="flex items-center gap-2"><Filter className="w-4 h-4 text-primary" />{t('courses.filters')}</span>
+            <span className="flex items-center gap-2">
+              <Filter className="w-4 h-4 text-primary" />{t('courses.filters')}
+              {activeCount > 0 && <span className="text-[10px] font-bold bg-primary text-primary-foreground rounded-full px-1.5 py-0.5">{activeCount}</span>}
+            </span>
             {filtersOpen ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
           </button>
-          <div className={`space-y-8 ${filtersOpen ? 'block' : 'hidden'} md:block`}>
-            <div className="flex items-center gap-2 font-display font-bold text-lg mb-4">
-              <Filter className="w-5 h-5 text-primary" /> {t('courses.filters')}
-            </div>
 
-          <div className="space-y-3">
-            <h3 className="font-semibold text-sm uppercase tracking-wider text-muted-foreground">{t('courses.category')}</h3>
-            <div className="space-y-2">
-              <button 
-                onClick={() => setCategoryId(undefined)}
-                className={`text-sm w-full text-start px-3 py-2 rounded-lg transition-colors ${!categoryId ? 'bg-primary/10 text-primary font-medium' : 'hover:bg-muted text-foreground'}`}
-              >
-                {t('courses.allCategories')}
-              </button>
-              {categories?.map(cat => (
-                <button 
-                  key={cat.id}
-                  onClick={() => setCategoryId(cat.id)}
-                  className={`text-sm w-full text-start px-3 py-2 rounded-lg transition-colors ${categoryId === cat.id ? 'bg-primary/10 text-primary font-medium' : 'hover:bg-muted text-foreground'}`}
+          <div className={`space-y-3 ${filtersOpen ? 'block' : 'hidden'} md:block md:sticky md:top-24`}>
+            <div className="flex items-center justify-between mb-1">
+              <div className="flex items-center gap-2 font-display font-bold text-lg">
+                <Filter className="w-5 h-5 text-primary" /> {t('courses.filters')}
+              </div>
+              {activeCount > 0 && (
+                <button
+                  onClick={clearAll}
+                  className="flex items-center gap-1 text-xs font-medium text-muted-foreground hover:text-destructive transition-colors"
                 >
-                  {language === 'ar' ? cat.nameAr : cat.name}
+                  <X className="w-3.5 h-3.5" /> {t('courses.clearAll')}
                 </button>
-              ))}
+              )}
             </div>
-          </div>
 
-          <div className="space-y-3">
-            <h3 className="font-semibold text-sm uppercase tracking-wider text-muted-foreground">{t('courses.level')}</h3>
-            <div className="space-y-2">
-              {['beginner', 'intermediate', 'advanced'].map((lvl) => (
-                <label key={lvl} className="flex items-center gap-3 cursor-pointer p-2 hover:bg-muted rounded-lg">
-                  <input 
-                    type="radio" 
-                    name="level" 
-                    className="accent-primary w-4 h-4"
-                    checked={level === lvl}
-                    onChange={() => setLevel(lvl as GetCoursesLevel)}
-                    onClick={(e) => {
-                      // Allow unchecking by clicking checked radio
-                      if (level === lvl) {
-                        e.preventDefault();
-                        setLevel(undefined);
-                      }
-                    }}
-                  />
-                  <span className="text-sm capitalize">{t(`courses.${lvl}`)}</span>
-                </label>
-              ))}
-            </div>
-          </div>
+            {/* Category */}
+            <FilterPanel title={t('courses.category')} icon="🗂️" count={categoryIds.length}>
+              {categories?.map(cat => {
+                const meta = categoryMeta(cat.name);
+                const checked = categoryIds.includes(cat.id);
+                return (
+                  <label
+                    key={cat.id}
+                    className={`flex items-center gap-2.5 cursor-pointer px-2.5 py-2 rounded-lg transition-colors ${checked ? 'bg-primary/10' : 'hover:bg-muted/60'}`}
+                  >
+                    <input
+                      type="checkbox"
+                      className="accent-primary w-4 h-4 shrink-0"
+                      checked={checked}
+                      onChange={() => toggle(categoryIds, cat.id, setCategoryIds)}
+                    />
+                    <span className="text-base leading-none">{meta.icon}</span>
+                    <span className={`text-sm ${checked ? 'font-semibold text-primary' : 'text-foreground'}`}>
+                      {language === 'ar' ? cat.nameAr : cat.name}
+                    </span>
+                  </label>
+                );
+              })}
+            </FilterPanel>
+
+            {/* Level */}
+            <FilterPanel title={t('courses.level')} icon="📊" count={levels.length}>
+              {['beginner', 'intermediate', 'advanced'].map((lvl) => {
+                const checked = levels.includes(lvl);
+                return (
+                  <label
+                    key={lvl}
+                    className={`flex items-center gap-2.5 cursor-pointer px-2.5 py-2 rounded-lg transition-colors ${checked ? 'bg-primary/10' : 'hover:bg-muted/60'}`}
+                  >
+                    <input
+                      type="checkbox"
+                      className="accent-primary w-4 h-4 shrink-0"
+                      checked={checked}
+                      onChange={() => toggle(levels, lvl, setLevels)}
+                    />
+                    <span className="text-base leading-none">{LEVEL_META[lvl].icon}</span>
+                    <span className={`text-sm capitalize ${checked ? 'font-semibold text-primary' : 'text-foreground'}`}>{t(`courses.${lvl}`)}</span>
+                  </label>
+                );
+              })}
+            </FilterPanel>
+
+            {/* Price */}
+            <FilterPanel title={t('courses.price')} icon="💰" count={price ? 1 : 0}>
+              {[
+                { value: 'free' as const, label: t('course.free'), icon: '🆓' },
+                { value: 'paid' as const, label: t('courses.paid'), icon: '💳' },
+              ].map(opt => {
+                const checked = price === opt.value;
+                return (
+                  <label
+                    key={opt.value}
+                    className={`flex items-center gap-2.5 cursor-pointer px-2.5 py-2 rounded-lg transition-colors ${checked ? 'bg-primary/10' : 'hover:bg-muted/60'}`}
+                  >
+                    <input
+                      type="radio"
+                      name="price"
+                      className="accent-primary w-4 h-4 shrink-0"
+                      checked={checked}
+                      onChange={() => setPrice(opt.value)}
+                      onClick={() => { if (price === opt.value) setPrice(undefined); }}
+                    />
+                    <span className="text-base leading-none">{opt.icon}</span>
+                    <span className={`text-sm ${checked ? 'font-semibold text-primary' : 'text-foreground'}`}>{opt.label}</span>
+                  </label>
+                );
+              })}
+            </FilterPanel>
+
+            {/* Language */}
+            <FilterPanel title={t('courses.language')} icon="🌐" count={languages.length}>
+              {[
+                { value: 'ar', label: 'العربية', icon: '🇱🇾' },
+                { value: 'en', label: 'English', icon: '🔤' },
+              ].map(opt => {
+                const checked = languages.includes(opt.value);
+                return (
+                  <label
+                    key={opt.value}
+                    className={`flex items-center gap-2.5 cursor-pointer px-2.5 py-2 rounded-lg transition-colors ${checked ? 'bg-primary/10' : 'hover:bg-muted/60'}`}
+                  >
+                    <input
+                      type="checkbox"
+                      className="accent-primary w-4 h-4 shrink-0"
+                      checked={checked}
+                      onChange={() => toggle(languages, opt.value, setLanguages)}
+                    />
+                    <span className="text-base leading-none">{opt.icon}</span>
+                    <span className={`text-sm ${checked ? 'font-semibold text-primary' : 'text-foreground'}`}>{opt.label}</span>
+                  </label>
+                );
+              })}
+            </FilterPanel>
           </div>
         </div>
 
@@ -139,7 +261,7 @@ export default function Courses() {
               description={t('courses.adjustFilters')}
               icon={BookOpen}
               actionLabel={t('courses.clearFilters')}
-              onAction={() => { setSearch(''); setCategoryId(undefined); setLevel(undefined); }}
+              onAction={clearAll}
             />
           ) : (
             <>

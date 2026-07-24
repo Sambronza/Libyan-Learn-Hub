@@ -12,7 +12,7 @@ import {
   notificationsTable,
   sectionsTable,
 } from "@workspace/db";
-import { eq, and, or, ilike, count, avg, sum, sql, desc } from "drizzle-orm";
+import { eq, and, or, ilike, count, avg, sum, sql, desc, inArray } from "drizzle-orm";
 import { requireAuth, requireRole, getJwtSecret } from "../lib/auth.js";
 import { parseParam } from "../lib/utils.js";
 import { deleteFromCloudinaryByUrl } from "../lib/cloudinary.js";
@@ -55,7 +55,7 @@ function buildCourseResult(course: any, teacher: any, reviewData: any, enrollCou
 
 router.get("/", async (req, res) => {
   try {
-    const { categoryId, search, level, language, teacherId, page = "1", limit = "12" } = req.query as any;
+    const { categoryId, search, level, language, teacherId, price, page = "1", limit = "12" } = req.query as any;
     const pageNum = parseInt(page);
     const limitNum = parseInt(limit);
     const offset = (pageNum - 1) * limitNum;
@@ -66,10 +66,23 @@ router.get("/", async (req, res) => {
       .where(eq(coursesTable.isPublished, true))
       .$dynamic();
 
+    // Support both single values and comma-separated lists (multi-select filters)
+    const parseList = (v: any): string[] =>
+      typeof v === "string" ? v.split(",").map((s) => s.trim()).filter(Boolean) : [];
+
+    const categoryIds = parseList(categoryId).map((c) => parseInt(c)).filter((n) => !isNaN(n));
+    const levels = parseList(level);
+    const languages = parseList(language);
+
     const conditions: any[] = [eq(coursesTable.isPublished, true)];
-    if (categoryId) conditions.push(eq(coursesTable.categoryId, parseInt(categoryId)));
-    if (level) conditions.push(eq(coursesTable.level, level));
-    if (language) conditions.push(eq(coursesTable.language, language));
+    if (categoryIds.length === 1) conditions.push(eq(coursesTable.categoryId, categoryIds[0]));
+    else if (categoryIds.length > 1) conditions.push(inArray(coursesTable.categoryId, categoryIds));
+    if (levels.length === 1) conditions.push(eq(coursesTable.level, levels[0] as any));
+    else if (levels.length > 1) conditions.push(inArray(coursesTable.level, levels as any));
+    if (languages.length === 1) conditions.push(eq(coursesTable.language, languages[0] as any));
+    else if (languages.length > 1) conditions.push(inArray(coursesTable.language, languages as any));
+    if (price === "free") conditions.push(sql`${coursesTable.price} = 0`);
+    else if (price === "paid") conditions.push(sql`${coursesTable.price} > 0`);
     if (teacherId) conditions.push(eq(coursesTable.teacherId, parseInt(teacherId)));
     if (search) {
       // Arabic-normalized multi-field search: EN/AR titles + descriptions

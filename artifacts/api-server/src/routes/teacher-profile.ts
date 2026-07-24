@@ -55,11 +55,32 @@ function generateSlug(name: string): string {
     .slice(0, 100) + "-" + Date.now().toString(36);
 }
 
+// Reserved first-path segments that map to their own routes and must NOT be
+// treated as a teacher profile slug (otherwise "/approvals" etc. would be
+// intercepted by this catch-all and 404 with "Teacher not found").
+const RESERVED_SLUGS = new Set([
+  "approvals",
+  "activities",
+  "analytics",
+  "cv",
+  "face-capture",
+  "voice-sample",
+  "copyright-agree",
+  "qualification",
+  "experience-letter",
+  "complete-onboarding",
+  "endorse",
+  "upgrade-pro",
+]);
+
 // ── Public: Get teacher profile by slug ──────────────────────────
-router.get("/:slug", async (req, res) => {
+router.get("/:slug", async (req, res, next) => {
   try {
     const { slug } = req.params;
-    
+
+    // Let reserved paths fall through to their dedicated route handlers.
+    if (RESERVED_SLUGS.has(slug)) return next();
+
     // Check if slug is a numeric ID
     const isId = /^\d+$/.test(slug);
     const condition = isId 
