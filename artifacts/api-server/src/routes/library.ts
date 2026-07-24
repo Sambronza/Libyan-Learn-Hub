@@ -1,7 +1,7 @@
 import { Router, type IRouter } from "express";
 import { serverError } from "../lib/http.js";
 import { db, libraryResourcesTable, usersTable, categoriesTable } from "@workspace/db";
-import { eq, and, or, ilike, desc, type SQL } from "drizzle-orm";
+import { eq, and, or, ilike, desc, asc, type SQL } from "drizzle-orm";
 import { requireAuth, requireRole } from "../lib/auth.js";
 import { deleteFromCloudinaryByUrl } from "../lib/cloudinary.js";
 
@@ -21,7 +21,7 @@ const ALLOWED_EXTENSIONS: Record<Exclude<ResourceType, "link">, string[]> = {
 // ── Browse (public read: students, guests) ──────────────────────────────────
 router.get("/", async (req, res) => {
   try {
-    const { search, categoryId, gradeLevel, type } = req.query as Record<string, string | undefined>;
+    const { search, categoryId, gradeLevel, type, sort } = req.query as Record<string, string | undefined>;
 
     const conditions: SQL[] = [];
     if (type && RESOURCE_TYPES.includes(type as ResourceType)) {
@@ -70,7 +70,13 @@ router.get("/", async (req, res) => {
       .leftJoin(usersTable, eq(libraryResourcesTable.uploadedBy, usersTable.id))
       .leftJoin(categoriesTable, eq(libraryResourcesTable.categoryId, categoriesTable.id))
       .where(conditions.length ? and(...conditions) : undefined)
-      .orderBy(desc(libraryResourcesTable.createdAt));
+      .orderBy(
+        sort === "oldest"
+          ? asc(libraryResourcesTable.createdAt)
+          : sort === "title"
+            ? asc(libraryResourcesTable.title)
+            : desc(libraryResourcesTable.createdAt),
+      );
 
     res.json(rows);
   } catch (err: any) {

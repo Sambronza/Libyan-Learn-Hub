@@ -9,7 +9,7 @@ import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import {
   Library as LibraryIcon, BookOpen, FileText, Image as ImageIcon, Link2,
-  Search, Plus, Trash2, Download, ExternalLink, Loader2, X,
+  Search, Plus, Trash2, Download, ExternalLink, Loader2, X, ArrowDownWideNarrow, Eye,
 } from 'lucide-react';
 
 type ResourceType = 'book' | 'article' | 'image' | 'link';
@@ -37,11 +37,11 @@ interface LibraryResource {
 
 interface Category { id: number; name: string; nameAr: string; icon?: string; }
 
-const TYPE_META: Record<ResourceType, { icon: React.ElementType; en: string; ar: string; badge: string }> = {
-  book:    { icon: BookOpen,  en: 'Book',    ar: 'كتاب',  badge: 'bg-info/10 text-info' },
-  article: { icon: FileText,  en: 'Article', ar: 'مقال',  badge: 'bg-success/10 text-success' },
-  image:   { icon: ImageIcon, en: 'Image',   ar: 'صورة',  badge: 'bg-primary/10 text-primary' },
-  link:    { icon: Link2,     en: 'Link',    ar: 'رابط',  badge: 'bg-warning/10 text-warning' },
+const TYPE_META: Record<ResourceType, { icon: React.ElementType; en: string; ar: string; badge: string; cover: string; tint: string }> = {
+  book:    { icon: BookOpen,  en: 'Book',    ar: 'كتاب',  badge: 'bg-info/10 text-info',       cover: 'from-info/25 via-info/10 to-transparent',       tint: 'text-info' },
+  article: { icon: FileText,  en: 'Article', ar: 'مقال',  badge: 'bg-success/10 text-success', cover: 'from-success/25 via-success/10 to-transparent', tint: 'text-success' },
+  image:   { icon: ImageIcon, en: 'Image',   ar: 'صورة',  badge: 'bg-primary/10 text-primary', cover: 'from-primary/25 via-violet-500/10 to-transparent', tint: 'text-primary' },
+  link:    { icon: Link2,     en: 'Link',    ar: 'رابط',  badge: 'bg-warning/10 text-warning', cover: 'from-warning/25 via-warning/10 to-transparent', tint: 'text-warning' },
 };
 
 const GRADE_LEVELS = [
@@ -77,6 +77,7 @@ export default function Library() {
   const [typeFilter, setTypeFilter] = useState<ResourceType | ''>('');
   const [categoryFilter, setCategoryFilter] = useState('');
   const [gradeFilter, setGradeFilter] = useState('');
+  const [sort, setSort] = useState<'newest' | 'oldest' | 'title'>('newest');
   const [showUpload, setShowUpload] = useState(false);
 
   const canUpload = user?.role === 'admin' || (
@@ -94,7 +95,11 @@ export default function Library() {
   if (typeFilter) params.set('type', typeFilter);
   if (categoryFilter) params.set('categoryId', categoryFilter);
   if (gradeFilter) params.set('gradeLevel', gradeFilter);
+  if (sort && sort !== 'newest') params.set('sort', sort);
   const qs = params.toString();
+
+  const hasActiveFilters = !!(search.trim() || typeFilter || categoryFilter || gradeFilter);
+  const clearFilters = () => { setSearch(''); setTypeFilter(''); setCategoryFilter(''); setGradeFilter(''); };
 
   const { data: resources, isLoading } = useQuery<LibraryResource[]>({
     queryKey: ['library-resources', qs],
@@ -182,7 +187,36 @@ export default function Library() {
             <option key={g.value} value={g.value}>{ar ? g.ar : g.en}</option>
           ))}
         </select>
+        {hasActiveFilters && (
+          <Button variant="ghost" onClick={clearFilters} className="gap-1.5 text-muted-foreground hover:text-destructive shrink-0">
+            <X className="w-4 h-4" /> {ar ? 'مسح' : 'Clear'}
+          </Button>
+        )}
       </div>
+
+      {/* Result count + sort */}
+      {!isLoading && !!resources?.length && (
+        <div className="flex items-center justify-between mb-4 gap-3 flex-wrap">
+          <p className="text-sm text-muted-foreground">
+            {ar
+              ? `${resources.length} ${resources.length === 1 ? 'مورد' : 'موارد'}`
+              : `${resources.length} ${resources.length === 1 ? 'resource' : 'resources'}`}
+          </p>
+          <label className="flex items-center gap-2 text-sm">
+            <ArrowDownWideNarrow className="w-4 h-4 text-muted-foreground" />
+            <span className="text-muted-foreground">{ar ? 'ترتيب:' : 'Sort:'}</span>
+            <select
+              value={sort}
+              onChange={(e) => setSort(e.target.value as any)}
+              className="px-2.5 py-1.5 rounded-lg bg-muted/50 border border-border text-sm font-medium focus:outline-none focus:ring-2 focus:ring-primary/40"
+            >
+              <option value="newest">{ar ? 'الأحدث' : 'Newest'}</option>
+              <option value="oldest">{ar ? 'الأقدم' : 'Oldest'}</option>
+              <option value="title">{ar ? 'الاسم (أ-ي)' : 'Title (A–Z)'}</option>
+            </select>
+          </label>
+        </div>
+      )}
 
       {/* Resource grid */}
       {isLoading ? (
@@ -203,18 +237,38 @@ export default function Library() {
             const meta = TYPE_META[r.type];
             const Icon = meta.icon;
             const canDelete = user?.role === 'admin' || r.uploadedBy === user?.id;
+            const isImage = r.type === 'image' && !!r.fileUrl;
             return (
-              <div key={r.id} className="bg-card border border-border rounded-2xl p-5 flex flex-col hover:shadow-lg hover:border-primary/30 transition-all group">
-                <div className="flex items-start justify-between mb-3">
-                  <div className={`w-11 h-11 rounded-xl flex items-center justify-center ${meta.badge}`}>
-                    <Icon className="w-5 h-5" />
+              <div key={r.id} className="bg-card border border-border rounded-2xl overflow-hidden flex flex-col hover:shadow-xl hover:-translate-y-1 hover:border-primary/40 transition-all duration-300 group">
+                {/* Cover / thumbnail */}
+                <button
+                  type="button"
+                  onClick={() => openResource(r)}
+                  className="relative aspect-[16/10] w-full overflow-hidden bg-muted text-left"
+                >
+                  {isImage ? (
+                    <img src={r.fileUrl!} alt={r.title} loading="lazy" className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
+                  ) : (
+                    <div className={`w-full h-full flex items-center justify-center bg-gradient-to-br ${meta.cover} relative`}>
+                      <div className="absolute inset-0 opacity-[0.15] [background-image:radial-gradient(circle_at_1px_1px,currentColor_1px,transparent_0)] [background-size:16px_16px]" />
+                      <Icon className={`w-12 h-12 ${meta.tint} opacity-80 group-hover:scale-110 transition-transform duration-300`} />
+                    </div>
+                  )}
+                  {/* Hover quick-preview overlay */}
+                  <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex items-center justify-center">
+                    <span className="inline-flex items-center gap-1.5 text-white text-sm font-semibold px-3 py-1.5 rounded-full bg-white/15 backdrop-blur-sm">
+                      {r.type === 'link' ? <ExternalLink className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                      {r.type === 'link' ? (ar ? 'زيارة' : 'Visit') : (ar ? 'معاينة' : 'Preview')}
+                    </span>
                   </div>
-                  <span className={`px-2.5 py-1 rounded-full text-[11px] font-bold ${meta.badge}`}>
+                  {/* Type badge */}
+                  <span className={`absolute top-3 start-3 px-2.5 py-1 rounded-full text-[11px] font-bold backdrop-blur-sm ${meta.badge}`}>
                     {ar ? meta.ar : meta.en}
                   </span>
-                </div>
+                </button>
 
-                <h3 className="font-bold text-foreground leading-snug line-clamp-2">
+                <div className="p-5 flex flex-col flex-1">
+                <h3 className="font-bold text-foreground leading-snug line-clamp-2 group-hover:text-primary transition-colors">
                   {ar && r.titleAr ? r.titleAr : r.title}
                 </h3>
                 {r.author && (
@@ -246,7 +300,7 @@ export default function Library() {
                   </span>
                 </div>
 
-                <div className="flex items-center gap-2 mt-4 pt-4 border-t border-border">
+                <div className="flex items-center gap-2 mt-auto pt-4 border-t border-border">
                   <Button size="sm" className="flex-1 gap-1.5" onClick={() => openResource(r)}>
                     {r.type === 'link'
                       ? (<><ExternalLink className="w-3.5 h-3.5" />{ar ? 'زيارة الرابط' : 'Visit link'}</>)
@@ -257,6 +311,7 @@ export default function Library() {
                       <Trash2 className="w-4 h-4" />
                     </Button>
                   )}
+                </div>
                 </div>
               </div>
             );
