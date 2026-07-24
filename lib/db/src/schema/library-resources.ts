@@ -22,6 +22,9 @@ export const libraryResourcesTable = pgTable("library_resources", {
   fileSize: bigint("file_size", { mode: "number" }),
   // Link resources
   externalUrl: text("external_url"),
+  // Engagement metric — incremented each time a resource is opened / downloaded.
+  // Powers the "Most Popular" sort.
+  viewCount: integer("view_count").notNull().default(0),
   uploadedBy: integer("uploaded_by").notNull().references(() => usersTable.id, { onDelete: "cascade" }),
   createdAt: timestamp("created_at").notNull().defaultNow(),
   updatedAt: timestamp("updated_at").notNull().defaultNow(),

@@ -1,7 +1,7 @@
 import { Router, type IRouter } from "express";
 import { serverError } from "../lib/http.js";
 import { db, libraryResourcesTable, usersTable, categoriesTable } from "@workspace/db";
-import { eq, and, or, ilike, desc, asc, type SQL } from "drizzle-orm";
+import { eq, and, or, ilike, desc, asc, sql, type SQL } from "drizzle-orm";
 import { requireAuth, requireRole } from "../lib/auth.js";
 import { deleteFromCloudinaryByUrl } from "../lib/cloudinary.js";
 
@@ -45,6 +45,16 @@ router.get("/", async (req, res) => {
       );
     }
 
+    const orderBy =
+      sort === "oldest"
+        ? [asc(libraryResourcesTable.createdAt)]
+        : sort === "title"
+          ? [asc(libraryResourcesTable.title)]
+          : sort === "popular"
+            // "Most Popular" — by engagement, newest as tie-breaker
+            ? [desc(libraryResourcesTable.viewCount), desc(libraryResourcesTable.createdAt)]
+            : [desc(libraryResourcesTable.createdAt)];
+
     const rows = await db
       .select({
         id: libraryResourcesTable.id,
@@ -61,6 +71,7 @@ router.get("/", async (req, res) => {
         fileName: libraryResourcesTable.fileName,
         fileSize: libraryResourcesTable.fileSize,
         externalUrl: libraryResourcesTable.externalUrl,
+        viewCount: libraryResourcesTable.viewCount,
         uploadedBy: libraryResourcesTable.uploadedBy,
         uploaderName: usersTable.fullName,
         uploaderRole: usersTable.role,
@@ -70,15 +81,32 @@ router.get("/", async (req, res) => {
       .leftJoin(usersTable, eq(libraryResourcesTable.uploadedBy, usersTable.id))
       .leftJoin(categoriesTable, eq(libraryResourcesTable.categoryId, categoriesTable.id))
       .where(conditions.length ? and(...conditions) : undefined)
-      .orderBy(
-        sort === "oldest"
-          ? asc(libraryResourcesTable.createdAt)
-          : sort === "title"
-            ? asc(libraryResourcesTable.title)
-            : desc(libraryResourcesTable.createdAt),
-      );
+      .orderBy(...orderBy);
 
     res.json(rows);
+  } catch (err: any) {
+    serverError(res, err);
+  }
+});
+
+// ── Track a view / download (public — increments the popularity metric) ──────
+router.post("/:id/view", async (req, res) => {
+  try {
+    const id = parseInt(req.params.id as string);
+    if (isNaN(id)) {
+      res.status(400).json({ error: "Invalid resource id" });
+      return;
+    }
+    const [updated] = await db
+      .update(libraryResourcesTable)
+      .set({ viewCount: sql`${libraryResourcesTable.viewCount} + 1` })
+      .where(eq(libraryResourcesTable.id, id))
+      .returning({ viewCount: libraryResourcesTable.viewCount });
+    if (!updated) {
+      res.status(404).json({ error: "Resource not found" });
+      return;
+    }
+    res.json({ viewCount: updated.viewCount });
   } catch (err: any) {
     serverError(res, err);
   }

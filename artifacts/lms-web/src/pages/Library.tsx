@@ -29,6 +29,7 @@ interface LibraryResource {
   fileName: string | null;
   fileSize: number | null;
   externalUrl: string | null;
+  viewCount: number;
   uploadedBy: number;
   uploaderName: string | null;
   uploaderRole: string | null;
@@ -77,7 +78,7 @@ export default function Library() {
   const [typeFilter, setTypeFilter] = useState<ResourceType | ''>('');
   const [categoryFilter, setCategoryFilter] = useState('');
   const [gradeFilter, setGradeFilter] = useState('');
-  const [sort, setSort] = useState<'newest' | 'oldest' | 'title'>('newest');
+  const [sort, setSort] = useState<'newest' | 'popular' | 'oldest' | 'title'>('newest');
   const [showUpload, setShowUpload] = useState(false);
 
   const canUpload = user?.role === 'admin' || (
@@ -119,7 +120,12 @@ export default function Library() {
 
   const openResource = (r: LibraryResource) => {
     const url = r.type === 'link' ? r.externalUrl : r.fileUrl;
-    if (url) window.open(url, '_blank', 'noopener');
+    if (!url) return;
+    window.open(url, '_blank', 'noopener');
+    // Fire-and-forget popularity tracking; don't block or error the open.
+    api.post(`/library/${r.id}/view`, {})
+      .then(() => queryClient.invalidateQueries({ queryKey: ['library-resources'] }))
+      .catch(() => {});
   };
 
   return (
@@ -211,6 +217,7 @@ export default function Library() {
               className="px-2.5 py-1.5 rounded-lg bg-muted/50 border border-border text-sm font-medium focus:outline-none focus:ring-2 focus:ring-primary/40"
             >
               <option value="newest">{ar ? 'الأحدث' : 'Newest'}</option>
+              <option value="popular">{ar ? 'الأكثر رواجاً' : 'Most Popular'}</option>
               <option value="oldest">{ar ? 'الأقدم' : 'Oldest'}</option>
               <option value="title">{ar ? 'الاسم (أ-ي)' : 'Title (A–Z)'}</option>
             </select>
@@ -291,6 +298,11 @@ export default function Library() {
                   {r.fileSize ? (
                     <span className="px-2 py-0.5 rounded-full text-[11px] bg-muted text-muted-foreground">{formatSize(r.fileSize)}</span>
                   ) : null}
+                  {r.viewCount > 0 && (
+                    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] bg-muted text-muted-foreground">
+                      <Eye className="w-3 h-3" />{r.viewCount}
+                    </span>
+                  )}
                 </div>
 
                 <div className="text-[11px] text-muted-foreground mt-3">
