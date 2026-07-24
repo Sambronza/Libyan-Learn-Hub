@@ -149,49 +149,52 @@ export default function Courses() {
               <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4 sm:gap-6">
                 {coursesData?.courses.map((course) => (
                   <Link key={course.id} href={`/courses/${course.id}`}>
-                    <div className="bg-card rounded-2xl sm:rounded-3xl border border-border/60 overflow-hidden shadow-sm hover:shadow-xl hover:-translate-y-1 transition-all duration-300 group flex flex-col h-full relative cursor-pointer">
-                      
-                      {/* Image Thumbnail (4:3) */}
-                      <div className="aspect-[4/3] relative overflow-hidden bg-muted">
+                    <div className="bg-card rounded-2xl border border-border/60 overflow-hidden shadow-sm hover:shadow-xl hover:-translate-y-1 hover:border-primary/40 transition-all duration-300 group flex flex-col h-full relative cursor-pointer">
+
+                      {/* Image Thumbnail (16:9) */}
+                      <div className="aspect-video relative overflow-hidden bg-muted">
                         {course.thumbnailUrl ? (
                           <img src={course.thumbnailUrl} alt={course.title} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700" />
                         ) : (
-                          <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-primary/10 to-violet-500/10">
-                            <PlayCircle className="w-12 h-12 text-primary/30" />
+                          <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-primary/30 via-violet-500/20 to-fuchsia-500/20 relative">
+                            <div className="absolute inset-0 opacity-30 bg-[radial-gradient(circle_at_30%_30%,white,transparent_60%)]" />
+                            <div className="w-14 h-14 rounded-full bg-background/80 backdrop-blur-sm flex items-center justify-center shadow-lg group-hover:scale-110 transition-transform duration-300">
+                              <PlayCircle className="w-8 h-8 text-primary" />
+                            </div>
                           </div>
                         )}
-                        
-                        <div className="absolute top-3 start-3 sm:top-4 sm:start-4">
+
+                        <div className="absolute top-3 start-3">
                           <div className="bg-background/95 backdrop-blur-md px-2.5 py-1 rounded-full text-[10px] sm:text-[11px] font-bold text-foreground shadow-sm uppercase tracking-wider">
                             {course.level}
                           </div>
                         </div>
-                        <div className="absolute top-3 end-3 sm:top-4 sm:end-4">
+                        <div className="absolute top-3 end-3">
                           <div className="bg-primary text-primary-foreground px-2.5 py-1 rounded-full text-xs font-bold shadow-md">
                             {course.price === 0 ? t('course.free') : `${course.price} LYD`}
                           </div>
                         </div>
                       </div>
-                      
+
                       {/* Content */}
-                      <div className="relative pt-7 px-4 sm:px-6 pb-5 sm:pb-6 flex flex-col flex-1 bg-gradient-to-b from-card to-card/50">
+                      <div className="relative pt-8 px-4 sm:px-5 pb-4 sm:pb-5 flex flex-col flex-1 bg-gradient-to-b from-card to-card/50">
                         {/* Avatar */}
-                        <div className="absolute -top-5 end-4 sm:end-6 w-10 h-10 sm:w-12 sm:h-12 rounded-full border-4 border-card bg-gradient-to-br from-primary/20 to-violet-500/20 flex items-center justify-center shadow-sm overflow-hidden z-10 group-hover:scale-110 transition-transform duration-300">
+                        <div className="absolute -top-7 end-4 sm:end-5 w-14 h-14 rounded-full border-4 border-card bg-gradient-to-br from-primary/20 to-violet-500/20 flex items-center justify-center shadow-md overflow-hidden z-10 group-hover:scale-110 transition-transform duration-300">
                           {course.teacherAvatar ? (
                             <img src={course.teacherAvatar} alt={course.teacherName} className="w-full h-full object-cover" />
                           ) : (
-                            <span className="text-primary font-bold text-base sm:text-lg">{course.teacherName.charAt(0).toUpperCase()}</span>
+                            <span className="text-primary font-bold text-lg">{course.teacherName.charAt(0).toUpperCase()}</span>
                           )}
                         </div>
-                        
-                        <div className="text-xs font-medium text-muted-foreground mb-1 truncate pe-10 sm:pe-12">
+
+                        <div className="text-xs font-medium text-muted-foreground mb-1 truncate pe-14">
                           by {course.teacherName}
                         </div>
 
-                        <h3 className="font-display font-bold text-base sm:text-lg mb-3 sm:mb-4 line-clamp-2 text-foreground group-hover:text-primary transition-colors leading-snug">
+                        <h3 className="font-display font-bold text-base sm:text-lg mb-3 line-clamp-2 text-foreground group-hover:text-primary transition-colors leading-snug">
                           {language === 'ar' ? course.titleAr : course.title}
                         </h3>
-                        
+
                         <div className="mt-auto flex items-center gap-1.5 sm:gap-2 flex-wrap">
                           <div className="flex items-center gap-1 sm:gap-1.5 bg-muted/50 border border-border/50 px-2 sm:px-2.5 py-1 rounded-md text-[10px] sm:text-[11px] font-medium text-muted-foreground">
                             <BookOpen className="w-3 h-3 text-primary/70" />
