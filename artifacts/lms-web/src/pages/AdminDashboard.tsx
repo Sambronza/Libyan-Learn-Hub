@@ -121,39 +121,66 @@ export default function AdminDashboard() {
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <Tabs value={activeTab} onValueChange={setActiveTab}>
-          <TabsList className="mb-8 bg-muted/60 flex-wrap h-auto gap-1">
-            <TabsTrigger value="users" className="gap-2"><Users className="w-4 h-4" /> Users</TabsTrigger>
-            <TabsTrigger value="teachers" className="gap-2"><Presentation className="w-4 h-4" /> Teachers</TabsTrigger>
-            <TabsTrigger value="approvals" className="gap-2 relative">
-              <CheckCircle className="w-4 h-4" /> Approvals
-              {pendingCount > 0 && (
-                <span className="absolute -top-2 -right-2 bg-destructive/100 text-white text-[10px] font-bold px-1.5 py-0.5 rounded-full animate-pulse">
-                  {pendingCount}
-                </span>
-              )}
-            </TabsTrigger>
-            <TabsTrigger value="teacher_reg_approvals" className="gap-2 relative">
-              <GraduationCap className="w-4 h-4" /> Teacher Registrations
-              {teacherRegPendingCount > 0 && (
-                <span className="absolute -top-2 -right-2 bg-warning/100 text-white text-[10px] font-bold px-1.5 py-0.5 rounded-full animate-pulse">
-                  {teacherRegPendingCount}
-                </span>
-              )}
-            </TabsTrigger>
-            <TabsTrigger value="tutoring_reviews" className="gap-2"><Presentation className="w-4 h-4" /> Tutoring Reviews</TabsTrigger>
-            <TabsTrigger value="courses" className="gap-2"><BookOpen className="w-4 h-4" /> Courses</TabsTrigger>
-            <TabsTrigger value="categories" className="gap-2"><Tag className="w-4 h-4" /> Categories</TabsTrigger>
-            <TabsTrigger value="payments" className="gap-2"><CreditCard className="w-4 h-4" /> Payments</TabsTrigger>
-            <TabsTrigger value="finance" className="gap-2"><DollarSign className="w-4 h-4" /> Finance</TabsTrigger>
-            <TabsTrigger value="withdrawals" className="gap-2"><Banknote className="w-4 h-4" /> Withdrawals</TabsTrigger>
-            <TabsTrigger value="redeem_cards" className="gap-2"><Ticket className="w-4 h-4" /> Redeem Cards</TabsTrigger>
-            <TabsTrigger value="reports" className="gap-2"><Flag className="w-4 h-4" /> Reports</TabsTrigger>
-            <TabsTrigger value="dmca" className="gap-2"><ShieldAlert className="w-4 h-4" /> DMCA</TabsTrigger>
-            <TabsTrigger value="device_security" className="gap-2"><ShieldAlert className="w-4 h-4" /> Device Security</TabsTrigger>
-            <TabsTrigger value="refunds" className="gap-2"><Banknote className="w-4 h-4" /> Refunds</TabsTrigger>
-            <TabsTrigger value="analytics" className="gap-2"><DollarSign className="w-4 h-4" /> Analytics</TabsTrigger>
-            <TabsTrigger value="academy" className="gap-2 text-warning"><School className="w-4 h-4 text-amber-500" /> Academy</TabsTrigger>
-            <TabsTrigger value="settings" className="gap-2"><Settings className="w-4 h-4" /> Settings</TabsTrigger>
+          <TabsList className="mb-8 bg-transparent p-0 flex flex-col items-stretch h-auto gap-3">
+            {/* People */}
+            <div className="flex flex-col gap-1.5 w-full">
+              <span className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground/70 px-1">People</span>
+              <div className="flex flex-wrap gap-1 bg-muted/60 rounded-xl p-1">
+                <TabsTrigger value="users" className="gap-2"><Users className="w-4 h-4" /> Users</TabsTrigger>
+                <TabsTrigger value="teachers" className="gap-2"><Presentation className="w-4 h-4" /> Teachers</TabsTrigger>
+                <TabsTrigger value="teacher_reg_approvals" className="gap-2 relative">
+                  <GraduationCap className="w-4 h-4" /> Teacher Registrations
+                  {teacherRegPendingCount > 0 && (
+                    <span className="absolute -top-2 -right-2 bg-warning text-white text-[10px] font-bold px-1.5 py-0.5 rounded-full animate-pulse">
+                      {teacherRegPendingCount}
+                    </span>
+                  )}
+                </TabsTrigger>
+              </div>
+            </div>
+
+            {/* Content */}
+            <div className="flex flex-col gap-1.5 w-full">
+              <span className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground/70 px-1">Content</span>
+              <div className="flex flex-wrap gap-1 bg-muted/60 rounded-xl p-1">
+                <TabsTrigger value="approvals" className="gap-2 relative">
+                  <CheckCircle className="w-4 h-4" /> Course Approvals
+                  {pendingCount > 0 && (
+                    <span className="absolute -top-2 -right-2 bg-destructive text-white text-[10px] font-bold px-1.5 py-0.5 rounded-full animate-pulse">
+                      {pendingCount}
+                    </span>
+                  )}
+                </TabsTrigger>
+                <TabsTrigger value="tutoring_reviews" className="gap-2"><Presentation className="w-4 h-4" /> Tutoring Reviews</TabsTrigger>
+                <TabsTrigger value="courses" className="gap-2"><BookOpen className="w-4 h-4" /> Courses</TabsTrigger>
+                <TabsTrigger value="categories" className="gap-2"><Tag className="w-4 h-4" /> Categories</TabsTrigger>
+                <TabsTrigger value="academy" className="gap-2 text-warning"><School className="w-4 h-4 text-amber-500" /> Academy</TabsTrigger>
+              </div>
+            </div>
+
+            {/* Finance */}
+            <div className="flex flex-col gap-1.5 w-full">
+              <span className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground/70 px-1">Finance</span>
+              <div className="flex flex-wrap gap-1 bg-muted/60 rounded-xl p-1">
+                <TabsTrigger value="payments" className="gap-2"><CreditCard className="w-4 h-4" /> Payments</TabsTrigger>
+                <TabsTrigger value="finance" className="gap-2"><DollarSign className="w-4 h-4" /> Finance</TabsTrigger>
+                <TabsTrigger value="withdrawals" className="gap-2"><Banknote className="w-4 h-4" /> Withdrawals</TabsTrigger>
+                <TabsTrigger value="redeem_cards" className="gap-2"><Ticket className="w-4 h-4" /> Redeem Cards</TabsTrigger>
+                <TabsTrigger value="refunds" className="gap-2"><Banknote className="w-4 h-4" /> Refunds</TabsTrigger>
+                <TabsTrigger value="analytics" className="gap-2"><DollarSign className="w-4 h-4" /> Analytics</TabsTrigger>
+              </div>
+            </div>
+
+            {/* Safety & System */}
+            <div className="flex flex-col gap-1.5 w-full">
+              <span className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground/70 px-1">Safety &amp; System</span>
+              <div className="flex flex-wrap gap-1 bg-muted/60 rounded-xl p-1">
+                <TabsTrigger value="reports" className="gap-2"><Flag className="w-4 h-4" /> Reports</TabsTrigger>
+                <TabsTrigger value="dmca" className="gap-2"><ShieldAlert className="w-4 h-4" /> DMCA</TabsTrigger>
+                <TabsTrigger value="device_security" className="gap-2"><ShieldAlert className="w-4 h-4" /> Device Security</TabsTrigger>
+                <TabsTrigger value="settings" className="gap-2"><Settings className="w-4 h-4" /> Settings</TabsTrigger>
+              </div>
+            </div>
           </TabsList>
 
           <TabsContent value="users"><UsersTab api={api} queryClient={queryClient} toast={toast} stats={stats} user={user} /></TabsContent>
@@ -2946,20 +2973,22 @@ function AnalyticsTab({ api }: any) {
 function TeacherRegistrationApprovalsTab({ api, toast, onCountChange }: any) {
   const [teachers, setTeachers] = React.useState<any[]>([]);
   const [loading, setLoading] = React.useState(true);
+  const [loadError, setLoadError] = React.useState<string | null>(null);
   const [rejectTarget, setRejectTarget] = React.useState<any>(null);
   const [rejectReason, setRejectReason] = React.useState('');
   const [processing, setProcessing] = React.useState(false);
 
   const load = React.useCallback(async () => {
     setLoading(true);
+    setLoadError(null);
     try {
       const data = await api.get('/teacher-profile/approvals');
       setTeachers(data || []);
       onCountChange?.((data || []).length);
     } catch (e: any) {
-      toast({ title: 'Failed to load', description: e.message, variant: 'destructive' });
+      setLoadError(e.message || 'Something went wrong while loading registrations.');
     } finally { setLoading(false); }
-  }, [api, toast, onCountChange]);
+  }, [api, onCountChange]);
 
   React.useEffect(() => { load(); }, [load]);
 
@@ -2989,6 +3018,21 @@ function TeacherRegistrationApprovalsTab({ api, toast, onCountChange }: any) {
   };
 
   if (loading) return <div className="text-center py-20 text-muted-foreground">Loading pending teacher registrations...</div>;
+
+  if (loadError) {
+    return (
+      <div className="text-center py-20 bg-destructive/5 rounded-2xl border border-destructive/20">
+        <div className="mx-auto mb-4 grid place-items-center w-14 h-14 rounded-2xl bg-destructive/10">
+          <AlertCircle className="w-7 h-7 text-destructive" />
+        </div>
+        <h3 className="text-lg font-bold">Couldn't load teacher registrations</h3>
+        <p className="text-muted-foreground text-sm mt-1 max-w-md mx-auto">{loadError}</p>
+        <Button variant="outline" className="mt-5 gap-2" onClick={load}>
+          <RefreshCw className="w-4 h-4" /> Try again
+        </Button>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">

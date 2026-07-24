@@ -192,8 +192,14 @@ export default function Profile() {
     <PageContainer>
       {/* Profile Header */}
       <div className="bg-card border-b border-border">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
-          <div className="flex flex-col md:flex-row items-center md:items-start gap-8">
+        {/* Gradient cover banner */}
+        <div className="h-32 sm:h-40 bg-gradient-to-r from-primary via-violet-600 to-secondary relative overflow-hidden">
+          <div className="absolute -top-16 -left-10 w-72 h-72 rounded-full bg-white/10 blur-3xl" />
+          <div className="absolute -bottom-24 right-0 w-96 h-96 rounded-full bg-secondary/30 blur-3xl" />
+          <div className="absolute inset-0 opacity-20 [background-image:radial-gradient(circle_at_1px_1px,white_1px,transparent_0)] [background-size:22px_22px]" />
+        </div>
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pb-12">
+          <div className="flex flex-col md:flex-row items-center md:items-start gap-8 -mt-16 md:-mt-20">
             <div className="w-32 h-32 rounded-full bg-gradient-to-br from-primary to-violet-600 flex items-center justify-center text-white text-5xl font-display font-bold shadow-xl border-4 border-background shrink-0 overflow-hidden">
               {user.avatarUrl ? (
                 <img src={user.avatarUrl} alt={user.fullName} className="w-full h-full object-cover" />
@@ -201,7 +207,7 @@ export default function Profile() {
                 user.fullName.charAt(0)
               )}
             </div>
-            <div className="flex-1 text-center md:text-start">
+            <div className="flex-1 text-center md:text-start md:pt-20">
               <h1 className="text-4xl font-display font-bold text-foreground mb-2">{user.fullName}</h1>
               <div className="flex flex-wrap items-center justify-center md:justify-start gap-4 text-muted-foreground mb-6">
                 <span className="flex items-center gap-1.5"><Mail className="w-4 h-4" /> {user.email}</span>
@@ -355,7 +361,7 @@ export default function Profile() {
             </div>
 
             {/* Overall Stats */}
-            <div className="flex gap-4 w-full md:w-auto overflow-x-auto pb-2 md:pb-0 hide-scrollbar">
+            <div className="flex gap-4 w-full md:w-auto overflow-x-auto pb-2 md:pb-0 md:pt-20 hide-scrollbar">
               <div className="bg-muted/30 border border-border rounded-2xl p-4 min-w-[140px] flex-1 text-center">
                 <BookOpen className="w-6 h-6 text-primary mx-auto mb-2" />
                 <div className="text-2xl font-bold">{summary?.length || 0}</div>
@@ -443,7 +449,14 @@ export default function Profile() {
                   </div>
                   
                   <div className="flex-1 min-w-0 w-full">
-                    <h3 className="text-xl font-bold mb-1 truncate">{course.title}</h3>
+                    <div className="flex items-center gap-2 mb-1 flex-wrap">
+                      <h3 className="text-xl font-bold truncate">{course.title}</h3>
+                      {course.overallProgress >= 100 && (
+                        <span className="inline-flex items-center gap-1 text-[11px] font-bold px-2 py-0.5 rounded-full bg-success/10 text-success border border-success/30">
+                          <Trophy className="w-3 h-3" /> Completed
+                        </span>
+                      )}
+                    </div>
                     <p className="text-sm text-muted-foreground mb-4">Instructor: {course.teacherName}</p>
                     
                     <div className="space-y-2">

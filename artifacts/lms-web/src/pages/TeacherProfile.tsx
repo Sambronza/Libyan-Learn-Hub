@@ -9,6 +9,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/u
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/contexts/AuthContext';
 import { FollowButton, TeacherPostsSection } from '@/components/community/TeacherPosts';
+import { motion, AnimatePresence } from 'framer-motion';
 import {
   BadgeCheck, BookOpen, Users, Star, Download, Share2,
   Flag, Crown, Award, PlayCircle, Copy, Check, Facebook,
@@ -185,7 +186,14 @@ function ActivityPanel({ slug, language }: { slug: string; language: string }) {
               </p>
             </div>
           ) : (
-            <>
+            <AnimatePresence mode="wait">
+            <motion.div
+              key={activeTab}
+              initial={{ opacity: 0, y: 8 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -8 }}
+              transition={{ duration: 0.18 }}
+            >
               {/* Upcoming sessions */}
               {activeTab === 'upcoming' && (
                 <div className="space-y-3">
@@ -292,7 +300,8 @@ function ActivityPanel({ slug, language }: { slug: string; language: string }) {
                   ))}
                 </div>
               )}
-            </>
+            </motion.div>
+            </AnimatePresence>
           )}
         </div>
       </div>
@@ -385,31 +394,48 @@ export default function TeacherProfile() {
   }
 
   const name = language === 'ar' ? (teacher.fullNameAr || teacher.fullName) : teacher.fullName;
+  const isTopRated = (teacher.rating ?? 0) >= 4.5 && (teacher.reviewCount ?? 0) >= 3;
 
   return (
     <PageContainer>
-      {/* ── Hero ─────────────────────────────────────────────────────────── */}
-      <div className="bg-gradient-to-br from-primary/10 via-primary/5 to-transparent border-b border-primary/10">
-        <div className="max-w-6xl mx-auto px-4 sm:px-6 py-12">
-          <div className="flex flex-col sm:flex-row items-start gap-6">
-            {/* Avatar */}
-            <div className="w-28 h-28 rounded-2xl bg-gradient-to-br from-primary/20 to-primary/5 flex items-center justify-center text-primary font-bold text-5xl shrink-0 border-2 border-primary/20 overflow-hidden shadow-lg">
+      {/* ── Banner + Hero ────────────────────────────────────────────────── */}
+      <div className="relative">
+        {/* Gradient cover banner */}
+        <div className="h-40 sm:h-56 bg-gradient-to-r from-primary via-violet-600 to-secondary relative overflow-hidden">
+          <div className="absolute -top-16 -left-10 w-72 h-72 rounded-full bg-white/10 blur-3xl" />
+          <div className="absolute -bottom-24 right-0 w-96 h-96 rounded-full bg-secondary/30 blur-3xl" />
+          <div className="absolute inset-0 opacity-20 [background-image:radial-gradient(circle_at_1px_1px,white_1px,transparent_0)] [background-size:22px_22px]" />
+        </div>
+
+        <div className="max-w-6xl mx-auto px-4 sm:px-6">
+          <div className="flex flex-col sm:flex-row items-start gap-5 sm:gap-6 -mt-14 sm:-mt-20 relative">
+            {/* Avatar overlapping the banner */}
+            <div className="w-28 h-28 sm:w-32 sm:h-32 rounded-2xl bg-gradient-to-br from-primary/20 to-primary/5 flex items-center justify-center text-primary font-bold text-5xl shrink-0 border-4 border-background overflow-hidden shadow-xl">
               {teacher.avatarUrl
                 ? <img src={teacher.avatarUrl} alt={name} className="w-full h-full object-cover" />
                 : name?.charAt(0)}
             </div>
 
-            <div className="flex-1 min-w-0">
-              <div className="flex items-center gap-3 flex-wrap mb-2">
+            <div className="flex-1 min-w-0 sm:pt-20">
+              <div className="flex items-center gap-2.5 flex-wrap mb-2">
                 <h1 className="text-3xl font-display font-bold">{name}</h1>
-                {teacher.isVerified && <BadgeCheck className="w-6 h-6 text-primary" aria-label="Verified" />}
+                {teacher.isVerified && (
+                  <span className="inline-flex items-center gap-1 text-xs font-bold px-2.5 py-1 rounded-full bg-primary/10 text-primary border border-primary/30">
+                    <BadgeCheck className="w-3.5 h-3.5" /> {language === 'ar' ? 'موثّق' : 'Verified'}
+                  </span>
+                )}
+                {isTopRated && (
+                  <span className="inline-flex items-center gap-1 text-xs font-bold px-2.5 py-1 rounded-full bg-warning/10 text-warning border border-warning/30">
+                    <Trophy className="w-3.5 h-3.5" /> {language === 'ar' ? 'الأعلى تقييماً' : 'Top Rated'}
+                  </span>
+                )}
                 {teacher.isSponsored && (
                   <span className="text-xs font-bold px-2.5 py-1 rounded-full bg-warning/10 text-warning border border-warning/30 flex items-center gap-1">
                     <Crown className="w-3 h-3" /> {language === 'ar' ? 'مميز' : 'Sponsored'}
                   </span>
                 )}
                 {teacher.tier === 'pro' && (
-                  <span className="text-xs font-bold px-2.5 py-1 rounded-full bg-primary/10 text-primary border border-primary/30">PRO</span>
+                  <span className="text-xs font-bold px-2.5 py-1 rounded-full bg-gradient-to-r from-primary to-secondary text-white">PRO</span>
                 )}
               </div>
               {teacher.expertise && <p className="text-muted-foreground mb-3">{teacher.expertise}</p>}
@@ -433,7 +459,7 @@ export default function TeacherProfile() {
           </div>
 
           {/* Action buttons */}
-          <div className="flex flex-wrap gap-3 mt-8">
+          <div className="flex flex-wrap gap-3 mt-8 pb-10 border-b border-border">
             <FollowButton teacherId={teacher.id} />
             {teacher.cvUrl && (
               <a href={teacher.cvUrl} target="_blank" rel="noopener noreferrer">
