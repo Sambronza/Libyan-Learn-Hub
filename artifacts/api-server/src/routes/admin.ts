@@ -11,6 +11,7 @@ import { eq, count, sql, sum, desc, and, ne, or } from "drizzle-orm";
 import { requireAuth, requireRole, invalidateDeviceCheckCache } from "../lib/auth.js";
 import { performDeviceSwitch } from "../lib/device-security.js";
 import { logAudit } from "../lib/auditLog.js";
+import { notifyCourseEnrollment, applyCourseSubscription, isValidDuration } from "../lib/subscriptions.js";
 import bcrypt from "bcryptjs";
 import crypto from "crypto";
 import { deleteFromCloudinaryByUrl } from "../lib/cloudinary.js";
@@ -568,12 +569,31 @@ router.post("/payments/:paymentId/approve", async (req, res) => {
     const platformFee = parseFloat((amount * platformFeePercent / 100).toFixed(2));
     const netAmount = parseFloat((amount - platformFee).toFixed(2));
 
+    let approvedEnrollmentIsNew = false;
     if (payment.courseId) {
       const [course] = await db.select().from(coursesTable).where(eq(coursesTable.id, payment.courseId)).limit(1);
-      const alreadyEnrolled = await db.select().from(enrollmentsTable)
-        .where(and(eq(enrollmentsTable.courseId, payment.courseId), eq(enrollmentsTable.userId, payment.userId))).limit(1);
-      if (alreadyEnrolled.length === 0) {
-        await db.insert(enrollmentsTable).values({ courseId: payment.courseId, userId: payment.userId, progress: "0" });
+      const durationMonths = payment.durationMonths;
+      if (course && durationMonths && isValidDuration(durationMonths)) {
+        // Subscription purchase or renewal — apply proper expiry (was previously
+        // inserting a PERMANENT enrollment here, inconsistent with the wallet /
+        // gateway paths which correctly time-box subscription access).
+        await db.transaction(async (tx) => {
+          const { isNew } = await applyCourseSubscription(tx, {
+            userId: payment.userId,
+            courseId: payment.courseId!,
+            durationMonths,
+            paymentId,
+          });
+          approvedEnrollmentIsNew = isNew;
+        });
+      } else {
+        // Legacy/permanent enrollment (free or pre-subscription payments)
+        const alreadyEnrolled = await db.select().from(enrollmentsTable)
+          .where(and(eq(enrollmentsTable.courseId, payment.courseId), eq(enrollmentsTable.userId, payment.userId))).limit(1);
+        if (alreadyEnrolled.length === 0) {
+          approvedEnrollmentIsNew = true;
+          await db.insert(enrollmentsTable).values({ courseId: payment.courseId, userId: payment.userId, progress: "0" });
+        }
       }
       if (course) {
         await db.transaction(async (tx) => {
@@ -594,6 +614,11 @@ router.post("/payments/:paymentId/approve", async (req, res) => {
           }
         });
       }
+    }
+
+    // Enrollment confirmation notification (F-2) — only on a brand-new enrollment
+    if (payment.courseId && approvedEnrollmentIsNew) {
+      await notifyCourseEnrollment(payment.userId, payment.courseId);
     }
 
     await logAudit({ adminId, action: "payment.approved", targetType: "payment", targetId: paymentId, details: { amount: payment.amount, currency: payment.currency }, ip: req.ip });

@@ -26,6 +26,7 @@ import {
   isFreeCourse,
   applyCourseSubscription,
   creditTeacherInTx,
+  notifyCourseEnrollment,
   type SubscriptionDuration,
 } from "../lib/subscriptions.js";
 import { getActiveProvider } from "../lib/payment-providers.js";
@@ -158,6 +159,7 @@ router.post("/create-session", requireAuth, async (req, res) => {
       // Free item, auto-enroll
       if (type === "course") {
         await db.insert(enrollmentsTable).values({ courseId: itemId, userId, progress: "0" });
+        await notifyCourseEnrollment(userId, itemId);
       } else if (type === "live-course") {
         const sessions = await db.select().from(liveSessionsTable).where(eq(liveSessionsTable.liveSessionCourseId, itemId));
         if (sessions.length > 0) {
@@ -180,6 +182,7 @@ router.post("/create-session", requireAuth, async (req, res) => {
         return;
       }
 
+      let walletEnrollmentIsNew = false;
       await db.transaction(async (tx) => {
         // Deduct balance
         const newBalance = balance - amount;
@@ -203,7 +206,8 @@ router.post("/create-session", requireAuth, async (req, res) => {
 
         // Enroll or credit teacher
         if (type === "course" && course && durationMonths) {
-          await applyCourseSubscription(tx, { userId, courseId: itemId, durationMonths, paymentId: payment.id });
+          const { isNew } = await applyCourseSubscription(tx, { userId, courseId: itemId, durationMonths, paymentId: payment.id });
+          walletEnrollmentIsNew = isNew;
           if (appliedCoupon) {
             await recordCouponRedemption(tx, { couponId: appliedCoupon.id, userId, paymentId: payment.id, discount: appliedCoupon.discount });
           }
@@ -242,6 +246,8 @@ router.post("/create-session", requireAuth, async (req, res) => {
       });
       // Referral bonus on first completed purchase (best-effort, outside the tx)
       processReferralBonus(userId).catch(() => {});
+      // Enrollment confirmation notification (F-2) — only on a brand-new enrollment
+      if (type === "course" && walletEnrollmentIsNew) await notifyCourseEnrollment(userId, itemId);
       return void res.json({ url: "/dashboard?success=true" });
     }
 
@@ -376,6 +382,7 @@ router.get("/callback", requireAuth, async (req, res) => {
     // Success flow — wrap everything in a transaction so a crash between
     // the status update and creditTeacher cannot cause a double-credit.
     let alreadyProcessed = false;
+    let newlyEnrolledCourseId: number | null = null; // set when a brand-new course enrollment is created
     await db.transaction(async (tx) => {
       // Idempotency guard: only process if still pending inside the transaction
       const [fresh] = await tx.select().from(paymentsTable).where(eq(paymentsTable.id, paymentId)).limit(1);
@@ -394,12 +401,13 @@ router.get("/callback", requireAuth, async (req, res) => {
         const [course] = await tx.select().from(coursesTable).where(eq(coursesTable.id, payment.courseId)).limit(1);
         if (course && payment.durationMonths && isValidDuration(payment.durationMonths)) {
           // Subscription purchase or renewal
-          await applyCourseSubscription(tx, {
+          const { isNew } = await applyCourseSubscription(tx, {
             userId: payment.userId,
             courseId: payment.courseId,
             durationMonths: payment.durationMonths,
             paymentId,
           });
+          if (isNew) newlyEnrolledCourseId = payment.courseId;
           if (payment.couponId && payment.discountAmount) {
             await recordCouponRedemption(tx, {
               couponId: payment.couponId,
@@ -414,6 +422,7 @@ router.get("/callback", requireAuth, async (req, res) => {
             .where(and(eq(enrollmentsTable.courseId, payment.courseId), eq(enrollmentsTable.userId, payment.userId)))
             .limit(1);
           if (alreadyEnrolled.length === 0) {
+            newlyEnrolledCourseId = payment.courseId;
             await tx.insert(enrollmentsTable).values({ courseId: payment.courseId, userId: payment.userId, progress: "0" });
           }
         }
@@ -452,6 +461,11 @@ router.get("/callback", requireAuth, async (req, res) => {
     // Referral bonus on first completed purchase (best-effort)
     if (!alreadyProcessed) {
       processReferralBonus(payment.userId).catch(() => {});
+    }
+
+    // Enrollment confirmation notification (F-2) — only on a brand-new enrollment
+    if (!alreadyProcessed && newlyEnrolledCourseId) {
+      await notifyCourseEnrollment(payment.userId, newlyEnrolledCourseId);
     }
 
     // Redirect to frontend success page

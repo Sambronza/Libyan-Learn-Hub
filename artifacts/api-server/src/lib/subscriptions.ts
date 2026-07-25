@@ -5,6 +5,7 @@ import {
   usersTable,
   teacherEarningsTable,
   platformSettingsTable,
+  notificationsTable,
 } from "@workspace/db";
 import { eq, and } from "drizzle-orm";
 import type { Course } from "@workspace/db";
@@ -114,7 +115,7 @@ type Tx = Parameters<Parameters<typeof db.transaction>[0]>[0];
 export async function applyCourseSubscription(
   tx: Tx,
   opts: { userId: number; courseId: number; durationMonths: SubscriptionDuration; paymentId: number },
-): Promise<void> {
+): Promise<{ isNew: boolean }> {
   const { userId, courseId, durationMonths, paymentId } = opts;
   const now = new Date();
 
@@ -140,18 +141,47 @@ export async function applyCourseSubscription(
         expiredNotifiedAt: null,
       })
       .where(eq(enrollmentsTable.id, existing.id));
-  } else {
-    const expiresAt = new Date(now);
-    expiresAt.setMonth(expiresAt.getMonth() + durationMonths);
-    await tx.insert(enrollmentsTable).values({
-      courseId,
+    return { isNew: false };
+  }
+
+  const expiresAt = new Date(now);
+  expiresAt.setMonth(expiresAt.getMonth() + durationMonths);
+  await tx.insert(enrollmentsTable).values({
+    courseId,
+    userId,
+    progress: "0",
+    subscriptionMonths: durationMonths,
+    startedAt: now,
+    expiresAt,
+    lastPaymentId: paymentId,
+  });
+  return { isNew: true };
+}
+
+/**
+ * Emit an in-app "you're enrolled" notification (F-2). Best-effort and run
+ * OUTSIDE the payment transaction so a notification failure can never roll back
+ * a completed enrollment/payment. Safe to call for both free and paid enrollments.
+ */
+export async function notifyCourseEnrollment(userId: number, courseId: number): Promise<void> {
+  try {
+    const [course] = await db
+      .select({ title: coursesTable.title, titleAr: coursesTable.titleAr })
+      .from(coursesTable)
+      .where(eq(coursesTable.id, courseId))
+      .limit(1);
+    const title = course?.title ?? "your course";
+    const titleAr = course?.titleAr ?? "دورتك";
+    await db.insert(notificationsTable).values({
       userId,
-      progress: "0",
-      subscriptionMonths: durationMonths,
-      startedAt: now,
-      expiresAt,
-      lastPaymentId: paymentId,
+      type: "system_alert" as any,
+      title: "Enrollment Confirmed",
+      titleAr: "تم تأكيد التسجيل",
+      message: `You're now enrolled in "${title}". Start learning any time from your dashboard.`,
+      messageAr: `أنت الآن مسجّل في "${titleAr}". يمكنك بدء التعلّم في أي وقت من لوحة التحكم.`,
     });
+  } catch (e) {
+    console.error("Enrollment in-app notification failed:", e);
   }
 }
 
