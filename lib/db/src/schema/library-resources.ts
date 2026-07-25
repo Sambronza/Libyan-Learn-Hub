@@ -1,4 +1,4 @@
-import { pgTable, serial, integer, text, varchar, bigint, timestamp, pgEnum } from "drizzle-orm/pg-core";
+import { pgTable, serial, integer, text, varchar, bigint, timestamp, pgEnum, index } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod/v4";
 import { usersTable } from "./users";
@@ -28,7 +28,10 @@ export const libraryResourcesTable = pgTable("library_resources", {
   uploadedBy: integer("uploaded_by").notNull().references(() => usersTable.id, { onDelete: "cascade" }),
   createdAt: timestamp("created_at").notNull().defaultNow(),
   updatedAt: timestamp("updated_at").notNull().defaultNow(),
-});
+}, (t) => [
+  index("library_resources_category_id_idx").on(t.categoryId),
+  index("library_resources_type_idx").on(t.type),
+]);
 
 export const insertLibraryResourceSchema = createInsertSchema(libraryResourcesTable).omit({ id: true, createdAt: true, updatedAt: true });
 export type InsertLibraryResource = z.infer<typeof insertLibraryResourceSchema>;

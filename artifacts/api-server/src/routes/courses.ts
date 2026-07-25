@@ -108,25 +108,47 @@ router.get("/", async (req, res) => {
       .from(coursesTable)
       .where(conditions.length > 1 ? and(...conditions) : conditions[0]);
 
-    const courses = await Promise.all(
-      allCourses.map(async (course) => {
-        const [teacher] = await db.select().from(usersTable).where(eq(usersTable.id, course.teacherId)).limit(1);
-        const [reviewData] = await db
-          .select({ avgRating: avg(reviewsTable.rating), reviewCount: count() })
-          .from(reviewsTable)
-          .where(eq(reviewsTable.courseId, course.id));
-        const [enrollData] = await db
-          .select({ value: count() })
-          .from(enrollmentsTable)
-          .where(eq(enrollmentsTable.courseId, course.id));
-        const [lessonData] = await db
-          .select({ lessonCount: count(), totalDuration: sum(lessonsTable.duration) })
-          .from(lessonsTable)
-          .where(eq(lessonsTable.courseId, course.id));
+    // Batch-load all related data for this page in a constant number of queries
+    // (previously 4 queries per course — an N+1 that scaled with page size).
+    let courses: any[] = [];
+    if (allCourses.length > 0) {
+      const courseIds = allCourses.map((c) => c.id);
+      const teacherIds = [...new Set(allCourses.map((c) => c.teacherId))];
 
-        return buildCourseResult(course, teacher, reviewData, Number(enrollData.value), lessonData);
-      })
-    );
+      const [teachers, reviewRows, enrollRows, lessonRows] = await Promise.all([
+        db.select().from(usersTable).where(inArray(usersTable.id, teacherIds)),
+        db
+          .select({ courseId: reviewsTable.courseId, avgRating: avg(reviewsTable.rating), reviewCount: count() })
+          .from(reviewsTable)
+          .where(inArray(reviewsTable.courseId, courseIds))
+          .groupBy(reviewsTable.courseId),
+        db
+          .select({ courseId: enrollmentsTable.courseId, value: count() })
+          .from(enrollmentsTable)
+          .where(inArray(enrollmentsTable.courseId, courseIds))
+          .groupBy(enrollmentsTable.courseId),
+        db
+          .select({ courseId: lessonsTable.courseId, lessonCount: count(), totalDuration: sum(lessonsTable.duration) })
+          .from(lessonsTable)
+          .where(inArray(lessonsTable.courseId, courseIds))
+          .groupBy(lessonsTable.courseId),
+      ]);
+
+      const teacherMap = new Map(teachers.map((t) => [t.id, t]));
+      const reviewMap = new Map(reviewRows.map((r) => [r.courseId, r]));
+      const enrollMap = new Map(enrollRows.map((r) => [r.courseId, Number(r.value)]));
+      const lessonMap = new Map(lessonRows.map((r) => [r.courseId, r]));
+
+      courses = allCourses.map((course) =>
+        buildCourseResult(
+          course,
+          teacherMap.get(course.teacherId),
+          reviewMap.get(course.id),
+          enrollMap.get(course.id) ?? 0,
+          lessonMap.get(course.id),
+        ),
+      );
+    }
 
     res.json({
       courses,

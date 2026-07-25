@@ -1,4 +1,4 @@
-import { pgTable, serial, varchar, integer, text, boolean, numeric, timestamp, pgEnum } from "drizzle-orm/pg-core";
+import { pgTable, serial, varchar, integer, text, boolean, numeric, timestamp, pgEnum, index } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod/v4";
 import { coursesTable } from "./courses";
@@ -22,7 +22,10 @@ export const quizzesTable = pgTable("quizzes", {
   isCompulsory: boolean("is_compulsory").notNull().default(false),
   createdAt: timestamp("created_at").notNull().defaultNow(),
   updatedAt: timestamp("updated_at").notNull().defaultNow(),
-});
+}, (t) => [
+  index("quizzes_course_id_idx").on(t.courseId),
+  index("quizzes_lesson_id_idx").on(t.lessonId),
+]);
 
 export const quizQuestionsTable = pgTable("quiz_questions", {
   id: serial("id").primaryKey(),
@@ -35,7 +38,9 @@ export const quizQuestionsTable = pgTable("quiz_questions", {
   explanationAr: text("explanation_ar"),
   order: integer("order").notNull().default(0),
   createdAt: timestamp("created_at").notNull().defaultNow(),
-});
+}, (t) => [
+  index("quiz_questions_quiz_id_idx").on(t.quizId),
+]);
 
 export const quizOptionsTable = pgTable("quiz_options", {
   id: serial("id").primaryKey(),
@@ -44,7 +49,9 @@ export const quizOptionsTable = pgTable("quiz_options", {
   textAr: text("text_ar").notNull(),
   isCorrect: boolean("is_correct").notNull().default(false),
   order: integer("order").notNull().default(0),
-});
+}, (t) => [
+  index("quiz_options_question_id_idx").on(t.questionId),
+]);
 
 export const quizAttemptsTable = pgTable("quiz_attempts", {
   id: serial("id").primaryKey(),
@@ -56,7 +63,9 @@ export const quizAttemptsTable = pgTable("quiz_attempts", {
   passed: boolean("passed").notNull().default(false),
   answers: text("answers"),
   completedAt: timestamp("completed_at").notNull().defaultNow(),
-});
+}, (t) => [
+  index("quiz_attempts_user_quiz_idx").on(t.userId, t.quizId),
+]);
 
 export const insertQuizSchema = createInsertSchema(quizzesTable).omit({ id: true, createdAt: true, updatedAt: true });
 export const insertQuizQuestionSchema = createInsertSchema(quizQuestionsTable).omit({ id: true, createdAt: true });

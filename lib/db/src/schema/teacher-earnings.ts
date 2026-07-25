@@ -1,4 +1,4 @@
-import { pgTable, serial, integer, numeric, varchar, timestamp, pgEnum } from "drizzle-orm/pg-core";
+import { pgTable, serial, integer, numeric, varchar, timestamp, pgEnum, index } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod/v4";
 import { usersTable } from "./users";
@@ -22,7 +22,9 @@ export const teacherEarningsTable = pgTable("teacher_earnings", {
   status: earningsStatusEnum("status").notNull().default("pending"),
   paidAt: timestamp("paid_at"),
   createdAt: timestamp("created_at").notNull().defaultNow(),
-});
+}, (t) => [
+  index("teacher_earnings_teacher_id_idx").on(t.teacherId),
+]);
 
 export const insertTeacherEarningSchema = createInsertSchema(teacherEarningsTable).omit({ id: true, createdAt: true });
 export type InsertTeacherEarning = z.infer<typeof insertTeacherEarningSchema>;

@@ -1,4 +1,4 @@
-import { pgTable, serial, integer, text, varchar, timestamp, numeric, pgEnum, boolean } from "drizzle-orm/pg-core";
+import { pgTable, serial, integer, text, varchar, timestamp, numeric, pgEnum, boolean, index } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod/v4";
 import { usersTable } from "./users";
@@ -26,7 +26,11 @@ export const liveSessionsTable = pgTable("live_sessions", {
   cancellationReason: text("cancellation_reason"),
   notificationSent: boolean("notification_sent").notNull().default(false),
   createdAt: timestamp("created_at").notNull().defaultNow(),
-});
+}, (t) => [
+  index("live_sessions_course_id_idx").on(t.courseId),
+  index("live_sessions_live_session_course_id_idx").on(t.liveSessionCourseId),
+  index("live_sessions_teacher_id_idx").on(t.teacherId),
+]);
 
 export const insertLiveSessionSchema = createInsertSchema(liveSessionsTable).omit({ id: true, createdAt: true });
 export type InsertLiveSession = z.infer<typeof insertLiveSessionSchema>;

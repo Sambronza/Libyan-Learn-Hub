@@ -1,4 +1,4 @@
-import { pgTable, serial, integer, numeric, timestamp } from "drizzle-orm/pg-core";
+import { pgTable, serial, integer, numeric, timestamp, index } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod/v4";
 import { coursesTable } from "./courses";
@@ -21,7 +21,10 @@ export const enrollmentsTable = pgTable("enrollments", {
   // Scheduler idempotency stamps
   expiryNotifiedAt: timestamp("expiry_notified_at"),
   expiredNotifiedAt: timestamp("expired_notified_at"),
-});
+}, (t) => [
+  index("enrollments_user_id_idx").on(t.userId),
+  index("enrollments_course_id_idx").on(t.courseId),
+]);
 
 export const insertEnrollmentSchema = createInsertSchema(enrollmentsTable).omit({ id: true, enrolledAt: true });
 export type InsertEnrollment = z.infer<typeof insertEnrollmentSchema>;

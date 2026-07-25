@@ -1,4 +1,4 @@
-import { pgTable, serial, integer, timestamp, boolean } from "drizzle-orm/pg-core";
+import { pgTable, serial, integer, timestamp, boolean, index } from "drizzle-orm/pg-core";
 import { usersTable } from "./users";
 import { liveSessionsTable } from "./live-sessions";
 
@@ -9,6 +9,9 @@ export const sessionRegistrationsTable = pgTable("session_registrations", {
   joinedAt: timestamp("joined_at"),
   leftAt: timestamp("left_at"),
   createdAt: timestamp("created_at").notNull().defaultNow(),
-});
+}, (t) => [
+  index("session_registrations_session_id_idx").on(t.sessionId),
+  index("session_registrations_user_id_idx").on(t.userId),
+]);
 
 export type SessionRegistration = typeof sessionRegistrationsTable.$inferSelect;
